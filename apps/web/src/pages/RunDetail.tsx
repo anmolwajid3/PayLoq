@@ -3,8 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import * as api from "../api";
 import type { Run } from "../api";
 import { useAuth } from "../auth";
+import { ArtifactViewer } from "../components/ArtifactViewer";
 import { BalanceHistoryChart, ProjectionChart } from "../components/CashChart";
 import { ChatDemo } from "../components/ChatDemo";
+import { SoftWarnings, ValidationPanel } from "../components/SoftWarnings";
+import { fmtEur, fmtPct } from "../lib/format";
 import { t } from "../i18n";
 
 export function RunDetailPage() {
@@ -53,6 +56,8 @@ export function RunDetailPage() {
   if (!run && !error) return <p className="muted">{t("loading", lang)}</p>;
 
   const summary = run?.pack_summary;
+  const soft = summary?.nl_soft_warnings || [];
+  const params = summary?.parameters;
 
   return (
     <div>
@@ -64,9 +69,7 @@ export function RunDetailPage() {
         <>
           <div className="section-head">
             <div>
-              <h1>
-                Run #{run.id}
-              </h1>
+              <h1>Run #{run.id}</h1>
               <p>
                 {run.source} · LLM {run.llm_adapter}
                 {run.llm_fallback_note ? ` (${run.llm_fallback_note})` : ""}
@@ -88,7 +91,7 @@ export function RunDetailPage() {
             {summary?.last_cash != null && (
               <div>
                 {t("lastCash", lang)}:{" "}
-                <strong>{Math.round(summary.last_cash).toLocaleString("fi-FI")} €</strong>
+                <strong>{fmtEur(summary.last_cash, lang)}</strong>
               </div>
             )}
             {summary?.open_invoices != null && (
@@ -100,39 +103,85 @@ export function RunDetailPage() {
 
           {run.error_message && <div className="error-banner">{run.error_message}</div>}
 
+          {run.llm_fallback_note && (
+            <div className="soft-banner soft-banner-info" role="status">
+              <strong>{t("llmFallback", lang)}</strong>
+              <span>{run.llm_fallback_note}</span>
+            </div>
+          )}
+
+          {soft.length > 0 && <SoftWarnings warnings={soft} lang={lang} />}
+
+          {run.from_text && (
+            <div className="panel">
+              <h3>{t("fromTextLabel", lang)}</h3>
+              <p className="quote-text">{run.from_text}</p>
+            </div>
+          )}
+
+          {params && (
+            <div className="panel">
+              <h3>{t("extractedParams", lang)}</h3>
+              <div className="summary-cards">
+                <div className="summary-card">
+                  <div className="summary-label">{t("revenueStart", lang)}</div>
+                  <div className="summary-value">{fmtEur(Number(params.monthly_revenue_start_eur), lang)}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-label">{t("growth", lang)}</div>
+                  <div className="summary-value">{fmtPct(Number(params.monthly_revenue_growth), lang)}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-label">{t("targetCash", lang)}</div>
+                  <div className="summary-value">{fmtEur(Number(params.target_cash_at_end_eur), lang)}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-label">{t("investment", lang)}</div>
+                  <div className="summary-value">{fmtEur(Number(params.special_investment_eur || 0), lang)}</div>
+                </div>
+              </div>
+              {params.notes != null && String(params.notes) && (
+                <p className="muted pack-note">
+                  <strong>{t("paramNotes", lang)}:</strong> {String(params.notes)}
+                </p>
+              )}
+            </div>
+          )}
+
           {summary?.description && (
             <div className="panel">
               <h3>{t("description", lang)}</h3>
-              <p>{lang === "fi" ? summary.description.fi : summary.description.en}</p>
+              <div className="bilingual-block">
+                <div>
+                  <span className="lang-chip">FI</span>
+                  <p>{summary.description.fi}</p>
+                </div>
+                <div>
+                  <span className="lang-chip">EN</span>
+                  <p>{summary.description.en}</p>
+                </div>
+              </div>
             </div>
           )}
 
           {summary?.balance_history && summary.balance_history.length > 0 && (
             <div className="panel">
               <h3>{t("cashHistory", lang)}</h3>
-              <BalanceHistoryChart data={summary.balance_history} />
+              <BalanceHistoryChart data={summary.balance_history} lang={lang} />
             </div>
           )}
 
           {summary?.projection && summary.projection.length > 0 && (
             <div className="panel">
               <h3>{t("cashProjection", lang)}</h3>
-              <ProjectionChart data={summary.projection} />
+              <ProjectionChart data={summary.projection} lang={lang} />
             </div>
           )}
 
           {run.status === "ok" && <ChatDemo runId={run.id} lang={lang} />}
 
           {run.validation_json && (
-            <div className="panel">
-              <h3>{t("validation", lang)}</h3>
-              {run.validation_json.issues.length === 0 && <p className="status-ok">{t("ok", lang)}</p>}
-              {run.validation_json.issues.map((issue) => (
-                <div key={`${issue.code}-${issue.message}`} className={`issue ${issue.severity}`}>
-                  [{issue.severity}] {issue.code}: {issue.message}
-                </div>
-              ))}
-            </div>
+            <ValidationPanel issues={run.validation_json.issues} lang={lang} />
           )}
 
           <div className="panel">
@@ -154,10 +203,10 @@ export function RunDetailPage() {
             )}
             <div className="artifact-list">
               {run.artifacts.map((name) => (
-                <div key={name} style={{ display: "flex", gap: "0.4rem" }}>
+                <div key={name} className="artifact-row">
                   {name.endsWith(".json") && (
-                    <button className="btn btn-ghost" type="button" onClick={() => viewJson(name)}>
-                      {t("viewJson", lang)}: {name}
+                    <button className="btn btn-primary" type="button" onClick={() => viewJson(name)}>
+                      {t("viewPack", lang)}: {name}
                     </button>
                   )}
                   <button
@@ -170,10 +219,17 @@ export function RunDetailPage() {
                 </div>
               ))}
             </div>
-            {jsonText && (
-              <div style={{ marginTop: "1rem" }}>
-                <h3>{jsonName}</h3>
-                <pre className="json-view">{jsonText}</pre>
+            {jsonText && jsonName && (
+              <div className="artifact-viewer-slot">
+                <ArtifactViewer
+                  filename={jsonName}
+                  text={jsonText}
+                  lang={lang}
+                  onClose={() => {
+                    setJsonText(null);
+                    setJsonName(null);
+                  }}
+                />
               </div>
             )}
           </div>

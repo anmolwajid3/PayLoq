@@ -18,15 +18,21 @@ from payloq_llm.adapters import (
     input_from_text,
 )
 from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
+from payloq_llm.nl_quality import assess_nl_params
 from payloq_schemas.models import GeneratorInput, ScenarioPack
 from payloq_validate.checks import validate_pack
 
 
-def _pack_summary(pack: ScenarioPack) -> dict[str, Any]:
+def _pack_summary(
+    pack: ScenarioPack,
+    *,
+    nl_soft_warnings: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
     cash = pack.cash_and_invoices
     months = pack.monthly_reports.months
     last = months[-1] if months else None
     projection = cash.projection_from_open_invoices
+    params = pack.input.parameters_from_language_model
     return {
         "scenario": pack.input.options.scenario_id or pack.input.meta.scenario,
         "months": len(months),
@@ -48,6 +54,8 @@ def _pack_summary(pack: ScenarioPack) -> dict[str, Any]:
             for w in projection
         ],
         "description": pack.input.scenario_description.model_dump(),
+        "parameters": params.model_dump(),
+        "nl_soft_warnings": nl_soft_warnings or [],
     }
 
 
@@ -164,11 +172,16 @@ def run_from_text(
         pack = generate_pack(inp, seed=seed)
         write_pack(pack, out_dir, write_xlsx=write_xlsx, write_journal=write_journal)
         ok, validation = _validation_dict(pack)
+        soft = assess_nl_params(
+            text,
+            pack.input.parameters_from_language_model.model_dump(),
+            language=language,
+        )
         run.status = "ok" if ok else "error"
         run.artifact_dir = str(out_dir.resolve())
         run.validation_ok = ok
         run.validation_json = validation
-        run.pack_summary = _pack_summary(pack)
+        run.pack_summary = _pack_summary(pack, nl_soft_warnings=soft)
         if not ok:
             run.error_message = "Generated pack failed validation"
 

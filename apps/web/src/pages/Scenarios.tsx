@@ -22,7 +22,7 @@ export function ScenariosPage() {
       <div className="section-head">
         <div>
           <h1>{t("scenarios", lang)}</h1>
-          <p className="muted">good · weak · cash_critical</p>
+          <p className="muted">{t("scenariosHint", lang)}</p>
         </div>
         <Link className="btn btn-primary" to="/generate">
           {t("generate", lang)}

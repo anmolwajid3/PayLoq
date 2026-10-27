@@ -10,6 +10,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { Lang } from "../i18n";
+import { t } from "../i18n";
+import { fmtEur } from "../lib/format";
 
 const tooltipStyle = {
   background: "#123f3c",
@@ -18,18 +21,12 @@ const tooltipStyle = {
   color: "#e8f2ef",
 };
 
-function fmtEur(v: number) {
-  return new Intl.NumberFormat("fi-FI", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(v);
-}
-
 export function BalanceHistoryChart({
   data,
+  lang = "fi",
 }: {
   data: { date: string; balance: number }[];
+  lang?: Lang;
 }) {
   return (
     <div className="chart-wrap">
@@ -44,14 +41,14 @@ export function BalanceHistoryChart({
           <CartesianGrid stroke="rgba(232,242,239,0.08)" vertical={false} />
           <XAxis dataKey="date" tick={{ fill: "#a7c4bf", fontSize: 12 }} minTickGap={28} />
           <YAxis tick={{ fill: "#a7c4bf", fontSize: 12 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtEur(Number(v))} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtEur(Number(v), lang)} />
           <Area
             type="monotone"
             dataKey="balance"
             stroke="#d4a017"
             fill="url(#cashFill)"
             strokeWidth={2}
-            name="Cash"
+            name={t("cash", lang)}
             animationDuration={900}
           />
         </AreaChart>
@@ -62,6 +59,7 @@ export function BalanceHistoryChart({
 
 export function ProjectionChart({
   data,
+  lang = "fi",
 }: {
   data: {
     week: number;
@@ -70,6 +68,7 @@ export function ProjectionChart({
     sales_inflow: number;
     purchase_outflow: number;
   }[];
+  lang?: Lang;
 }) {
   const rows = data.map((d) => ({
     ...d,
@@ -82,7 +81,7 @@ export function ProjectionChart({
           <CartesianGrid stroke="rgba(232,242,239,0.08)" vertical={false} />
           <XAxis dataKey="label" tick={{ fill: "#a7c4bf", fontSize: 12 }} />
           <YAxis tick={{ fill: "#a7c4bf", fontSize: 12 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtEur(Number(v))} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtEur(Number(v), lang)} />
           <Legend />
           <Line
             type="monotone"
@@ -90,7 +89,7 @@ export function ProjectionChart({
             stroke="#3dbf8f"
             strokeWidth={2.5}
             dot={{ r: 3 }}
-            name="Projected balance"
+            name={t("projectedBalance", lang)}
             animationDuration={900}
           />
           <Line
@@ -99,7 +98,7 @@ export function ProjectionChart({
             stroke="#f0d78a"
             strokeWidth={1.5}
             strokeDasharray="4 4"
-            name="Sales inflow"
+            name={t("salesInflow", lang)}
             animationDuration={1100}
           />
           <Line
@@ -108,7 +107,7 @@ export function ProjectionChart({
             stroke="#e07060"
             strokeWidth={1.5}
             strokeDasharray="4 4"
-            name="Purchase outflow"
+            name={t("purchaseOutflow", lang)}
             animationDuration={1100}
           />
         </LineChart>

@@ -44,6 +44,14 @@ export type Run = {
       projected_balance: number;
     }[];
     description?: { fi: string; en: string };
+    parameters?: Record<string, unknown>;
+    nl_soft_warnings?: {
+      code: string;
+      severity?: string;
+      message_fi?: string;
+      message_en?: string;
+      message?: string;
+    }[];
   } | null;
   from_text: string | null;
   created_at: string;

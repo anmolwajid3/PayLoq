@@ -107,6 +107,11 @@ def test_generate_from_text_stub(client: TestClient):
     assert body["source"] == "from_text"
     assert body["llm_adapter"] == "stub"
     assert "journal_entries.json" in body["artifacts"]
+    soft = (body.get("pack_summary") or {}).get("nl_soft_warnings") or []
+    assert isinstance(soft, list)
+    # Stub heuristics + critical NL should surface at least the stub soft-hint.
+    assert any(w.get("code") == "nl_stub_heuristic" for w in soft)
+    assert (body.get("pack_summary") or {}).get("parameters")
 
 
 def test_chat_demo_on_run(client: TestClient):

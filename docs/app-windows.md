@@ -27,6 +27,8 @@ Start Docker Desktop and wait until it says Docker is running.
 cd /d C:\Users\anmol\Desktop\PayLoq & git fetch origin & git checkout main & git pull origin main
 ```
 
+Pack JSON files open as **visual views** (tables / charts / cards) with **Raw JSON** as a secondary tab. NL→params soft-warnings show on from-text runs (non-blocking).
+
 ### 3. Start Postgres + API + web
 
 ```bat

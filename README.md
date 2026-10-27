@@ -8,7 +8,7 @@ Everything is **synthetic / fictional**. MIT licensed. Designed for **CPU-friend
 
 ## App UI (API + web + DB)
 
-Full-stack experimental UI: browse/create scenarios, generate packs (preset or NL), view JSON/Excel, validation, and cash charts.
+Full-stack experimental UI: browse/create scenarios, generate packs (preset or NL), **visual pack views** (tables / charts / summary cards; raw JSON as a secondary tab), validation with soft NL→params warnings, and FI/EN labels.
 
 **Login:** `payloq` / `payloq` · **UI:** http://localhost:5173 · **API docs:** http://localhost:8000/docs
 

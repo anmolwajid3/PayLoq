@@ -22,6 +22,7 @@ from payloq_llm.defaults import (
     RECOMMENDED_CPU_MODELS,
     recommended_ollama_tags,
 )
+from payloq_llm.nl_quality import assess_nl_params
 
 __all__ = [
     "DEFAULT_OLLAMA_HOST",
@@ -33,6 +34,7 @@ __all__ = [
     "LlmAdapter",
     "OllamaAdapter",
     "StubLlmAdapter",
+    "assess_nl_params",
     "build_chat_figures",
     "get_adapter",
     "input_from_descriptions",

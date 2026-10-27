@@ -42,7 +42,7 @@ export function GeneratePage() {
       <div className="section-head">
         <div>
           <h1>{t("fromText", lang)}</h1>
-          <p className="muted">stub / Ollama → params → pack</p>
+          <p className="muted">{t("fromTextHint", lang)}</p>
         </div>
       </div>
       {error && <div className="error-banner">{error}</div>}

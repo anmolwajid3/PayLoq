@@ -508,6 +508,294 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.soft-banner {
+  background: rgba(212, 160, 23, 0.1);
+  border: 1px solid rgba(212, 160, 23, 0.35);
+  color: var(--accent-soft);
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.soft-banner-info {
+  background: rgba(61, 191, 143, 0.08);
+  border-color: rgba(61, 191, 143, 0.3);
+  color: var(--ink);
+}
+
+.soft-banner-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  margin-bottom: 0.45rem;
+}
+
+.soft-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.soft-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  margin-right: 0.45rem;
+}
+
+.issue-group {
+  margin-top: 0.75rem;
+}
+
+.issue-group h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.issue-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.45rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(224, 112, 96, 0.45);
+  color: var(--danger);
+}
+
+.issue-tag.warn {
+  border-color: rgba(212, 160, 23, 0.45);
+  color: var(--accent-soft);
+}
+
+.artifact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.artifact-viewer-slot {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.artifact-viewer-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.artifact-title {
+  font-family: var(--font-display);
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.tab-btn.active {
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border-color: rgba(212, 160, 23, 0.45);
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.65rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.summary-card {
+  padding: 0.7rem 0.8rem;
+  border-bottom: 2px solid var(--line);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.summary-card.tone-ok {
+  border-bottom-color: var(--ok);
+}
+
+.summary-card.tone-warn {
+  border-bottom-color: var(--accent);
+}
+
+.summary-card.tone-danger {
+  border-bottom-color: var(--danger);
+}
+
+.summary-label {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  margin-bottom: 0.25rem;
+}
+
+.summary-value {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.summary-hint {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.pack-view {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.pack-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.pack-section h4 {
+  font-family: var(--font-display);
+  margin: 0 0 0.65rem;
+  font-size: 1.1rem;
+}
+
+.pack-note {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.92rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  max-width: 100%;
+  margin-top: 0.5rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.data-table th {
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.data-table.compact th,
+.data-table.compact td {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.85rem;
+}
+
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.data-table .num.neg,
+.row-danger td {
+  color: #ffc4bc;
+}
+
+.row-warn td {
+  color: var(--accent-soft);
+}
+
+.key-cell {
+  color: var(--ink-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.bilingual-block {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 720px) {
+  .bilingual-block {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+}
+
+.bilingual-block p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-muted);
+}
+
+.lang-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid rgba(212, 160, 23, 0.35);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+}
+
+.quote-text {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  background: rgba(0, 0, 0, 0.18);
+  border-left: 3px solid var(--accent);
+  color: var(--ink-muted);
+}
+
+.chart-wrap-sm {
+  height: 200px;
+}
+
+.btn-tiny {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.nested-table {
+  margin: 0.35rem 0 0.6rem;
+  background: rgba(0, 0, 0, 0.15);
+}
+
 @media (max-width: 640px) {
   .topbar {
     flex-direction: column;

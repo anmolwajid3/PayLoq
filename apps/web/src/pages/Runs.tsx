@@ -22,7 +22,7 @@ export function RunsPage() {
       <div className="section-head">
         <div>
           <h1>{t("runs", lang)}</h1>
-          <p className="muted">JSON · Excel · validation · charts</p>
+          <p className="muted">{t("runsHint", lang)}</p>
         </div>
       </div>
       {error && <div className="error-banner">{error}</div>}
