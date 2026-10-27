@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from payloq_llm.defaults import RECOMMENDED_CPU_MODELS
+
 
 @dataclass
 class ModelSpec:
@@ -17,6 +19,7 @@ class ModelSpec:
     model: str | None = None  # Ollama tag, e.g. llama3.2:1b
     host: str | None = None
     fallback_stub: bool = True
+    tier: str = "custom"  # baseline | recommended | optional | custom
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | str) -> ModelSpec:
@@ -28,6 +31,7 @@ class ModelSpec:
             model=data.get("model"),
             host=data.get("host"),
             fallback_stub=bool(data.get("fallback_stub", True)),
+            tier=str(data.get("tier") or "custom"),
         )
 
 
@@ -38,12 +42,24 @@ def parse_model_token(token: str) -> ModelSpec:
       ollama
       ollama:llama3.2:1b
       ollama/llama3.2:1b
+      shortlist   → recommended CPU shortlist (stub + llama3.2:1b + optional)
+      shortlist:recommended → stub + llama3.2:1b only
     """
     token = token.strip()
     if not token or token == "stub":
-        return ModelSpec(id="stub", adapter="stub")
+        return ModelSpec(id="stub", adapter="stub", tier="baseline")
+    if token in {"shortlist", "cpu-shortlist", "shortlist:all"}:
+        # Sentinel — expanded in from_cli / expand_model_tokens
+        return ModelSpec(id="__shortlist__", adapter="shortlist", tier="recommended")
+    if token == "shortlist:recommended":
+        return ModelSpec(id="__shortlist_recommended__", adapter="shortlist", tier="recommended")
     if token == "ollama":
-        return ModelSpec(id="ollama:llama3.2:1b", adapter="ollama", model="llama3.2:1b")
+        return ModelSpec(
+            id="ollama:llama3.2:1b",
+            adapter="ollama",
+            model="llama3.2:1b",
+            tier="recommended",
+        )
     if token.startswith("ollama:"):
         tag = token[len("ollama:") :]
         return ModelSpec(id=f"ollama:{tag}", adapter="ollama", model=tag)
@@ -54,8 +70,48 @@ def parse_model_token(token: str) -> ModelSpec:
     if ":" in token or token.endswith("b"):
         return ModelSpec(id=f"ollama:{token}", adapter="ollama", model=token)
     raise ValueError(
-        f"Unknown model token '{token}'. Use stub, ollama, ollama:<tag>, or a matrix config JSON."
+        f"Unknown model token '{token}'. Use stub, ollama, ollama:<tag>, "
+        "shortlist, or a matrix config JSON."
     )
+
+
+def expand_model_tokens(tokens: list[str] | list[ModelSpec]) -> list[ModelSpec]:
+    """Expand shortlist sentinels into concrete ModelSpec rows."""
+    out: list[ModelSpec] = []
+    for token in tokens:
+        if isinstance(token, ModelSpec):
+            if token.adapter == "shortlist":
+                include_optional = token.id != "__shortlist_recommended__"
+                out.extend(cpu_shortlist_specs(include_optional=include_optional))
+            else:
+                out.append(token)
+            continue
+        spec = parse_model_token(token)
+        if spec.adapter == "shortlist":
+            include_optional = spec.id != "__shortlist_recommended__"
+            out.extend(cpu_shortlist_specs(include_optional=include_optional))
+        else:
+            out.append(spec)
+    # De-dupe by id, preserve order
+    seen: set[str] = set()
+    unique: list[ModelSpec] = []
+    for m in out:
+        if m.id in seen:
+            continue
+        seen.add(m.id)
+        unique.append(m)
+    return unique
+
+
+def cpu_shortlist_specs(*, include_optional: bool = True) -> list[ModelSpec]:
+    """Official CPU-friendly shortlist as ModelSpec list."""
+    specs: list[ModelSpec] = []
+    for row in RECOMMENDED_CPU_MODELS:
+        tier = str(row.get("tier") or "custom")
+        if not include_optional and tier == "optional":
+            continue
+        specs.append(ModelSpec.from_dict(row))
+    return specs
 
 
 @dataclass
@@ -78,6 +134,8 @@ class BenchmarkConfig:
     hardware_note: str = "CPU-friendly local workstation"
     judge: JudgeConfig | dict[str, Any] = field(default_factory=JudgeConfig)
     write_spotcheck: bool = True
+    # When True, skip ollama:* cells if the host is unreachable (stub still runs).
+    skip_unavailable: bool = True
     cost_eur_per_1k_tokens: float | None = None
     interpretation_question_fi: str = (
         "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä."
@@ -91,14 +149,26 @@ class BenchmarkConfig:
         normalized: list[ModelSpec] = []
         for m in self.models:
             if isinstance(m, ModelSpec):
-                normalized.append(m)
+                if m.adapter == "shortlist":
+                    include_optional = m.id != "__shortlist_recommended__"
+                    normalized.extend(cpu_shortlist_specs(include_optional=include_optional))
+                else:
+                    normalized.append(m)
             elif isinstance(m, str):
-                normalized.append(parse_model_token(m))
+                normalized.extend(expand_model_tokens([m]))
             elif isinstance(m, dict):
                 normalized.append(ModelSpec.from_dict(m))
             else:
                 raise TypeError(f"Unsupported model entry: {m!r}")
-        self.models = normalized
+        # De-dupe
+        seen: set[str] = set()
+        unique: list[ModelSpec] = []
+        for m in normalized:
+            if m.id in seen:
+                continue
+            seen.add(m.id)
+            unique.append(m)
+        self.models = unique
         if isinstance(self.judge, dict):
             j = self.judge
             self.judge = JudgeConfig(
@@ -108,7 +178,6 @@ class BenchmarkConfig:
                 host=j.get("host"),
             )
 
-    # Back-compat: allow list[str] assignment via factory helpers
     @staticmethod
     def from_cli(
         *,
@@ -121,6 +190,7 @@ class BenchmarkConfig:
         ollama_host: str | None = None,
         scenarios_root: Path | None = None,
         seed: int = 42,
+        skip_unavailable: bool | None = None,
     ) -> BenchmarkConfig:
         if config_path:
             cfg = load_matrix_config(Path(config_path))
@@ -131,6 +201,8 @@ class BenchmarkConfig:
             if judge:
                 cfg.judge.enabled = True
             cfg.write_spotcheck = spotcheck
+            if skip_unavailable is not None:
+                cfg.skip_unavailable = skip_unavailable
             if ollama_host:
                 for m in cfg.models:
                     if m.adapter == "ollama" and not m.host:
@@ -139,7 +211,8 @@ class BenchmarkConfig:
                     cfg.judge.host = ollama_host
             return cfg
 
-        model_specs = [parse_model_token(m) for m in models.split(",") if m.strip()]
+        tokens = [m.strip() for m in models.split(",") if m.strip()]
+        model_specs = expand_model_tokens(tokens)
         if ollama_host:
             for m in model_specs:
                 if m.adapter == "ollama":
@@ -152,6 +225,7 @@ class BenchmarkConfig:
             seed=seed,
             judge=JudgeConfig(enabled=judge, adapter="stub" if not judge else "ollama"),
             write_spotcheck=spotcheck,
+            skip_unavailable=True if skip_unavailable is None else skip_unavailable,
         )
 
 
@@ -173,6 +247,7 @@ def load_matrix_config(path: Path) -> BenchmarkConfig:
         hardware_note=str(data.get("hardware_note") or "CPU-friendly local workstation"),
         judge=judge,
         write_spotcheck=bool(data.get("write_spotcheck", True)),
+        skip_unavailable=bool(data.get("skip_unavailable", True)),
         cost_eur_per_1k_tokens=data.get("cost_eur_per_1k_tokens"),
         interpretation_question_fi=str(
             data.get("interpretation_question_fi")
@@ -190,12 +265,14 @@ DEFAULT_MATRIX_EXAMPLE: dict[str, Any] = {
     "hardware_note": "CPU-friendly local workstation (Anmol Desktop first)",
     "seed": 42,
     "write_spotcheck": True,
+    "skip_unavailable": True,
     "models": [
-        {"id": "stub", "adapter": "stub"},
+        {"id": "stub", "adapter": "stub", "tier": "baseline"},
         {
             "id": "ollama:llama3.2:1b",
             "adapter": "ollama",
             "model": "llama3.2:1b",
+            "tier": "recommended",
             "fallback_stub": True,
         },
     ],

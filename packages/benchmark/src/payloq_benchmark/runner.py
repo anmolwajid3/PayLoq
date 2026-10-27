@@ -10,13 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from payloq_generator.engine import generate_pack, load_input
-from payloq_llm.adapters import FallbackAdapter, LlmAdapter, get_adapter
+from payloq_llm.adapters import FallbackAdapter, LlmAdapter, OllamaAdapter, get_adapter
 from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
 
 from payloq_benchmark.config import BenchmarkConfig, ModelSpec  # noqa: F401 — re-exported
 from payloq_benchmark.graders import (
     DEFAULT_PROBES,
     GradeDetail,
+    grade_fi_quality,
     grade_interpretation,
     grade_parameters,
     grade_probes,
@@ -28,6 +29,12 @@ from payloq_benchmark.metrics import (
     estimate_cost_eur,
 )
 from payloq_benchmark.pack_summary import build_pack_summary
+from payloq_benchmark.scorecard import (
+    fi_band_label,
+    write_runs_csv,
+    write_scorecard_csv,
+    write_scorecard_json,
+)
 from payloq_benchmark.spotcheck import write_spotcheck_csv, write_spotcheck_readme
 from payloq_benchmark.store import MetricsStore
 
@@ -37,6 +44,7 @@ class ModelRunMetrics:
     model: str
     scenario_id: str
     adapter: str = "stub"
+    status: str = "ok"  # ok | skipped
     latency_ms: float = 0.0
     tokens_in: int | None = None
     tokens_out: int | None = None
@@ -45,6 +53,7 @@ class ModelRunMetrics:
     reading_score: float | None = None
     mom_score: float | None = None
     interpretation_score: float | None = None
+    fi_quality_score: float | None = None
     judge_score: float | None = None
     rough_cost_eur: float | None = None
     notes: str = ""
@@ -77,6 +86,8 @@ def _resolve_adapter(spec: ModelSpec) -> LlmAdapter:
     if spec.adapter == "stub":
         return get_adapter("stub")
     if spec.adapter == "ollama":
+        # When skip_unavailable handles missing hosts, still wrap with fallback
+        # only if the caller wants stub contamination on hard call failures.
         return get_adapter(
             "ollama",
             fallback_stub=spec.fallback_stub,
@@ -84,6 +95,12 @@ def _resolve_adapter(spec: ModelSpec) -> LlmAdapter:
             host=spec.host or DEFAULT_OLLAMA_HOST,
         )
     raise ValueError(f"Unknown adapter '{spec.adapter}' for model id '{spec.id}'")
+
+
+def _ollama_host_available(spec: ModelSpec) -> bool:
+    host = spec.host or DEFAULT_OLLAMA_HOST
+    probe = OllamaAdapter(model=spec.model or DEFAULT_OLLAMA_MODEL, host=host)
+    return probe.is_available()
 
 
 def _pop_adapter_metrics(adapter: LlmAdapter) -> CallMetrics | None:
@@ -184,7 +201,7 @@ def _run_one(
     reading_score = float(probe_grade.per_field.get("_reading", probe_grade.score))
     mom_score = float(probe_grade.per_field.get("_mom", probe_grade.score))
 
-    # --- (c) interpretation rubric ---
+    # --- (c) interpretation rubric + separate FI band ---
     question = (
         config.interpretation_question_fi
         if lang == "fi"
@@ -202,7 +219,9 @@ def _run_one(
     call_metrics = call_metrics.merge(_pop_adapter_metrics(adapter))
 
     interp_grade = grade_interpretation(interpretation, pack_summary, language=lang)
+    fi_grade = grade_fi_quality(interpretation, expected_language=lang)
     detail["interpretation"] = interp_grade.as_dict()
+    detail["fi_quality"] = fi_grade.as_dict()
     detail["interpretation_answer"] = interpretation
     detail["interpretation_question"] = question
 
@@ -237,6 +256,7 @@ def _run_one(
         model=spec.id,
         scenario_id=sid,
         adapter=spec.adapter,
+        status="ok",
         latency_ms=round(call_metrics.latency_ms, 3),
         tokens_in=call_metrics.tokens_in,
         tokens_out=call_metrics.tokens_out,
@@ -245,6 +265,7 @@ def _run_one(
         reading_score=round(reading_score, 4),
         mom_score=round(mom_score, 4),
         interpretation_score=interp_grade.score,
+        fi_quality_score=fi_grade.score,
         judge_score=judge_score,
         rough_cost_eur=cost,
         notes="; ".join(notes_parts) if notes_parts else config.hardware_note,
@@ -259,14 +280,18 @@ def run_benchmark(
     batch_id: str | None = None,
 ) -> BenchmarkResult:
     """
-    Full Phase 3 matrix run.
+    Full model-matrix run (Phase 3 + PL-7 scorecard).
 
     For each model × scenario:
       1. Extract parameters from NL description → grade vs key
       2. Generate pack from *key* params (code-owned figures)
       3. Numeric reading / MoM probes
-      4. Interpretation rubric (+ optional LLM judge)
-      5. Persist JSON + SQLite under config.out_dir
+      4. Interpretation rubric + separate FI quality band (+ optional LLM judge)
+      5. Persist JSON + CSV + SQLite under config.out_dir
+
+    Ollama cells: when ``skip_unavailable`` and the host is down, those models
+    are skipped (stub still always runs). Live Ollama integration tests skip
+    the same way when no daemon is present.
     """
     root = Path(scenarios_root or config.scenarios_root or Path.cwd())
     out_dir = Path(config.out_dir)
@@ -288,8 +313,24 @@ def run_benchmark(
 
     runs: list[ModelRunMetrics] = []
     spot_rows: list[dict[str, Any]] = []
+    skipped_models: list[dict[str, Any]] = []
+    availability_cache: dict[str, bool] = {}
 
     for spec in config.models:
+        if spec.adapter == "ollama" and config.skip_unavailable:
+            cache_key = spec.host or DEFAULT_OLLAMA_HOST
+            if cache_key not in availability_cache:
+                availability_cache[cache_key] = _ollama_host_available(spec)
+            if not availability_cache[cache_key]:
+                skipped_models.append(
+                    {
+                        "model": spec.id,
+                        "adapter": spec.adapter,
+                        "reason": f"Ollama not reachable at {cache_key}",
+                    }
+                )
+                continue
+
         adapter = _resolve_adapter(spec)
         for sid in config.scenario_ids:
             path = _scenario_input_path(root, sid)
@@ -324,6 +365,7 @@ def run_benchmark(
                     "question": row.detail.get("interpretation_question", ""),
                     "model_answer": row.detail.get("interpretation_answer", ""),
                     "interpretation_score": row.interpretation_score,
+                    "fi_quality_score": row.fi_quality_score,
                     "judge_score": row.judge_score,
                 }
             )
@@ -344,6 +386,7 @@ def run_benchmark(
             reading_score=r.reading_score,
             mom_score=r.mom_score,
             interpretation_score=r.interpretation_score,
+            fi_quality_score=r.fi_quality_score,
             judge_score=r.judge_score,
             rough_cost_eur=r.rough_cost_eur,
             notes=r.notes,
@@ -355,17 +398,43 @@ def run_benchmark(
         "batch_id": batch_id,
         "n_runs": len(runs),
         "models": [m.id for m in config.models],
+        "models_run": sorted({r.model for r in runs}),
         "scenarios": config.scenario_ids,
-        "status": "phase3",
+        "status": "phase7",
+        "skip_unavailable": config.skip_unavailable,
+        "skipped_models": skipped_models,
         "hardware": hardware.as_dict(),
         "by_model": by_model,
         "sqlite": str(out_dir / "metrics.sqlite"),
+        "scorecard_json": str(out_dir / "scorecard.json"),
+        "scorecard_csv": str(out_dir / "scorecard.csv"),
+        "runs_csv": str(out_dir / "runs.csv"),
+        "fi_band_notes": (
+            "FI quality is a separate band; EN-only answers on FI prompts get a low "
+            "fi_quality_score without failing the main interpretation rubric."
+        ),
     }
     result = BenchmarkResult(batch_id=batch_id, runs=runs, summary=summary, out_dir=out_dir)
     result.write(out_dir / "results.json")
-    (out_dir / "scorecard.json").write_text(
-        json.dumps({"batch_id": batch_id, "by_model": by_model}, indent=2) + "\n",
-        encoding="utf-8",
+
+    write_scorecard_json(
+        out_dir / "scorecard.json",
+        batch_id=batch_id,
+        by_model=by_model,
+        skipped_models=skipped_models,
+        notes={"fi_band": summary["fi_band_notes"]},
+    )
+    write_scorecard_csv(out_dir / "scorecard.csv", batch_id=batch_id, by_model=by_model)
+    write_runs_csv(
+        out_dir / "runs.csv",
+        batch_id=batch_id,
+        runs=[
+            {
+                **{k: v for k, v in asdict(r).items() if k != "detail"},
+                "fi_band": fi_band_label(r.fi_quality_score),
+            }
+            for r in runs
+        ],
     )
 
     if config.write_spotcheck:

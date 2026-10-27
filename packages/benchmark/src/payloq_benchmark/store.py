@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
   reading_score REAL,
   mom_score REAL,
   interpretation_score REAL,
+  fi_quality_score REAL,
   judge_score REAL,
   rough_cost_eur REAL,
   notes TEXT,
@@ -35,6 +36,9 @@ CREATE INDEX IF NOT EXISTS idx_benchmark_runs_batch ON benchmark_runs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_benchmark_runs_model ON benchmark_runs(model);
 """
 
+# Older Phase-3 DBs may lack fi_quality_score — add if missing.
+_MIGRATE_FI = "ALTER TABLE benchmark_runs ADD COLUMN fi_quality_score REAL"
+
 
 class MetricsStore:
     """Lightweight SQLite store for benchmark scorecards."""
@@ -44,6 +48,16 @@ class MetricsStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as conn:
             conn.executescript(SCHEMA)
+            cols = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(benchmark_runs)").fetchall()
+            }
+            if "fi_quality_score" not in cols:
+                try:
+                    conn.execute(_MIGRATE_FI)
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
@@ -65,6 +79,7 @@ class MetricsStore:
         reading_score: float | None = None,
         mom_score: float | None = None,
         interpretation_score: float | None = None,
+        fi_quality_score: float | None = None,
         judge_score: float | None = None,
         rough_cost_eur: float | None = None,
         notes: str = "",
@@ -79,9 +94,9 @@ class MetricsStore:
                   batch_id, created_at, model, adapter, scenario_id,
                   latency_ms, tokens_in, tokens_out, hardware,
                   parameter_score, reading_score, mom_score,
-                  interpretation_score, judge_score, rough_cost_eur,
+                  interpretation_score, fi_quality_score, judge_score, rough_cost_eur,
                   notes, detail_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     batch_id,
@@ -97,6 +112,7 @@ class MetricsStore:
                     reading_score,
                     mom_score,
                     interpretation_score,
+                    fi_quality_score,
                     judge_score,
                     rough_cost_eur,
                     notes,
@@ -123,6 +139,7 @@ class MetricsStore:
                        AVG(reading_score) AS avg_reading,
                        AVG(mom_score) AS avg_mom,
                        AVG(interpretation_score) AS avg_interpretation,
+                       AVG(fi_quality_score) AS avg_fi_quality,
                        AVG(judge_score) AS avg_judge,
                        AVG(latency_ms) AS avg_latency_ms,
                        SUM(COALESCE(tokens_in,0) + COALESCE(tokens_out,0)) AS tokens_total,
