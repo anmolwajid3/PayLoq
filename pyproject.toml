@@ -1,0 +1,54 @@
+[project]
+name = "payloq"
+version = "0.1.0"
+description = "PayLoq research PoC — synthetic financial data generator and local LLM benchmark"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "PayLoq contributors" }]
+dependencies = [
+  "payloq-schemas",
+  "payloq-generator",
+  "payloq-validate",
+  "payloq-export-xlsx",
+  "payloq-llm",
+  "payloq-benchmark",
+  "payloq-cli",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+  "packages/schemas",
+  "packages/generator",
+  "packages/validate",
+  "packages/export_xlsx",
+  "packages/llm",
+  "packages/benchmark",
+  "apps/cli",
+]
+
+[tool.uv.sources]
+payloq-schemas = { workspace = true }
+payloq-generator = { workspace = true }
+payloq-validate = { workspace = true }
+payloq-export-xlsx = { workspace = true }
+payloq-llm = { workspace = true }
+payloq-benchmark = { workspace = true }
+payloq-cli = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "fictional": true,
+    "note": "Built-in good scenario. Parameters are hand-authored; figures are produced by code.",
+    "scenario": "good"
+  },
+  "scenario_description": {
+    "fi": "Pieni konepaja, hyvä kassatilanne ja tasainen kasvu.",
+    "en": "A small machine shop with a healthy cash position and steady growth."
+  },
+  "options": {
+    "industry": "metal workshop (machine shop)",
+    "company_size": "small (revenue about 2.3 M EUR / year)",
+    "months": 12,
+    "language": "fi",
+    "currency": "EUR",
+    "scenario_id": "good",
+    "as_of": "2026-10-31"
+  },
+  "parameters_from_language_model": {
+    "monthly_revenue_start_eur": 205000,
+    "monthly_revenue_growth": 0.008,
+    "cost_shares_of_revenue": {
+      "materials": 0.36,
+      "services": 0.08,
+      "personnel": 0.33,
+      "other": 0.14
+    },
+    "days_sales_outstanding": 38,
+    "days_payables_outstanding": 31,
+    "target_cash_at_end_eur": 330000,
+    "special_investment_eur": 0,
+    "notes": "Healthy growth; costs scale with revenue.",
+    "partly_fixed_costs": false
+  }
+}

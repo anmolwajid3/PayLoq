@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "fictional": true,
+    "note": "Built-in weak scenario. Parameters are hand-authored; figures are produced by code.",
+    "scenario": "weak"
+  },
+  "scenario_description": {
+    "fi": "Pieni konepaja, liikevaihto laskee ja kulut pysyvät ennallaan, tulos on tappiollinen ja kassa hupenee.",
+    "en": "A small machine shop whose revenue is falling while costs stay the same; the result is a loss and cash is shrinking."
+  },
+  "options": {
+    "industry": "metal workshop (machine shop)",
+    "company_size": "small (revenue about 2.3 M EUR / year)",
+    "months": 12,
+    "language": "fi",
+    "currency": "EUR",
+    "scenario_id": "weak",
+    "as_of": "2026-10-31"
+  },
+  "parameters_from_language_model": {
+    "monthly_revenue_start_eur": 190000,
+    "monthly_revenue_growth": -0.012,
+    "cost_shares_of_revenue": {
+      "materials": 0.38,
+      "services": 0.08,
+      "personnel": 0.36,
+      "other": 0.16
+    },
+    "days_sales_outstanding": 47,
+    "days_payables_outstanding": 36,
+    "target_cash_at_end_eur": 85000,
+    "special_investment_eur": 70000,
+    "notes": "Personnel and other costs are partly fixed.",
+    "partly_fixed_costs": true
+  }
+}

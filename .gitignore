@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg
+
+# Artifacts
+runs/*
+!runs/.gitkeep
+out/
+*.xlsx
+!scenarios/**/*.xlsx
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Env / secrets
+.env
+.env.*

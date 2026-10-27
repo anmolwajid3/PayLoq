@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "fictional": true,
+    "note": "Built-in cash_critical scenario. Parameters are hand-authored; figures are produced by code.",
+    "scenario": "cash_critical"
+  },
+  "scenario_description": {
+    "fi": "Pieni konepaja, tulos on positiivinen mutta kassa on tiukalla nyt ja kriittinen kolmen viikon päästä, koska isot ostolaskut erääntyvät ennen myyntilaskujen maksuja.",
+    "en": "A small machine shop with a positive result but a tight cash position that becomes critical in three weeks, because large purchase invoices fall due before sales invoices are paid."
+  },
+  "options": {
+    "industry": "metal workshop (machine shop)",
+    "company_size": "small (revenue about 2.3 M EUR / year)",
+    "months": 12,
+    "language": "fi",
+    "currency": "EUR",
+    "scenario_id": "cash_critical",
+    "as_of": "2026-10-31"
+  },
+  "parameters_from_language_model": {
+    "monthly_revenue_start_eur": 192000,
+    "monthly_revenue_growth": 0.0,
+    "cost_shares_of_revenue": {
+      "materials": 0.37,
+      "services": 0.08,
+      "personnel": 0.34,
+      "other": 0.145
+    },
+    "days_sales_outstanding": 44,
+    "days_payables_outstanding": 33,
+    "target_cash_at_end_eur": 45000,
+    "special_investment_eur": 80000,
+    "notes": "Positive P&L; purchase invoices cluster before sales collections (~week 3).",
+    "partly_fixed_costs": true
+  }
+}
