@@ -3,12 +3,14 @@
   "hardware_note": "CPU-friendly local workstation (Anmol Desktop first)",
   "seed": 42,
   "write_spotcheck": true,
+  "skip_unavailable": true,
   "models": [
-    { "id": "stub", "adapter": "stub" },
+    { "id": "stub", "adapter": "stub", "tier": "baseline" },
     {
       "id": "ollama:llama3.2:1b",
       "adapter": "ollama",
       "model": "llama3.2:1b",
+      "tier": "recommended",
       "fallback_stub": true
     }
   ],

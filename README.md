@@ -112,23 +112,31 @@ cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --scenario weak --o
 
 In the UI, open a successful run → **Chat demo** panel. Details: [docs/phase8-stretch.md](docs/phase8-stretch.md).
 
-### Phase 3: benchmark harness
+### Benchmark + Ollama scorecard
 
-Stub matrix (CPU, no model download) — Windows:
+CPU shortlist: **stub** (always) · **llama3.2:1b** (recommended) · optional **llama3.2:3b** / **qwen2.5:3b**. Live Ollama cells are **skipped** when the daemon is down (`--skip-unavailable`, default on).
+
+Stub only — Windows:
 
 ```bat
 cd /d C:\Users\anmol\Desktop\PayLoq & uv sync & uv run payloq bench --models stub --out runs\benchmark
+```
+
+Recommended + optional matrix — Windows:
+
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & ollama pull llama3.2:1b & ollama pull llama3.2:3b & ollama pull qwen2.5:3b & uv run payloq bench --config benchmarks\matrix.cpu.json --out runs\benchmark_cpu
 ```
 
 Any platform:
 
 ```bash
 uv run payloq bench --models stub --out runs/benchmark
-uv run payloq bench --models stub,ollama:llama3.2:1b --out runs/benchmark_matrix
-uv run payloq bench --config benchmarks/matrix.example.json --out runs/benchmark_cfg
+uv run payloq bench --models shortlist:recommended --out runs/benchmark_rec
+uv run payloq bench --config benchmarks/matrix.cpu.json --out runs/benchmark_cpu
 ```
 
-Writes `results.json`, `scorecard.json`, `metrics.sqlite`, and a human `spotcheck.csv` under `--out`. Details: [docs/evaluation.md](docs/evaluation.md).
+Writes `results.json`, `scorecard.json`, `scorecard.csv`, `runs.csv`, `metrics.sqlite`, and `spotcheck.csv` under `--out`. FI quality is a **separate band** (EN-only models are not failed on the main interpretation score). Details: [docs/evaluation.md](docs/evaluation.md).
 
 ## CLI
 
@@ -140,14 +148,14 @@ Writes `results.json`, `scorecard.json`, `metrics.sqlite`, and a human `spotchec
 | `payloq generate --from-text-file desc.txt --llm ollama` | Same from a UTF-8 file |
 | `payloq validate <dir>` | Balance / continuity / invoice checks |
 | `payloq chat` | §4 chat demo over a pack or preset scenario (stub/Ollama) |
-| `payloq bench` | Phase 3 model matrix + graders + SQLite metrics |
+| `payloq bench` | Model matrix + graders + scorecard (JSON/CSV/SQLite) |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
 
 Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`, `--journal/--no-journal`.
 
 Useful `chat` flags: `--scenario` or `--pack`, `--preset cash_drop|cash_negative`, `--question`, `--llm stub|ollama`, `--language`, `--show-figures`.
 
-Useful `bench` flags: `--models`, `--scenarios`, `--config`, `--judge`, `--spotcheck/--no-spotcheck`, `--ollama-host`, `--seed`.
+Useful `bench` flags: `--models` (`stub` / `shortlist` / `ollama:<tag>`), `--scenarios`, `--config`, `--judge`, `--spotcheck/--no-spotcheck`, `--skip-unavailable/--no-skip-unavailable`, `--ollama-host`, `--seed`.
 
 ## Built-in scenarios
 
@@ -192,6 +200,7 @@ tests/
 - **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs
 - **Phase 2:** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
 - **Phase 3:** model matrix runner, parameter/reading/MoM/interpretation graders, SQLite metrics, optional judge + spot-check sheet
+- **PL-7 scorecard:** CPU model shortlist, skip live if no Ollama, JSON/CSV/SQLite export, separate FI quality band
 - **App layer:** FastAPI + DB + Vite UI for local experimentation
 - **§4 stretch:** chat demo (code figures + stub/Ollama) + optional `journal_entries.json` — [docs/phase8-stretch.md](docs/phase8-stretch.md)
 

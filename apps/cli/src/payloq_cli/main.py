@@ -199,7 +199,10 @@ def bench(
     models: str = typer.Option(
         "stub",
         "--models",
-        help="Comma-separated model tokens: stub, ollama, ollama:llama3.2:1b, …",
+        help=(
+            "Comma-separated tokens: stub, ollama, ollama:llama3.2:1b, "
+            "shortlist (CPU matrix), shortlist:recommended, …"
+        ),
     ),
     scenarios: str = typer.Option(
         "good,weak,cash_critical", "--scenarios", help="Comma-separated scenario ids."
@@ -209,7 +212,10 @@ def bench(
         None,
         "--config",
         "-c",
-        help="Matrix JSON (see benchmarks/matrix.example.json). Overrides --models/--scenarios.",
+        help=(
+            "Matrix JSON (benchmarks/matrix.cpu.json or matrix.example.json). "
+            "Overrides --models/--scenarios."
+        ),
     ),
     judge: bool = typer.Option(
         False,
@@ -221,6 +227,11 @@ def bench(
         "--spotcheck/--no-spotcheck",
         help="Write human spot-check CSV template under --out.",
     ),
+    skip_unavailable: bool = typer.Option(
+        True,
+        "--skip-unavailable/--no-skip-unavailable",
+        help="Skip ollama:* cells when Ollama is down (stub always runs). Default: on.",
+    ),
     ollama_host: Optional[str] = typer.Option(
         None,
         "--ollama-host",
@@ -228,9 +239,10 @@ def bench(
     ),
     seed: int = typer.Option(42, "--seed", help="Generator seed for figure packs."),
 ) -> None:
-    """Run Phase 3 model-matrix benchmark (graders + SQLite metrics under runs/)."""
+    """Run model-matrix benchmark + scorecard export (JSON/CSV/SQLite under runs/)."""
     from payloq_benchmark.config import BenchmarkConfig
     from payloq_benchmark.runner import run_benchmark
+    from payloq_benchmark.scorecard import fi_band_label
 
     root = _repo_root()
     cfg = BenchmarkConfig.from_cli(
@@ -243,27 +255,35 @@ def bench(
         ollama_host=ollama_host,
         scenarios_root=root,
         seed=seed,
+        skip_unavailable=skip_unavailable,
     )
     result = run_benchmark(cfg, scenarios_root=root)
-    scorecard = out / "scorecard.json"
     typer.echo(
         f"Benchmark batch {result.batch_id}: {result.summary['n_runs']} runs → {out.resolve()}"
     )
-    typer.echo(f"  results:   {out / 'results.json'}")
-    typer.echo(f"  sqlite:    {out / 'metrics.sqlite'}")
-    typer.echo(f"  scorecard: {scorecard}")
+    typer.echo(f"  results:      {out / 'results.json'}")
+    typer.echo(f"  sqlite:       {out / 'metrics.sqlite'}")
+    typer.echo(f"  scorecard:    {out / 'scorecard.json'}")
+    typer.echo(f"  scorecard.csv:{out / 'scorecard.csv'}")
+    typer.echo(f"  runs.csv:     {out / 'runs.csv'}")
     if spotcheck:
-        typer.echo(f"  spotcheck: {out / 'spotcheck.csv'}")
+        typer.echo(f"  spotcheck:    {out / 'spotcheck.csv'}")
+    skipped = result.summary.get("skipped_models") or []
+    for sk in skipped:
+        typer.echo(f"  skipped: {sk.get('model')} ({sk.get('reason')})")
     for row in result.summary.get("by_model") or []:
+        fi = row.get("avg_fi_quality")
         typer.echo(
             "  {model}: param={avg_parameter:.3f} read={avg_reading:.3f} "
             "mom={avg_mom:.3f} interp={avg_interpretation:.3f} "
-            "latency_ms={avg_latency_ms:.1f}".format(
+            "fi={fi:.3f}({band}) latency_ms={avg_latency_ms:.1f}".format(
                 model=row["model"],
                 avg_parameter=row["avg_parameter"] or 0.0,
                 avg_reading=row["avg_reading"] or 0.0,
                 avg_mom=row["avg_mom"] or 0.0,
                 avg_interpretation=row["avg_interpretation"] or 0.0,
+                fi=fi or 0.0,
+                band=fi_band_label(fi),
                 avg_latency_ms=row["avg_latency_ms"] or 0.0,
             )
         )

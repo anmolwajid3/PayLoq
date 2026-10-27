@@ -16,13 +16,19 @@ from payloq_llm.chat_demo import (
     list_demo_presets,
     run_chat_demo,
 )
-from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
+from payloq_llm.defaults import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_OLLAMA_MODEL,
+    RECOMMENDED_CPU_MODELS,
+    recommended_ollama_tags,
+)
 
 __all__ = [
     "DEFAULT_OLLAMA_HOST",
     "DEFAULT_OLLAMA_MODEL",
     "DEMO_PRESETS",
     "ChatDemoResult",
+    "RECOMMENDED_CPU_MODELS",
     "FallbackAdapter",
     "LlmAdapter",
     "OllamaAdapter",
@@ -32,5 +38,6 @@ __all__ = [
     "input_from_descriptions",
     "input_from_text",
     "list_demo_presets",
+    "recommended_ollama_tags",
     "run_chat_demo",
 ]

@@ -1,0 +1,40 @@
+{
+  "scenarios": ["good", "weak", "cash_critical"],
+  "hardware_note": "CPU-friendly local workstation (Anmol Desktop first)",
+  "seed": 42,
+  "write_spotcheck": true,
+  "skip_unavailable": true,
+  "models": [
+    {
+      "id": "stub",
+      "adapter": "stub",
+      "tier": "baseline"
+    },
+    {
+      "id": "ollama:llama3.2:1b",
+      "adapter": "ollama",
+      "model": "llama3.2:1b",
+      "tier": "recommended",
+      "fallback_stub": true
+    },
+    {
+      "id": "ollama:llama3.2:3b",
+      "adapter": "ollama",
+      "model": "llama3.2:3b",
+      "tier": "optional",
+      "fallback_stub": true
+    },
+    {
+      "id": "ollama:qwen2.5:3b",
+      "adapter": "ollama",
+      "model": "qwen2.5:3b",
+      "tier": "optional",
+      "fallback_stub": true
+    }
+  ],
+  "judge": {
+    "enabled": false,
+    "adapter": "ollama",
+    "model": "llama3.2:1b"
+  }
+}

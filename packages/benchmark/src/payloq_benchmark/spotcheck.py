@@ -14,10 +14,12 @@ SPOTCHECK_HEADERS = [
     "question",
     "model_answer",
     "code_interpretation_score",
+    "fi_quality_score",
     "judge_score",
     "reviewer_factual_0_1",
     "reviewer_understandable_0_1",
     "reviewer_no_invented_causes_0_1",
+    "reviewer_fi_quality_0_1",
     "reviewer_notes",
     "reviewed_by",
     "reviewed_at",
@@ -46,6 +48,7 @@ def write_spotcheck_csv(
                     "question": row.get("question", ""),
                     "model_answer": row.get("model_answer", ""),
                     "code_interpretation_score": row.get("interpretation_score", ""),
+                    "fi_quality_score": row.get("fi_quality_score", ""),
                     "judge_score": row.get("judge_score", ""),
                 }
             )
@@ -68,6 +71,7 @@ Fill the `reviewer_*` columns for a sample of interpretation answers.
 | `reviewer_factual_0_1` | Answer uses only figures from the pack / probe summary |
 | `reviewer_understandable_0_1` | Clear FI or EN; appropriate for a non-accountant reader |
 | `reviewer_no_invented_causes_0_1` | No unsupported external causes (fraud, customers leaving, etc.) |
+| `reviewer_fi_quality_0_1` | Finnish quality on FI prompts (EN-only answers score low here; do not fail the whole model) |
 
 Set `reviewed_by` and `reviewed_at` (ISO date) when done.
 

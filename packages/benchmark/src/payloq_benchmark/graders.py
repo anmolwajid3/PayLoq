@@ -239,6 +239,80 @@ def grade_probes(
     )
 
 
+# Finnish lexical markers for the separate FI quality band (EN-only models OK).
+_FI_CHARS = re.compile(r"[äöåÄÖÅ]")
+_FI_FINANCE_WORDS = re.compile(
+    r"\b("
+    r"kassa|kassasaldo|liikevaihto|ennuste|viikko|lasku|laskut|myynti|osto|"
+    r"saaminen|saamiset|velka|velat|tulos|kate|kasvu|negatiivinen|positiivinen|"
+    r"kuukausi|euroa|eur|miksi|koska|muuttuu|annetuilla|luvuilla"
+    r")\b",
+    re.I,
+)
+_EN_ONLY_MARKERS = re.compile(
+    r"\b(the|and|cash|revenue|projection|week|because|invoice|balance)\b",
+    re.I,
+)
+
+
+def grade_fi_quality(
+    text: str,
+    *,
+    expected_language: str = "fi",
+) -> GradeDetail:
+    """
+    Separate Finnish quality band for FI prompts.
+
+    EN-only finance models are **not failed** on the main interpretation score;
+    they receive a low FI band instead. Bands (see scorecard.fi_band_label):
+      high ≥ 0.75 · mid ≥ 0.40 · low < 0.40 · n/a when prompt is EN.
+    """
+    if expected_language != "fi":
+        return GradeDetail(
+            score=1.0,
+            notes="EN prompt; FI band not applicable",
+            per_field={"applicable": 0.0, "fi_markers": 1.0},
+        )
+
+    text = (text or "").strip()
+    if not text:
+        return GradeDetail(
+            score=0.0,
+            notes="empty answer on FI prompt",
+            per_field={"applicable": 1.0, "fi_markers": 0.0, "en_only": 1.0},
+        )
+
+    has_fi_chars = bool(_FI_CHARS.search(text))
+    fi_word_hits = len(_FI_FINANCE_WORDS.findall(text))
+    en_hits = len(_EN_ONLY_MARKERS.findall(text))
+
+    # Marker score: diacritics + Finnish finance lexicon
+    # ~3 FI finance terms → high band even without ä/ö/å (ASCII FI is common).
+    marker = min(1.0, 0.25 * fi_word_hits)
+    if has_fi_chars:
+        marker = min(1.0, marker + 0.25)
+
+    # Soft penalty when answer looks EN-only on a FI question
+    en_only = 1.0 if (en_hits >= 3 and fi_word_hits == 0 and not has_fi_chars) else 0.0
+    if en_only:
+        marker = min(marker, 0.25)
+
+    return GradeDetail(
+        score=round(marker, 4),
+        notes=(
+            "en-only on FI prompt"
+            if en_only
+            else f"fi_chars={has_fi_chars}; fi_words={fi_word_hits}"
+        ),
+        per_field={
+            "applicable": 1.0,
+            "fi_markers": round(marker, 4),
+            "en_only": en_only,
+            "fi_word_hits": float(fi_word_hits),
+        },
+    )
+
+
 def grade_interpretation(
     text: str,
     pack_summary: dict[str, Any],
@@ -250,8 +324,9 @@ def grade_interpretation(
     - factual: mentions ≥1 number present in pack_summary
     - understandable: non-trivial length, not empty
     - no invented causes: avoids unsupported causal tropes
+
+    Finnish quality is scored separately via ``grade_fi_quality`` (not folded in).
     """
-    _ = language
     text = (text or "").strip()
     per_field: dict[str, float] = {}
 
@@ -299,6 +374,10 @@ def grade_interpretation(
     invented_hits = [p for p in INVENTED_CAUSE_PATTERNS if re.search(p, low)]
     no_invent = 0.0 if invented_hits else 1.0
     per_field["no_invented_causes"] = no_invent
+
+    # Attach FI band detail for callers (does not affect main score)
+    fi_g = grade_fi_quality(text, expected_language=language)
+    per_field["fi_quality"] = fi_g.score
 
     overall = (understand + factual + no_invent) / 3.0
     notes = "ok"
