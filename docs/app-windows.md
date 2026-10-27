@@ -7,6 +7,8 @@
 
 Prefer **Docker Desktop + Compose** (Postgres). If Compose is too heavy, use the **SQLite** path below.
 
+Commands below are **Command Prompt (`cmd`)** one-liners using `&`.
+
 ---
 
 ## A. Docker Desktop path (default)
@@ -21,29 +23,21 @@ Start Docker Desktop and wait until it says Docker is running.
 
 ### 2. Get / update the repo
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-git fetch origin
-
-git checkout main
-
-git pull origin main
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & git fetch origin & git checkout main & git pull origin main
 ```
 
 ### 3. Start Postgres + API + web
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-docker compose up --build -d
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & docker compose up --build -d
 ```
 
 Wait until containers are healthy (about a minute the first time).
 
 ### 4. Check API health
 
-```powershell
+```bat
 curl http://localhost:8000/api/health
 ```
 
@@ -51,29 +45,18 @@ Or open http://localhost:8000/docs in a browser.
 
 ### 5. Open the UI
 
-Open:
-
-http://localhost:5173
-
-Sign in with:
-
-- Username: `payloq`
-- Password: `payloq`
+Open http://localhost:5173 and sign in as `payloq` / `payloq`.
 
 ### 6. Stop the stack
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-docker compose down
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & docker compose down
 ```
 
 Optional Ollama profile:
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-docker compose --profile ollama up --build -d
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & docker compose --profile ollama up --build -d
 ```
 
 ---
@@ -84,62 +67,36 @@ Requires **Python 3.12+**, [uv](https://docs.astral.sh/uv/), and **Node.js 20+**
 
 ### 1. Install deps
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-uv sync
-```
-
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq\apps\web
-
-npm install
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv sync & cd /d C:\Users\anmol\Desktop\PayLoq\apps\web & npm install
 ```
 
 ### 2. Start API (SQLite + auto-seed)
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-mkdir data -ErrorAction SilentlyContinue
-
-$env:PAYLOQ_DATABASE_URL = "sqlite:///./data/payloq.db"
-
-$env:PAYLOQ_ARTIFACT_DIR = "./data/artifacts"
-
-uv run uvicorn payloq_api.main:app --host 127.0.0.1 --port 8000
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & mkdir data 2>nul & set PAYLOQ_DATABASE_URL=sqlite:///./data/payloq.db & set PAYLOQ_ARTIFACT_DIR=./data/artifacts & uv run uvicorn payloq_api.main:app --host 127.0.0.1 --port 8000
 ```
 
 Leave that window open.
 
-### 3. Start web (new PowerShell window)
+### 3. Start web (new Command Prompt window)
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq\apps\web
-
-npm run dev
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq\apps\web & npm run dev
 ```
 
 Open http://localhost:5173 and log in as `payloq` / `payloq`.
 
 ### 4. Optional Alembic migrate (Postgres or SQLite)
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq\apps\api
-
-$env:PAYLOQ_DATABASE_URL = "sqlite:///../../data/payloq.db"
-
-uv run --directory ../.. alembic -c alembic.ini upgrade head
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq\apps\api & set PAYLOQ_DATABASE_URL=sqlite:///../../data/payloq.db & uv run --directory ../.. alembic -c alembic.ini upgrade head
 ```
 
 For Docker Postgres from the host:
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq\apps\api
-
-$env:PAYLOQ_DATABASE_URL = "postgresql+psycopg://payloq:payloq@localhost:5432/payloq"
-
-uv run --directory ../.. alembic -c alembic.ini upgrade head
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq\apps\api & set PAYLOQ_DATABASE_URL=postgresql+psycopg://payloq:payloq@localhost:5432/payloq & uv run --directory ../.. alembic -c alembic.ini upgrade head
 ```
 
 (The API also calls `create_all` + seed on startup for PoC convenience.)

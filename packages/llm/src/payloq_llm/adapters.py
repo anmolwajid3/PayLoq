@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
@@ -33,6 +34,8 @@ from payloq_llm.stub_texts import stub_invoice_texts
 
 class LlmAdapter(ABC):
     name: str
+    # Populated after each call when the adapter records metrics (Phase 3).
+    last_call_metrics: dict[str, Any] | None = None
 
     @abstractmethod
     def extract_parameters(
@@ -58,6 +61,17 @@ class LlmAdapter(ABC):
     def is_available(self) -> bool:
         return True
 
+    def chat(self, content: str, *, json_mode: bool = False) -> str:
+        """Optional free-form chat used by benchmark judge / probes. Default: interpret."""
+        _ = json_mode
+        return self.interpret_figures(content, {})
+
+    def answer_numeric_probe(
+        self, probe_id: str, question: str, pack_summary: dict[str, Any]
+    ) -> str:
+        """Answer a code-graded numeric reading probe. Default: free-text interpret."""
+        _ = probe_id
+        return self.interpret_figures(question, pack_summary)
 
 class StubLlmAdapter(LlmAdapter):
     """Deterministic stand-in — CPU-only, no network. Used as default and Ollama fallback."""
@@ -66,12 +80,25 @@ class StubLlmAdapter(LlmAdapter):
 
     def __init__(self, preset: ParametersFromLanguageModel | None = None) -> None:
         self.preset = preset
+        self.last_call_metrics: dict[str, Any] | None = None
+
+    def _record(self, *, latency_ms: float, tokens_in: int = 0, tokens_out: int = 0) -> None:
+        self.last_call_metrics = {
+            "latency_ms": latency_ms,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "adapter": self.name,
+            "model": "stub",
+        }
 
     def extract_parameters(
         self, description_fi: str, description_en: str, options: dict[str, Any]
     ) -> dict[str, Any]:
+        t0 = time.perf_counter()
         if self.preset is not None:
-            return self.preset.model_dump()
+            out = self.preset.model_dump()
+            self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=32)
+            return out
         text = f"{description_fi} {description_en}".lower()
         sid = str(options.get("scenario_id") or "").lower()
         if sid == "cash_critical" or any(
@@ -103,7 +130,13 @@ class StubLlmAdapter(LlmAdapter):
             notes=notes,
             partly_fixed_costs=partly,
         )
-        return params.model_dump()
+        out = params.model_dump()
+        self._record(
+            latency_ms=(time.perf_counter() - t0) * 1000,
+            tokens_in=max(1, len(text) // 4),
+            tokens_out=64,
+        )
+        return out
 
     def generate_invoice_texts(
         self,
@@ -113,25 +146,81 @@ class StubLlmAdapter(LlmAdapter):
         industry: str,
         language: str = "fi",
     ) -> InvoiceDescriptiveTexts:
+        t0 = time.perf_counter()
         _ = (description_fi, description_en, industry)
-        return stub_invoice_texts(language=language)  # type: ignore[arg-type]
+        texts = stub_invoice_texts(language=language)  # type: ignore[arg-type]
+        self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=48)
+        return texts
 
     def interpret_figures(self, question: str, pack_summary: dict[str, Any]) -> str:
+        t0 = time.perf_counter()
         cash = pack_summary.get("cash_end")
         neg = pack_summary.get("first_negative_projection_week")
+        mom = pack_summary.get("mom_revenue_change")
+        revenue = pack_summary.get("revenue_last")
         lines = [
             f"[stub] Kysymys / Question: {question}",
             f"Kassasaldo kauden lopussa / Cash at period end: {cash}",
         ]
+        if revenue is not None:
+            lines.append(f"Viimeisimmän kuukauden liikevaihto / Last-month revenue: {revenue}")
+        if mom is not None:
+            lines.append(f"Liikevaihdon MoM-muutos / MoM revenue change: {mom}")
         if neg:
             lines.append(
                 f"Ennuste menee negatiiviseksi viikolla / Projection turns negative in week: {neg}"
             )
+        elif "first_negative_projection_week" in pack_summary and neg is None:
+            lines.append(
+                "Ennuste ei mene negatiiviseksi annetuilla luvuilla / Projection stays non-negative."
+            )
         lines.append(
             "Huom: tämä on stub-vastaus; kielimalli ei keksi syitä — luvut tulevat koodista."
         )
-        return "\n".join(lines)
+        out = "\n".join(lines)
+        self._record(
+            latency_ms=(time.perf_counter() - t0) * 1000,
+            tokens_in=max(1, len(question) // 4),
+            tokens_out=max(1, len(out) // 4),
+        )
+        return out
 
+    def chat(self, content: str, *, json_mode: bool = False) -> str:
+        t0 = time.perf_counter()
+        if json_mode and "Score ONLY" in content:
+            # Deterministic judge stub for offline tests
+            out = (
+                '{"factual":1.0,"understandable":1.0,"no_invented_causes":1.0,'
+                '"overall":1.0,"notes":"stub-judge"}'
+            )
+        else:
+            out = f"[stub-chat] {content[:200]}"
+        self._record(
+            latency_ms=(time.perf_counter() - t0) * 1000,
+            tokens_in=max(1, len(content) // 4),
+            tokens_out=max(1, len(out) // 4),
+        )
+        return out
+
+    def answer_numeric_probe(
+        self, probe_id: str, question: str, pack_summary: dict[str, Any]
+    ) -> str:
+        t0 = time.perf_counter()
+        _ = question
+        key_map = {
+            "cash_end": "cash_end",
+            "revenue_last": "revenue_last",
+            "mom_revenue_change": "mom_revenue_change",
+            "first_negative_projection_week": "first_negative_projection_week",
+        }
+        key = key_map.get(probe_id)
+        value = pack_summary.get(key) if key else None
+        if value is None and probe_id == "first_negative_projection_week":
+            out = '{"value": null}'
+        else:
+            out = json.dumps({"value": value})
+        self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=8)
+        return out
 
 class OllamaAdapter(LlmAdapter):
     """Local Ollama HTTP client. Falls back only when callers wrap with FallbackAdapter."""
@@ -150,6 +239,7 @@ class OllamaAdapter(LlmAdapter):
         self.host = host.rstrip("/")
         self.timeout_s = timeout_s
         self.max_retries = max_retries
+        self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
         try:
@@ -163,7 +253,7 @@ class OllamaAdapter(LlmAdapter):
         self, description_fi: str, description_en: str, options: dict[str, Any]
     ) -> dict[str, Any]:
         prompt = parameter_extraction_prompt(description_fi, description_en, options)
-        raw = self._chat(prompt)
+        raw = self._chat(prompt, json_mode=True)
         last_err: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -174,7 +264,7 @@ class OllamaAdapter(LlmAdapter):
                 last_err = exc
                 if attempt >= self.max_retries:
                     break
-                raw = self._chat(parameter_repair_prompt(raw, str(exc)))
+                raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
         raise RuntimeError(
             f"Ollama returned invalid parameters JSON after retries: {last_err}"
         ) from last_err
@@ -193,7 +283,7 @@ class OllamaAdapter(LlmAdapter):
             industry=industry,
             language=language,
         )
-        raw = self._chat(prompt)
+        raw = self._chat(prompt, json_mode=True)
         try:
             data = extract_json_object(raw)
             data.setdefault("language", language)
@@ -202,18 +292,35 @@ class OllamaAdapter(LlmAdapter):
             raise RuntimeError(f"Ollama returned invalid invoice texts JSON: {exc}") from exc
 
     def interpret_figures(self, question: str, pack_summary: dict[str, Any]) -> str:
-        return self._chat(interpretation_prompt(question, pack_summary))
+        # Free text — do not force JSON format (models invent keys otherwise).
+        return self._chat(interpretation_prompt(question, pack_summary), json_mode=False)
 
-    def _chat(self, content: str) -> str:
-        body = json.dumps(
-            {
-                "model": self.model,
-                "messages": [{"role": "user", "content": content}],
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.2},
-            }
-        ).encode("utf-8")
+    def chat(self, content: str, *, json_mode: bool = False) -> str:
+        return self._chat(content, json_mode=json_mode)
+
+    def answer_numeric_probe(
+        self, probe_id: str, question: str, pack_summary: dict[str, Any]
+    ) -> str:
+        _ = probe_id
+        prompt = (
+            "Answer the numeric probe using ONLY Figures JSON. "
+            'Return ONLY JSON like {"value": <number-or-null>}.\n\n'
+            f"Figures JSON:\n{json.dumps(pack_summary, ensure_ascii=False)}\n\n"
+            f"Probe:\n{question}\n"
+        )
+        return self._chat(prompt, json_mode=True)
+
+    def _chat(self, content: str, *, json_mode: bool = True) -> str:
+        t0 = time.perf_counter()
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": content}],
+            "stream": False,
+            "options": {"temperature": 0.2},
+        }
+        if json_mode:
+            payload["format"] = "json"
+        body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             f"{self.host}/api/chat",
             data=body,
@@ -224,16 +331,37 @@ class OllamaAdapter(LlmAdapter):
             with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.URLError as exc:
+            self.last_call_metrics = {
+                "latency_ms": (time.perf_counter() - t0) * 1000,
+                "adapter": self.name,
+                "model": self.model,
+                "error": str(exc),
+            }
             raise RuntimeError(
                 f"Ollama unavailable at {self.host} (model={self.model}). "
                 f"Install/start Ollama or use --llm stub. Underlying error: {exc}"
             ) from exc
         except TimeoutError as exc:
+            self.last_call_metrics = {
+                "latency_ms": (time.perf_counter() - t0) * 1000,
+                "adapter": self.name,
+                "model": self.model,
+                "error": "timeout",
+            }
             raise RuntimeError(
                 f"Ollama timed out after {self.timeout_s}s at {self.host}."
             ) from exc
-        return data.get("message", {}).get("content", "") or ""
 
+        tokens_in = data.get("prompt_eval_count")
+        tokens_out = data.get("eval_count")
+        self.last_call_metrics = {
+            "latency_ms": (time.perf_counter() - t0) * 1000,
+            "tokens_in": int(tokens_in) if tokens_in is not None else None,
+            "tokens_out": int(tokens_out) if tokens_out is not None else None,
+            "adapter": self.name,
+            "model": self.model,
+        }
+        return data.get("message", {}).get("content", "") or ""
 
 class FallbackAdapter(LlmAdapter):
     """Try primary adapter; on failure use stub (logs reason via last_fallback_reason)."""
@@ -245,6 +373,7 @@ class FallbackAdapter(LlmAdapter):
         self.fallback = fallback or StubLlmAdapter()
         self.last_fallback_reason: str | None = None
         self.used_fallback = False
+        self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
         return self.primary.is_available() or self.fallback.is_available()
@@ -254,11 +383,14 @@ class FallbackAdapter(LlmAdapter):
             result = getattr(self.primary, method)(*args, **kwargs)
             self.used_fallback = False
             self.last_fallback_reason = None
+            self.last_call_metrics = getattr(self.primary, "last_call_metrics", None)
             return result
         except Exception as exc:  # noqa: BLE001 — intentional soft fallback
             self.used_fallback = True
             self.last_fallback_reason = f"{self.primary.name} failed: {exc}"
-            return getattr(self.fallback, method)(*args, **kwargs)
+            result = getattr(self.fallback, method)(*args, **kwargs)
+            self.last_call_metrics = getattr(self.fallback, "last_call_metrics", None)
+            return result
 
     def extract_parameters(
         self, description_fi: str, description_en: str, options: dict[str, Any]
@@ -284,6 +416,13 @@ class FallbackAdapter(LlmAdapter):
     def interpret_figures(self, question: str, pack_summary: dict[str, Any]) -> str:
         return self._call("interpret_figures", question, pack_summary)
 
+    def chat(self, content: str, *, json_mode: bool = False) -> str:
+        return self._call("chat", content, json_mode=json_mode)
+
+    def answer_numeric_probe(
+        self, probe_id: str, question: str, pack_summary: dict[str, Any]
+    ) -> str:
+        return self._call("answer_numeric_probe", probe_id, question, pack_summary)
 
 def get_adapter(
     name: str = "stub",

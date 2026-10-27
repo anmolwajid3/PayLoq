@@ -712,15 +712,17 @@ requires-dist = [
 
 [[package]]
 name = "payloq-benchmark"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "packages/benchmark" }
 dependencies = [
+    { name = "payloq-generator" },
     { name = "payloq-llm" },
     { name = "payloq-schemas" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "payloq-generator", editable = "packages/generator" },
     { name = "payloq-llm", editable = "packages/llm" },
     { name = "payloq-schemas", editable = "packages/schemas" },
 ]

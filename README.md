@@ -14,54 +14,36 @@ Full-stack experimental UI: browse/create scenarios, generate packs (preset or N
 
 ### Windows — Docker Compose (recommended)
 
-Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if needed, then:
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if needed, then (Command Prompt / `cmd`):
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-git pull origin main
-
-docker compose up --build -d
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & git pull origin main & docker compose up --build -d
 ```
 
 Open http://localhost:5173 and sign in as `payloq` / `payloq`.
 
-```powershell
-docker compose down
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & docker compose down
 ```
 
-Step-by-step (blank lines between commands, SQLite fallback, Alembic): **[docs/app-windows.md](docs/app-windows.md)**.
+Step-by-step (SQLite fallback, Alembic): **[docs/app-windows.md](docs/app-windows.md)**.
 
 ### Windows — SQLite without Docker DB
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-uv sync
-
-cd C:\Users\anmol\Desktop\PayLoq\apps\web
-
-npm install
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv sync & cd /d C:\Users\anmol\Desktop\PayLoq\apps\web & npm install
 ```
 
-Terminal 1:
+Terminal 1 (API):
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-$env:PAYLOQ_DATABASE_URL = "sqlite:///./data/payloq.db"
-
-$env:PAYLOQ_ARTIFACT_DIR = "./data/artifacts"
-
-uv run uvicorn payloq_api.main:app --host 127.0.0.1 --port 8000
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & set PAYLOQ_DATABASE_URL=sqlite:///./data/payloq.db & set PAYLOQ_ARTIFACT_DIR=./data/artifacts & uv run uvicorn payloq_api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Terminal 2:
+Terminal 2 (web):
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq\apps\web
-
-npm run dev
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq\apps\web & npm run dev
 ```
 
 Open http://localhost:5173.
@@ -72,14 +54,8 @@ Requires **Python 3.12+** and [uv](https://docs.astral.sh/uv/).
 
 ### Windows (Anmol’s Desktop path)
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-uv sync
-
-uv run payloq generate --scenario cash_critical --out out\cash_critical
-
-uv run payloq validate out\cash_critical
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv sync & uv run payloq generate --scenario cash_critical --out out\cash_critical & uv run payloq validate out\cash_critical
 ```
 
 ### Any platform
@@ -108,10 +84,8 @@ uv run payloq validate out/cash_critical
 
 Stub adapter (always works, CPU-only keyword heuristics + FI/EN invoice texts):
 
-```powershell
-cd C:\Users\anmol\Desktop\PayLoq
-
-uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm stub --out out\from_text_stub
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm stub --out out\from_text_stub
 ```
 
 ```bash
@@ -120,21 +94,29 @@ uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen v
 
 Ollama (default small model `llama3.2:1b`; falls back to stub if Ollama is down):
 
-```powershell
-ollama pull llama3.2:1b
-
-cd C:\Users\anmol\Desktop\PayLoq
-
-uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm ollama --out out\from_text_ollama
+```bat
+ollama pull llama3.2:1b & cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm ollama --out out\from_text_ollama
 ```
 
 Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.
 
-Benchmark scaffold (stub adapter — no model download):
+### Phase 3: benchmark harness
+
+Stub matrix (CPU, no model download) — Windows:
+
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv sync & uv run payloq bench --models stub --out runs\benchmark
+```
+
+Any platform:
 
 ```bash
 uv run payloq bench --models stub --out runs/benchmark
+uv run payloq bench --models stub,ollama:llama3.2:1b --out runs/benchmark_matrix
+uv run payloq bench --config benchmarks/matrix.example.json --out runs/benchmark_cfg
 ```
+
+Writes `results.json`, `scorecard.json`, `metrics.sqlite`, and a human `spotcheck.csv` under `--out`. Details: [docs/evaluation.md](docs/evaluation.md).
 
 ## CLI
 
@@ -145,10 +127,12 @@ uv run payloq bench --models stub --out runs/benchmark
 | `payloq generate --from-text "…" --llm stub\|ollama` | NL → params (+ invoice texts) → pack |
 | `payloq generate --from-text-file desc.txt --llm ollama` | Same from a UTF-8 file |
 | `payloq validate <dir>` | Balance / continuity / invoice checks |
-| `payloq bench` | Phase 3 harness scaffold |
+| `payloq bench` | Phase 3 model matrix + graders + SQLite metrics |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
 
 Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`.
+
+Useful `bench` flags: `--models`, `--scenarios`, `--config`, `--judge`, `--spotcheck/--no-spotcheck`, `--ollama-host`, `--seed`.
 
 ## Built-in scenarios
 
@@ -190,10 +174,10 @@ tests/
 
 ## Phase status
 
-- **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs, benchmark scaffold
+- **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs
 - **Phase 2:** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
+- **Phase 3:** model matrix runner, parameter/reading/MoM/interpretation graders, SQLite metrics, optional judge + spot-check sheet
 - **App layer:** FastAPI + DB + Vite UI for local experimentation
-- **Phase 3:** multi-model scorecard (latency, tokens, graders) — separate workstream
 - **§4 nice-to-haves:** deferred (chat demo, journal entries, …)
 
 ## License

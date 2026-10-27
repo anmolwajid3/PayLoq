@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional
 
@@ -10,7 +9,7 @@ import typer
 
 app = typer.Typer(
     name="payloq",
-    help="PayLoq research PoC — synthetic financial packs + local LLM benchmark scaffold.",
+    help="PayLoq research PoC — synthetic financial packs + local LLM benchmark.",
     no_args_is_help=True,
 )
 
@@ -192,33 +191,77 @@ def validate(
 
 @app.command("bench")
 def bench(
-    models: str = typer.Option("stub", "--models", help="Comma-separated model/adapter ids."),
+    models: str = typer.Option(
+        "stub",
+        "--models",
+        help="Comma-separated model tokens: stub, ollama, ollama:llama3.2:1b, …",
+    ),
     scenarios: str = typer.Option(
         "good,weak,cash_critical", "--scenarios", help="Comma-separated scenario ids."
     ),
     out: Path = typer.Option(Path("runs/benchmark"), "--out", "-o"),
+    config: Optional[Path] = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Matrix JSON (see benchmarks/matrix.example.json). Overrides --models/--scenarios.",
+    ),
+    judge: bool = typer.Option(
+        False,
+        "--judge/--no-judge",
+        help="Optional LLM judge on interpretation answers (synthetic data only).",
+    ),
+    spotcheck: bool = typer.Option(
+        True,
+        "--spotcheck/--no-spotcheck",
+        help="Write human spot-check CSV template under --out.",
+    ),
+    ollama_host: Optional[str] = typer.Option(
+        None,
+        "--ollama-host",
+        help="Ollama base URL for ollama:* models (default http://127.0.0.1:11434).",
+    ),
+    seed: int = typer.Option(42, "--seed", help="Generator seed for figure packs."),
 ) -> None:
-    """Run benchmark scaffold (Phase 3 structure; stub adapters by default)."""
-    from payloq_benchmark.runner import BenchmarkConfig, run_benchmark_stub
+    """Run Phase 3 model-matrix benchmark (graders + SQLite metrics under runs/)."""
+    from payloq_benchmark.config import BenchmarkConfig
+    from payloq_benchmark.runner import run_benchmark
 
-    config = BenchmarkConfig(
-        scenario_ids=[s.strip() for s in scenarios.split(",") if s.strip()],
-        models=[m.strip() for m in models.split(",") if m.strip()],
-        out_dir=out,
-    )
-    # Load parameter keys from scenario inputs when present
-    keys: dict = {}
     root = _repo_root()
-    for sid in config.scenario_ids:
-        p = root / "scenarios" / sid / "input.json"
-        if not p.exists():
-            p = Path("scenarios") / sid / "input.json"
-        if p.exists():
-            data = json.loads(p.read_text(encoding="utf-8"))
-            keys[sid] = data.get("parameters_from_language_model", {})
-
-    result = run_benchmark_stub(config, parameter_keys=keys)
-    typer.echo(f"Benchmark scaffold wrote {out / 'results.json'} ({result.summary['n_runs']} runs)")
+    cfg = BenchmarkConfig.from_cli(
+        models=models,
+        scenarios=scenarios,
+        out=out,
+        config_path=config,
+        judge=judge,
+        spotcheck=spotcheck,
+        ollama_host=ollama_host,
+        scenarios_root=root,
+        seed=seed,
+    )
+    result = run_benchmark(cfg, scenarios_root=root)
+    scorecard = out / "scorecard.json"
+    typer.echo(
+        f"Benchmark batch {result.batch_id}: {result.summary['n_runs']} runs → {out.resolve()}"
+    )
+    typer.echo(f"  results:   {out / 'results.json'}")
+    typer.echo(f"  sqlite:    {out / 'metrics.sqlite'}")
+    typer.echo(f"  scorecard: {scorecard}")
+    if spotcheck:
+        typer.echo(f"  spotcheck: {out / 'spotcheck.csv'}")
+    for row in result.summary.get("by_model") or []:
+        typer.echo(
+            "  {model}: param={avg_parameter:.3f} read={avg_reading:.3f} "
+            "mom={avg_mom:.3f} interp={avg_interpretation:.3f} "
+            "latency_ms={avg_latency_ms:.1f}".format(
+                model=row["model"],
+                avg_parameter=row["avg_parameter"] or 0.0,
+                avg_reading=row["avg_reading"] or 0.0,
+                avg_mom=row["avg_mom"] or 0.0,
+                avg_interpretation=row["avg_interpretation"] or 0.0,
+                avg_latency_ms=row["avg_latency_ms"] or 0.0,
+            )
+        )
 
 
 @app.command("list-scenarios")
