@@ -51,6 +51,7 @@ class GeneratePresetRequest(BaseModel):
     scenario_slug: str
     seed: int = 42
     write_xlsx: bool = True
+    write_journal: bool = True
 
 
 class GenerateFromTextRequest(BaseModel):
@@ -61,6 +62,7 @@ class GenerateFromTextRequest(BaseModel):
     months: int = Field(default=12, ge=12, le=24)
     seed: int = 42
     write_xlsx: bool = True
+    write_journal: bool = True
     ollama_model: Optional[str] = None
     ollama_host: Optional[str] = None
     no_fallback_stub: bool = False
@@ -68,6 +70,34 @@ class GenerateFromTextRequest(BaseModel):
         default=None,
         description="If set, also persist a Scenario row from the generated input.",
     )
+
+
+class ChatRequest(BaseModel):
+    question: Optional[str] = Field(
+        default=None,
+        description="Free-form FI/EN question. Overrides preset when set.",
+    )
+    preset: Optional[Literal["cash_drop", "cash_negative"]] = None
+    language: Literal["fi", "en"] = "fi"
+    llm: Literal["stub", "ollama"] = "stub"
+    ollama_model: Optional[str] = None
+    ollama_host: Optional[str] = None
+    no_fallback_stub: bool = False
+
+
+class ChatResponse(BaseModel):
+    question: str
+    answer: str
+    figures: dict[str, Any]
+    preset: Optional[str] = None
+    llm_adapter: str
+    fallback_note: Optional[str] = None
+    metrics: Optional[dict[str, Any]] = None
+
+
+class ChatPresetOut(BaseModel):
+    id: str
+    question: str
 
 
 class ValidationIssueOut(BaseModel):

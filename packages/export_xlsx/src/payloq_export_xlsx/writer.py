@@ -9,7 +9,12 @@ from openpyxl import Workbook
 from payloq_schemas.models import ScenarioPack
 
 
-def write_scenario_xlsx(pack: ScenarioPack, path: Path | str) -> Path:
+def write_scenario_xlsx(
+    pack: ScenarioPack,
+    path: Path | str,
+    *,
+    include_journal: bool = True,
+) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -21,6 +26,8 @@ def write_scenario_xlsx(pack: ScenarioPack, path: Path | str) -> Path:
     _history_sheet(wb.create_sheet("Balance history"), pack)
     _invoices_sheet(wb.create_sheet("Open invoices"), pack)
     _projection_sheet(wb.create_sheet("Projection"), pack)
+    if include_journal and pack.journal_entries is not None:
+        _journal_sheet(wb.create_sheet("Journal entries"), pack)
 
     wb.save(path)
     return path
@@ -191,3 +198,39 @@ def _projection_sheet(ws, pack: ScenarioPack) -> None:
         ws.append(
             [w.week, w.week_end, w.sales_inflow, w.purchase_outflow, w.projected_balance]
         )
+
+
+def _journal_sheet(ws, pack: ScenarioPack) -> None:
+    ws.append(
+        [
+            "Tosite / Entry id",
+            "Päivä / Date",
+            "Kuvaus FI / Description FI",
+            "Kuvaus EN / Description EN",
+            "Lähde / Source",
+            "Tili / Account",
+            "Tilinimi FI / Account FI",
+            "Tilinimi EN / Account EN",
+            "Debet / Debit",
+            "Kredit / Credit",
+        ]
+    )
+    journal = pack.journal_entries
+    if journal is None:
+        return
+    for entry in journal.entries:
+        for line in entry.lines:
+            ws.append(
+                [
+                    entry.id,
+                    entry.date,
+                    entry.description_fi,
+                    entry.description_en,
+                    entry.source,
+                    line.account,
+                    line.account_name_fi,
+                    line.account_name_en,
+                    line.debit,
+                    line.credit,
+                ]
+            )

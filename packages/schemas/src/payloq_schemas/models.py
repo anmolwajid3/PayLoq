@@ -158,9 +158,53 @@ class CashAndInvoices(BaseModel):
         return v
 
 
+class JournalLine(BaseModel):
+    """One debit/credit line on a simplified FI chart of accounts."""
+
+    account: str
+    account_name_fi: str
+    account_name_en: str
+    debit: float = 0.0
+    credit: float = 0.0
+
+
+class JournalEntry(BaseModel):
+    """One synthetic journal voucher (kirjaus)."""
+
+    id: str
+    date: str  # YYYY-MM-DD
+    description_fi: str
+    description_en: str
+    source: Literal["monthly_pl", "open_invoice", "investment"] = "monthly_pl"
+    lines: list[JournalLine] = Field(min_length=2)
+
+    @field_validator("lines")
+    @classmethod
+    def _balanced(cls, v: list[JournalLine]) -> list[JournalLine]:
+        debit = round(sum(line.debit for line in v), 2)
+        credit = round(sum(line.credit for line in v), 2)
+        if abs(debit - credit) > 0.02:
+            raise ValueError(f"journal entry not balanced: debit={debit} credit={credit}")
+        return v
+
+
+class JournalEntries(BaseModel):
+    """Optional §4 accounting-entries dataset (code-generated, synthetic)."""
+
+    meta: ScenarioMeta
+    chart_note_fi: str = (
+        "Yksinkertaistettu synteettinen tilikartta — ei virallinen suomalainen tilikartta."
+    )
+    chart_note_en: str = (
+        "Simplified synthetic chart of accounts — not an official Finnish CoA."
+    )
+    entries: list[JournalEntry]
+
+
 class ScenarioPack(BaseModel):
     """Full generated pack (in-memory)."""
 
     input: GeneratorInput
     monthly_reports: MonthlyReports
     cash_and_invoices: CashAndInvoices
+    journal_entries: JournalEntries | None = None

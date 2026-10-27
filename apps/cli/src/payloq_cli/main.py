@@ -9,7 +9,7 @@ import typer
 
 app = typer.Typer(
     name="payloq",
-    help="PayLoq research PoC — synthetic financial packs + local LLM benchmark.",
+    help="PayLoq research PoC — synthetic packs, chat demo, local LLM benchmark.",
     no_args_is_help=True,
 )
 
@@ -76,6 +76,11 @@ def generate(
     out: Path = typer.Option(Path("out"), "--out", "-o", help="Output directory."),
     seed: int = typer.Option(42, "--seed", help="Deterministic seed."),
     xlsx: bool = typer.Option(True, "--xlsx/--no-xlsx", help="Also write Excel workbook."),
+    journal: bool = typer.Option(
+        True,
+        "--journal/--no-journal",
+        help="Also write optional journal_entries.json (§4 stretch).",
+    ),
 ) -> None:
     """Generate a consistent JSON (+ Excel) pack from parameters or NL text."""
     from payloq_generator.engine import generate_pack, load_input, write_pack
@@ -152,7 +157,7 @@ def generate(
             typer.echo(f"Warning: fell back to stub LLM ({fallback_note})", err=True)
 
     pack = generate_pack(inp, seed=seed)
-    write_pack(pack, out, write_xlsx=xlsx)
+    write_pack(pack, out, write_xlsx=xlsx, write_journal=journal)
     result = validate_pack(pack)
     if not result.ok:
         typer.echo("Generated pack failed validation:", err=True)
@@ -262,6 +267,122 @@ def bench(
                 avg_latency_ms=row["avg_latency_ms"] or 0.0,
             )
         )
+
+
+@app.command("chat")
+def chat(
+    pack_dir: Optional[Path] = typer.Option(
+        None,
+        "--pack",
+        "-p",
+        help="Directory with generated JSON pack (input + monthly + cash).",
+    ),
+    scenario: Optional[str] = typer.Option(
+        None,
+        "--scenario",
+        "-s",
+        help="Generate from built-in scenario then chat (good|weak|cash_critical).",
+    ),
+    question: Optional[str] = typer.Option(
+        None,
+        "--question",
+        "-q",
+        help="Free-form question (FI or EN). Overrides --preset.",
+    ),
+    preset: Optional[str] = typer.Option(
+        None,
+        "--preset",
+        help="Demo preset: cash_drop | cash_negative.",
+    ),
+    language: str = typer.Option("fi", "--language", help="fi|en for preset text."),
+    llm: str = typer.Option("stub", "--llm", help="stub | ollama"),
+    ollama_model: Optional[str] = typer.Option(None, "--ollama-model"),
+    ollama_host: Optional[str] = typer.Option(None, "--ollama-host"),
+    no_fallback_stub: bool = typer.Option(False, "--no-fallback-stub"),
+    seed: int = typer.Option(42, "--seed"),
+    show_figures: bool = typer.Option(
+        False,
+        "--show-figures/--hide-figures",
+        help="Print code-owned figures JSON before the answer.",
+    ),
+) -> None:
+    """§4 chat demo: code supplies figures; LLM interprets only."""
+    import json
+
+    from payloq_generator.engine import generate_pack, load_input
+    from payloq_llm.chat_demo import DEMO_PRESETS, run_chat_demo
+    from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
+    from payloq_schemas.models import (
+        CashAndInvoices,
+        GeneratorInput,
+        MonthlyReports,
+        ScenarioPack,
+    )
+
+    if language not in {"fi", "en"}:
+        typer.echo("--language must be fi or en", err=True)
+        raise typer.Exit(2)
+    if not question and not preset:
+        typer.echo("Demo presets:", err=False)
+        for pid, texts in DEMO_PRESETS.items():
+            typer.echo(f"  {pid}: FI «{texts['fi']}» / EN «{texts['en']}»")
+        typer.echo("Provide --question or --preset (cash_drop|cash_negative).", err=True)
+        raise typer.Exit(2)
+    if bool(pack_dir) == bool(scenario):
+        typer.echo("Provide exactly one of --pack or --scenario", err=True)
+        raise typer.Exit(2)
+
+    if scenario:
+        scenario_path = _repo_root() / "scenarios" / scenario / "input.json"
+        if not scenario_path.exists():
+            typer.echo(f"Unknown scenario '{scenario}'", err=True)
+            raise typer.Exit(2)
+        inp = load_input(scenario_path)
+        if inp.options.scenario_id is None:
+            inp.options.scenario_id = scenario
+        pack = generate_pack(inp, seed=seed)
+    else:
+        assert pack_dir is not None
+        try:
+            pack = ScenarioPack(
+                input=GeneratorInput.model_validate_json(
+                    (pack_dir / "input.json").read_text(encoding="utf-8")
+                ),
+                monthly_reports=MonthlyReports.model_validate_json(
+                    (pack_dir / "monthly_reports.json").read_text(encoding="utf-8")
+                ),
+                cash_and_invoices=CashAndInvoices.model_validate_json(
+                    (pack_dir / "cash_and_invoices.json").read_text(encoding="utf-8")
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            typer.echo(f"Failed to load pack from {pack_dir}: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+    try:
+        result = run_chat_demo(
+            pack,
+            question=question,
+            preset=preset,
+            language=language,
+            llm=llm,
+            ollama_model=ollama_model or DEFAULT_OLLAMA_MODEL,
+            ollama_host=ollama_host or DEFAULT_OLLAMA_HOST,
+            no_fallback_stub=no_fallback_stub,
+        )
+    except Exception as exc:  # noqa: BLE001
+        typer.echo(f"Chat failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    typer.echo(f"LLM: {result.llm_adapter}")
+    if result.fallback_note:
+        typer.echo(f"Fallback: {result.fallback_note}")
+    typer.echo(f"Q: {result.question}")
+    if show_figures:
+        typer.echo("Figures (code):")
+        typer.echo(json.dumps(result.figures, ensure_ascii=False, indent=2))
+    typer.echo("A:")
+    typer.echo(result.answer)
 
 
 @app.command("list-scenarios")

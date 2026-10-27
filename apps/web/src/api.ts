@@ -112,7 +112,12 @@ export async function getRun(id: number) {
 export async function generatePreset(scenario_slug: string) {
   return request<Run>("/api/generate/preset", {
     method: "POST",
-    body: JSON.stringify({ scenario_slug, seed: 42, write_xlsx: true }),
+    body: JSON.stringify({
+      scenario_slug,
+      seed: 42,
+      write_xlsx: true,
+      write_journal: true,
+    }),
   });
 }
 
@@ -125,8 +130,43 @@ export async function generateFromText(body: {
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
-    body: JSON.stringify({ ...body, seed: 42, write_xlsx: true }),
+    body: JSON.stringify({ ...body, seed: 42, write_xlsx: true, write_journal: true }),
   });
+}
+
+export type ChatPreset = { id: string; question: string };
+
+export type ChatResponse = {
+  question: string;
+  answer: string;
+  figures: Record<string, unknown>;
+  preset: string | null;
+  llm_adapter: string;
+  fallback_note: string | null;
+  metrics: Record<string, unknown> | null;
+};
+
+export async function listChatPresets(language: "fi" | "en" = "fi") {
+  return request<ChatPreset[]>(`/api/chat/presets?language=${language}`);
+}
+
+export async function chatOnRun(
+  runId: number,
+  body: {
+    question?: string;
+    preset?: "cash_drop" | "cash_negative";
+    language: "fi" | "en";
+    llm: "stub" | "ollama";
+  },
+) {
+  return request<ChatResponse>(`/api/runs/${runId}/chat`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function ensureJournal(runId: number) {
+  return request<Run>(`/api/runs/${runId}/journal`, { method: "POST" });
 }
 
 export function artifactUrl(runId: number, filename: string) {

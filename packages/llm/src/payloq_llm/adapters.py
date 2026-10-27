@@ -156,8 +156,15 @@ class StubLlmAdapter(LlmAdapter):
         t0 = time.perf_counter()
         cash = pack_summary.get("cash_end")
         neg = pack_summary.get("first_negative_projection_week")
+        neg_date = pack_summary.get("first_negative_projection_week_end")
+        neg_bal = pack_summary.get("first_negative_projection_balance")
         mom = pack_summary.get("mom_revenue_change")
+        mom_cash = pack_summary.get("mom_cash_change")
+        hist_change = pack_summary.get("balance_history_change")
         revenue = pack_summary.get("revenue_last")
+        invest = pack_summary.get("special_investment_eur")
+        drops = pack_summary.get("largest_weekly_cash_drops") or []
+        q_l = question.lower()
         lines = [
             f"[stub] Kysymys / Question: {question}",
             f"Kassasaldo kauden lopussa / Cash at period end: {cash}",
@@ -166,9 +173,25 @@ class StubLlmAdapter(LlmAdapter):
             lines.append(f"Viimeisimmän kuukauden liikevaihto / Last-month revenue: {revenue}")
         if mom is not None:
             lines.append(f"Liikevaihdon MoM-muutos / MoM revenue change: {mom}")
+        if mom_cash is not None:
+            lines.append(f"Kassan MoM-muutos / MoM cash change: {mom_cash}")
+        if hist_change is not None:
+            lines.append(
+                f"Kassahistorian muutos (alku→loppu) / Balance-history change: {hist_change}"
+            )
+        if invest:
+            lines.append(f"Erityisinvestointi (parametri) / Special investment: {invest}")
+        if drops and any(k in q_l for k in ("laski", "drop", "miksi", "why", "laske")):
+            top = drops[0]
+            lines.append(
+                "Suurin viikkomuutos historiassa / Largest weekly history move: "
+                f"{top.get('from_date')} → {top.get('to_date')}: {top.get('delta')}"
+            )
         if neg:
             lines.append(
-                f"Ennuste menee negatiiviseksi viikolla / Projection turns negative in week: {neg}"
+                "Ennuste menee negatiiviseksi viikolla / Projection turns negative in week: "
+                f"{neg}"
+                + (f" ({neg_date}, saldo/balance {neg_bal})" if neg_date is not None else "")
             )
         elif "first_negative_projection_week" in pack_summary and neg is None:
             lines.append(

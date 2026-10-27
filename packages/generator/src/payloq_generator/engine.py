@@ -598,10 +598,21 @@ def _project_from_invoices(
     return out
 
 
-def write_pack(pack: ScenarioPack, out_dir: Path, *, write_xlsx: bool = True) -> Path:
-    """Write JSON (+ optional XLSX) into out_dir. Returns out_dir."""
+def write_pack(
+    pack: ScenarioPack,
+    out_dir: Path,
+    *,
+    write_xlsx: bool = True,
+    write_journal: bool = True,
+) -> Path:
+    """Write JSON (+ optional XLSX / journal) into out_dir. Returns out_dir."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if write_journal and pack.journal_entries is None:
+        from payloq_generator.journal import build_journal_entries
+
+        pack = pack.model_copy(update={"journal_entries": build_journal_entries(pack)})
 
     (out_dir / "input.json").write_text(
         pack.input.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -613,11 +624,20 @@ def write_pack(pack: ScenarioPack, out_dir: Path, *, write_xlsx: bool = True) ->
         pack.cash_and_invoices.model_dump_json(indent=2) + "\n", encoding="utf-8"
     )
 
+    if pack.journal_entries is not None:
+        (out_dir / "journal_entries.json").write_text(
+            pack.journal_entries.model_dump_json(indent=2) + "\n", encoding="utf-8"
+        )
+
     if write_xlsx:
         from payloq_export_xlsx.writer import write_scenario_xlsx
 
         scenario = pack.input.options.scenario_id or pack.input.meta.scenario or "scenario"
-        write_scenario_xlsx(pack, out_dir / f"scenario_{scenario}.xlsx")
+        write_scenario_xlsx(
+            pack,
+            out_dir / f"scenario_{scenario}.xlsx",
+            include_journal=pack.journal_entries is not None,
+        )
 
     return out_dir
 

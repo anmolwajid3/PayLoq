@@ -74,6 +74,7 @@ def run_preset(
     scenario: Scenario,
     seed: int = 42,
     write_xlsx: bool = True,
+    write_journal: bool = True,
 ) -> GenerationRun:
     run = GenerationRun(
         scenario_id=scenario.id,
@@ -92,7 +93,7 @@ def run_preset(
         if inp.options.scenario_id is None:
             inp.options.scenario_id = scenario.slug
         pack = generate_pack(inp, seed=seed)
-        write_pack(pack, out_dir, write_xlsx=write_xlsx)
+        write_pack(pack, out_dir, write_xlsx=write_xlsx, write_journal=write_journal)
         ok, validation = _validation_dict(pack)
         run.status = "ok"
         run.artifact_dir = str(out_dir.resolve())
@@ -123,6 +124,7 @@ def run_from_text(
     months: int = 12,
     seed: int = 42,
     write_xlsx: bool = True,
+    write_journal: bool = True,
     ollama_model: str | None = None,
     ollama_host: str | None = None,
     no_fallback_stub: bool = False,
@@ -160,7 +162,7 @@ def run_from_text(
             run.llm_adapter = f"{llm}->stub"
 
         pack = generate_pack(inp, seed=seed)
-        write_pack(pack, out_dir, write_xlsx=write_xlsx)
+        write_pack(pack, out_dir, write_xlsx=write_xlsx, write_journal=write_journal)
         ok, validation = _validation_dict(pack)
         run.status = "ok" if ok else "error"
         run.artifact_dir = str(out_dir.resolve())

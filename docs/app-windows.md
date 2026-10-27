@@ -107,4 +107,13 @@ cd /d C:\Users\anmol\Desktop\PayLoq\apps\api & set PAYLOQ_DATABASE_URL=postgresq
 
 1. **Scenarios** — open `good` / `weak` / `cash_critical`, generate a pack.
 2. **Generate** — paste Finnish NL text, choose stub (or Ollama), run.
-3. **Runs** — view validation, cash history + projection charts, download JSON/Excel.
+3. **Runs** — view validation, cash history + projection charts, download JSON/Excel (incl. `journal_entries.json`).
+4. **Chat demo** (on a successful run) — try presets *Miksi kassa laski?* / *Milloin kassa menee negatiiviseksi?* (stub or Ollama).
+
+CLI chat without the UI:
+
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq chat --scenario cash_critical --preset cash_negative --llm stub --language fi
+```
+
+More detail: [phase8-stretch.md](phase8-stretch.md).

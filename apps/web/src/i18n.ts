@@ -45,6 +45,18 @@ const dict = {
   emptyRuns: { fi: "Ei ajoja vielä.", en: "No runs yet." },
   loading: { fi: "Ladataan…", en: "Loading…" },
   error: { fi: "Virhe", en: "Error" },
+  chatDemo: { fi: "Chat-demo", en: "Chat demo" },
+  chatHint: {
+    fi: "Koodi antaa luvut; malli vain tulkitsee. Stub toimii ilman Ollamaa.",
+    en: "Code supplies figures; the model only interprets. Stub works without Ollama.",
+  },
+  ask: { fi: "Kysy", en: "Ask" },
+  customQuestion: { fi: "Oma kysymys", en: "Custom question" },
+  showFigures: { fi: "Näytä luvut (koodi)", en: "Show figures (code)" },
+  hideFigures: { fi: "Piilota luvut", en: "Hide figures" },
+  answer: { fi: "Vastaus", en: "Answer" },
+  ensureJournal: { fi: "Luo päiväkirja", en: "Build journal" },
+  journalReady: { fi: "Päiväkirja valmis", en: "Journal ready" },
 } as const;
 
 export type MsgKey = keyof typeof dict;

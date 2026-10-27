@@ -100,6 +100,18 @@ ollama pull llama3.2:1b & cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq ge
 
 Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.
 
+### §4 stretch: chat demo + journal
+
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq chat --scenario cash_critical --preset cash_negative --llm stub --language fi
+```
+
+```bat
+cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --scenario weak --out out\weak --journal & uv run payloq chat --pack out\weak --preset cash_drop --llm stub
+```
+
+In the UI, open a successful run → **Chat demo** panel. Details: [docs/phase8-stretch.md](docs/phase8-stretch.md).
+
 ### Phase 3: benchmark harness
 
 Stub matrix (CPU, no model download) — Windows:
@@ -127,10 +139,13 @@ Writes `results.json`, `scorecard.json`, `metrics.sqlite`, and a human `spotchec
 | `payloq generate --from-text "…" --llm stub\|ollama` | NL → params (+ invoice texts) → pack |
 | `payloq generate --from-text-file desc.txt --llm ollama` | Same from a UTF-8 file |
 | `payloq validate <dir>` | Balance / continuity / invoice checks |
+| `payloq chat` | §4 chat demo over a pack or preset scenario (stub/Ollama) |
 | `payloq bench` | Phase 3 model matrix + graders + SQLite metrics |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
 
-Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`.
+Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`, `--journal/--no-journal`.
+
+Useful `chat` flags: `--scenario` or `--pack`, `--preset cash_drop|cash_negative`, `--question`, `--llm stub|ollama`, `--language`, `--show-figures`.
 
 Useful `bench` flags: `--models`, `--scenarios`, `--config`, `--judge`, `--spotcheck/--no-spotcheck`, `--ollama-host`, `--seed`.
 
@@ -178,7 +193,7 @@ tests/
 - **Phase 2:** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
 - **Phase 3:** model matrix runner, parameter/reading/MoM/interpretation graders, SQLite metrics, optional judge + spot-check sheet
 - **App layer:** FastAPI + DB + Vite UI for local experimentation
-- **§4 nice-to-haves:** deferred (chat demo, journal entries, …)
+- **§4 stretch:** chat demo (code figures + stub/Ollama) + optional `journal_entries.json` — [docs/phase8-stretch.md](docs/phase8-stretch.md)
 
 ## License
 

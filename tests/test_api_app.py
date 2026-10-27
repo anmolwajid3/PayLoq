@@ -106,3 +106,41 @@ def test_generate_from_text_stub(client: TestClient):
     assert body["validation_ok"] is True
     assert body["source"] == "from_text"
     assert body["llm_adapter"] == "stub"
+    assert "journal_entries.json" in body["artifacts"]
+
+
+def test_chat_demo_on_run(client: TestClient):
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    presets = client.get("/api/chat/presets?language=fi", headers=headers)
+    assert presets.status_code == 200
+    ids = {p["id"] for p in presets.json()}
+    assert {"cash_drop", "cash_negative"} <= ids
+
+    run = client.post(
+        "/api/generate/preset",
+        headers=headers,
+        json={"scenario_slug": "cash_critical", "seed": 42, "write_xlsx": False},
+    )
+    assert run.status_code == 200, run.text
+    run_id = run.json()["id"]
+
+    chat = client.post(
+        f"/api/runs/{run_id}/chat",
+        headers=headers,
+        json={"preset": "cash_negative", "language": "fi", "llm": "stub"},
+    )
+    assert chat.status_code == 200, chat.text
+    payload = chat.json()
+    assert payload["preset"] == "cash_negative"
+    assert payload["figures"]["first_negative_projection_week"] is not None
+    assert payload["answer"]
+
+    drop = client.post(
+        f"/api/runs/{run_id}/chat",
+        headers=headers,
+        json={"preset": "cash_drop", "language": "en", "llm": "stub"},
+    )
+    assert drop.status_code == 200, drop.text
+    assert drop.json()["question"] == "Why did cash drop?"

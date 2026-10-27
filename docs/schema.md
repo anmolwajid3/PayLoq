@@ -9,7 +9,8 @@ Schema is **free to evolve**. Figures are owned by code; the LLM only supplies p
 | `input.json` | NL descriptions (FI+EN), options, structured parameters, optional `invoice_texts` |
 | `monthly_reports.json` | 12–24 months of P&L + balance sheet |
 | `cash_and_invoices.json` | 26-week balance history, open invoices, 8-week projection |
-| `scenario_<id>.xlsx` | Same data, bilingual FI/EN sheet labels |
+| `journal_entries.json` | Optional §4 synthetic journal / accounting entries (code-generated) |
+| `scenario_<id>.xlsx` | Same data, bilingual FI/EN sheet labels (+ Journal entries sheet when present) |
 
 ## LLM-assisted fields (Phase 2)
 
@@ -39,6 +40,14 @@ Amounts, dates, VAT, and IDs remain generator-owned.
 5. Σ open sales invoices == receivables; Σ open purchases == payables
 6. Projection arithmetic: `balance += sales_inflow - purchase_outflow`
 7. Behavioural (warnings): good stays solvent; weak loses money; cash_critical goes negative ~week 3
+
+## Journal entries (§4 optional)
+
+`journal_entries.json` is a simplified double-entry export derived from monthly P&L, special investment, and open invoices. Each voucher has balanced debit/credit lines on a synthetic chart of accounts (not an official Finnish tilikartta). See [phase8-stretch.md](phase8-stretch.md).
+
+## Chat figures (§4)
+
+Chat demo does **not** invent a new on-disk file. Code builds an in-memory figure summary (`build_chat_figures`) from the pack; stub/Ollama only interpret those numbers.
 
 ## Adding a scenario
 

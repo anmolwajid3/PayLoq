@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -13,7 +13,20 @@ from payloq_api.auth import get_current_user
 from payloq_api.config import Settings, get_settings
 from payloq_api.db import get_session
 from payloq_api.models import GenerationRun, Scenario, User
-from payloq_api.schemas import GenerateFromTextRequest, GeneratePresetRequest, RunOut
+from payloq_api.schemas import (
+    ChatPresetOut,
+    ChatRequest,
+    ChatResponse,
+    GenerateFromTextRequest,
+    GeneratePresetRequest,
+    RunOut,
+)
+from payloq_api.services.chat import (
+    chat_on_run,
+    demo_presets_payload,
+    ensure_journal_artifact,
+    result_to_dict,
+)
 from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
 
 router = APIRouter(tags=["runs"])
@@ -79,6 +92,7 @@ def generate_preset(
         scenario=scenario,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
+        write_journal=body.write_journal,
     )
     return _run_out(run)
 
@@ -100,11 +114,73 @@ def generate_from_text(
         months=body.months,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
+        write_journal=body.write_journal,
         ollama_model=body.ollama_model,
         ollama_host=body.ollama_host,
         no_fallback_stub=body.no_fallback_stub,
         save_as_slug=body.save_as_slug,
     )
+    return _run_out(run)
+
+
+@router.get("/chat/presets", response_model=list[ChatPresetOut])
+def chat_presets(
+    _: Annotated[User, Depends(get_current_user)],
+    language: Literal["fi", "en"] = "fi",
+) -> list[ChatPresetOut]:
+    return [ChatPresetOut(**row) for row in demo_presets_payload(language)]
+
+
+@router.post("/runs/{run_id}/chat", response_model=ChatResponse)
+def chat_run(
+    run_id: int,
+    body: ChatRequest,
+    _: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ChatResponse:
+    run = session.get(GenerationRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status != "ok" or not run.artifact_dir:
+        raise HTTPException(status_code=400, detail="Run has no usable artifacts")
+    if not body.question and not body.preset:
+        raise HTTPException(status_code=400, detail="Provide question or preset")
+    try:
+        result = chat_on_run(
+            run,
+            settings,
+            question=body.question,
+            preset=body.preset,
+            language=body.language,
+            llm=body.llm,
+            ollama_model=body.ollama_model,
+            ollama_host=body.ollama_host,
+            no_fallback_stub=body.no_fallback_stub,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
+    return ChatResponse(**result_to_dict(result))
+
+
+@router.post("/runs/{run_id}/journal", response_model=RunOut)
+def ensure_journal(
+    run_id: int,
+    _: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> RunOut:
+    """Write journal_entries.json for an existing run if missing (§4)."""
+    run = session.get(GenerationRun, run_id)
+    if run is None or not run.artifact_dir:
+        raise HTTPException(status_code=404, detail="Run or artifacts not found")
+    try:
+        ensure_journal_artifact(run)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return _run_out(run)
 
 
