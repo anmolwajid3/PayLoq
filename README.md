@@ -6,7 +6,67 @@ Research PoC for **synthetic Finnish SME financial datasets** (Task A) and a **l
 
 Everything is **synthetic / fictional**. MIT licensed. Designed for **CPU-friendly local** runs (Ollama optional; stub fallback when Ollama is unavailable).
 
-## Quick start (local, CPU)
+## App UI (API + web + DB)
+
+Full-stack experimental UI: browse/create scenarios, generate packs (preset or NL), view JSON/Excel, validation, and cash charts.
+
+**Login:** `payloq` / `payloq` · **UI:** http://localhost:5173 · **API docs:** http://localhost:8000/docs
+
+### Windows — Docker Compose (recommended)
+
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if needed, then:
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+
+git pull origin main
+
+docker compose up --build -d
+```
+
+Open http://localhost:5173 and sign in as `payloq` / `payloq`.
+
+```powershell
+docker compose down
+```
+
+Step-by-step (blank lines between commands, SQLite fallback, Alembic): **[docs/app-windows.md](docs/app-windows.md)**.
+
+### Windows — SQLite without Docker DB
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+
+uv sync
+
+cd C:\Users\anmol\Desktop\PayLoq\apps\web
+
+npm install
+```
+
+Terminal 1:
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+
+$env:PAYLOQ_DATABASE_URL = "sqlite:///./data/payloq.db"
+
+$env:PAYLOQ_ARTIFACT_DIR = "./data/artifacts"
+
+uv run uvicorn payloq_api.main:app --host 127.0.0.1 --port 8000
+```
+
+Terminal 2:
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq\apps\web
+
+npm run dev
+```
+
+Open http://localhost:5173.
+
+## CLI quick start (local, CPU)
 
 Requires **Python 3.12+** and [uv](https://docs.astral.sh/uv/).
 
@@ -14,8 +74,11 @@ Requires **Python 3.12+** and [uv](https://docs.astral.sh/uv/).
 
 ```powershell
 cd C:\Users\anmol\Desktop\PayLoq
+
 uv sync
+
 uv run payloq generate --scenario cash_critical --out out\cash_critical
+
 uv run payloq validate out\cash_critical
 ```
 
@@ -47,6 +110,7 @@ Stub adapter (always works, CPU-only keyword heuristics + FI/EN invoice texts):
 
 ```powershell
 cd C:\Users\anmol\Desktop\PayLoq
+
 uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm stub --out out\from_text_stub
 ```
 
@@ -58,7 +122,9 @@ Ollama (default small model `llama3.2:1b`; falls back to stub if Ollama is down)
 
 ```powershell
 ollama pull llama3.2:1b
+
 cd C:\Users\anmol\Desktop\PayLoq
+
 uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm ollama --out out\from_text_ollama
 ```
 
@@ -114,7 +180,10 @@ See [docs/schema.md](docs/schema.md).
 ```
 packages/schemas|generator|validate|export_xlsx|llm|benchmark
 apps/cli
+apps/api          # FastAPI + SQLModel + Alembic (Postgres or SQLite)
+apps/web          # Vite + React UI (FI/EN)
 scenarios/{good,weak,cash_critical}
+docker-compose.yml
 docs/
 tests/
 ```
@@ -122,8 +191,9 @@ tests/
 ## Phase status
 
 - **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs, benchmark scaffold
-- **Phase 2 (this):** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
-- **Phase 3:** multi-model scorecard (latency, tokens, graders)
+- **Phase 2:** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
+- **App layer:** FastAPI + DB + Vite UI for local experimentation
+- **Phase 3:** multi-model scorecard (latency, tokens, graders) — separate workstream
 - **§4 nice-to-haves:** deferred (chat demo, journal entries, …)
 
 ## License

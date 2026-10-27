@@ -14,6 +14,7 @@ dependencies = [
   "payloq-llm",
   "payloq-benchmark",
   "payloq-cli",
+  "payloq-api",
 ]
 
 [tool.uv]
@@ -28,6 +29,7 @@ members = [
   "packages/llm",
   "packages/benchmark",
   "apps/cli",
+  "apps/api",
 ]
 
 [tool.uv.sources]
@@ -38,6 +40,7 @@ payloq-export-xlsx = { workspace = true }
 payloq-llm = { workspace = true }
 payloq-benchmark = { workspace = true }
 payloq-cli = { workspace = true }
+payloq-api = { workspace = true }
 
 [dependency-groups]
 dev = [

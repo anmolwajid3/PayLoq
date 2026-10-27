@@ -1,6 +1,53 @@
-# Optional local stack. Generator/validators run without containers.
-# Ollama is provided for Phase 2/3 experiments only.
+# PayLoq local stack — Postgres (default) + API + web.
+# Optional: docker compose --profile ollama up
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payloq
+      POSTGRES_PASSWORD: payloq
+      POSTGRES_DB: payloq
+    ports:
+      - "5432:5432"
+    volumes:
+      - payloq_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payloq -d payloq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PAYLOQ_DATABASE_URL: postgresql+psycopg://payloq:payloq@db:5432/payloq
+      PAYLOQ_ARTIFACT_DIR: /data/artifacts
+      PAYLOQ_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8080
+      PAYLOQ_AUTH_USERNAME: payloq
+      PAYLOQ_AUTH_PASSWORD: payloq
+      PAYLOQ_OLLAMA_HOST: http://ollama:11434
+    ports:
+      - "8000:8000"
+    volumes:
+      - payloq_artifacts:/data/artifacts
+      - ./scenarios:/app/scenarios:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -10,4 +57,6 @@ services:
     profiles: ["ollama"]
 
 volumes:
+  payloq_pg:
+  payloq_artifacts:
   ollama_data:
