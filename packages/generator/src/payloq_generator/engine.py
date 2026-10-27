@@ -16,6 +16,7 @@ from payloq_schemas.models import (
     EquityAndLiabilities,
     GeneratorInput,
     IncomeStatement,
+    InvoiceDescriptiveTexts,
     MonthlyReport,
     MonthlyReports,
     OpenInvoice,
@@ -122,6 +123,18 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     # Enforce exact link to last month cash
     history[-1] = BalanceHistoryPoint(date=as_of.isoformat(), balance=last_cash)
 
+    invoice_texts = inp.invoice_texts
+    if invoice_texts is None:
+        # Built-in FI stubs when no LLM / --from-text path supplied texts.
+        invoice_texts = InvoiceDescriptiveTexts(
+            sales_counterparties=list(SALES_COUNTERPARTIES_FI),
+            purchase_counterparties=list(PURCHASE_COUNTERPARTIES_FI),
+            sales_descriptions=list(SALES_DESCRIPTIONS_FI),
+            purchase_descriptions=list(PURCHASE_DESCRIPTIONS_FI),
+            language=inp.options.language,
+            notes="built-in stub texts",
+        )
+
     invoices = _generate_invoices(
         as_of=as_of,
         receivables=receivables,
@@ -131,6 +144,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         profile=profile,
         language=inp.options.language,
         seed=seed,
+        texts=invoice_texts,
     )
 
     projection = _project_from_invoices(
@@ -415,10 +429,16 @@ def _generate_invoices(
     profile: str,
     language: str,
     seed: int,
+    texts: InvoiceDescriptiveTexts,
 ) -> list[OpenInvoice]:
     n_sales, n_purch = 10, 10
     sales_amts = _split_amounts(receivables, n_sales, seed)
     purch_amts = _split_amounts(payables, n_purch, seed + 9)
+
+    sales_cp = texts.sales_counterparties or SALES_COUNTERPARTIES_FI
+    purch_cp = texts.purchase_counterparties or PURCHASE_COUNTERPARTIES_FI
+    sales_desc = texts.sales_descriptions or SALES_DESCRIPTIONS_FI
+    purch_desc = texts.purchase_descriptions or PURCHASE_DESCRIPTIONS_FI
 
     invoices: list[OpenInvoice] = []
 
@@ -462,8 +482,8 @@ def _generate_invoices(
             OpenInvoice(
                 id=f"S-{2600 + i}",
                 type="sales",
-                counterparty=pick(SALES_COUNTERPARTIES_FI, i),
-                description=pick(SALES_DESCRIPTIONS_FI, i),
+                counterparty=pick(list(sales_cp), i),
+                description=pick(list(sales_desc), i),
                 issue_date=issue.isoformat(),
                 due_date=due.isoformat(),
                 amount_incl_vat=amt,
@@ -491,8 +511,8 @@ def _generate_invoices(
             OpenInvoice(
                 id=f"P-{2650 + i}",
                 type="purchase",
-                counterparty=pick(PURCHASE_COUNTERPARTIES_FI, i),
-                description=pick(PURCHASE_DESCRIPTIONS_FI, i),
+                counterparty=pick(list(purch_cp), i),
+                description=pick(list(purch_desc), i),
                 issue_date=issue.isoformat(),
                 due_date=due.isoformat(),
                 amount_incl_vat=amt,
@@ -514,7 +534,7 @@ def _generate_invoices(
                 inv.amount_incl_vat = _r(inv.amount_incl_vat + (payables - purch_sum))
                 break
 
-    _ = language  # FI texts used for both; EN labels live in Excel export
+    _ = language  # texts.language already selected by caller / LLM
     return invoices
 
 

@@ -10,4 +10,4 @@ Benchmark metrics (work order §3) planned for the harness in `packages/benchmar
 | Latency / tokens / hardware | Adapter run logs |
 | Cost-effectiveness | Derived from tokens + hardware class |
 
-Phase 1 ships `payloq bench` with the **stub** adapter only (CPU, no GPU). Wire Ollama / other local runtimes when models are shortlisted.
+Phase 1–2 ship `payloq bench` with the **stub** adapter by default (CPU, no GPU). Phase 2 also wires `OllamaAdapter` (`llama3.2:1b` default) into `payloq generate --from-text --llm ollama`. Full model-matrix scoring remains Phase 3 once a shortlist exists.

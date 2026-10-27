@@ -4,11 +4,22 @@ Research PoC for **synthetic Finnish SME financial datasets** (Task A) and a **l
 
 **Principle:** *Code calculates; the language model interprets.* All figures and consistency checks are ordinary Python. LLMs only map descriptions → parameters, write descriptive texts, and interpret ready-made figures.
 
-Everything is **synthetic / fictional**. MIT licensed. Designed for **CPU-friendly local** runs (Ollama optional; no GPU required for generation).
+Everything is **synthetic / fictional**. MIT licensed. Designed for **CPU-friendly local** runs (Ollama optional; stub fallback when Ollama is unavailable).
 
 ## Quick start (local, CPU)
 
 Requires **Python 3.12+** and [uv](https://docs.astral.sh/uv/).
+
+### Windows (Anmol’s Desktop path)
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+uv sync
+uv run payloq generate --scenario cash_critical --out out\cash_critical
+uv run payloq validate out\cash_critical
+```
+
+### Any platform
 
 ```bash
 git clone https://github.com/anmolwajid3/PayLoq.git
@@ -16,7 +27,7 @@ cd PayLoq
 uv sync
 ```
 
-Generate the three built-in scenarios:
+Generate the three built-in scenarios (**no LLM**):
 
 ```bash
 uv run payloq generate --scenario good --out out/good
@@ -30,32 +41,48 @@ Validate a pack:
 uv run payloq validate out/cash_critical
 ```
 
+### Phase 2: generate from natural language
+
+Stub adapter (always works, CPU-only keyword heuristics + FI/EN invoice texts):
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm stub --out out\from_text_stub
+```
+
+```bash
+uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm stub --out out/from_text_stub
+```
+
+Ollama (default small model `llama3.2:1b`; falls back to stub if Ollama is down):
+
+```powershell
+ollama pull llama3.2:1b
+cd C:\Users\anmol\Desktop\PayLoq
+uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm ollama --out out\from_text_ollama
+```
+
+Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.
+
 Benchmark scaffold (stub adapter — no model download):
 
 ```bash
 uv run payloq bench --models stub --out runs/benchmark
 ```
 
-### Optional: Ollama
-
-Generation does **not** need Ollama. For Phase 2/3 experiments:
-
-```bash
-# install Ollama separately, then e.g.:
-# ollama pull llama3.2
-```
-
-The `payloq_llm.OllamaAdapter` talks to `http://127.0.0.1:11434` when you opt in later.
-
 ## CLI
 
 | Command | Purpose |
 | --- | --- |
-| `payloq generate -s <id> -o <dir>` | Params → JSON + Excel pack |
+| `payloq generate -s <id> -o <dir>` | Preset params → JSON + Excel (no LLM) |
 | `payloq generate -i input.json -o <dir>` | Same from a custom input file |
+| `payloq generate --from-text "…" --llm stub\|ollama` | NL → params (+ invoice texts) → pack |
+| `payloq generate --from-text-file desc.txt --llm ollama` | Same from a UTF-8 file |
 | `payloq validate <dir>` | Balance / continuity / invoice checks |
 | `payloq bench` | Phase 3 harness scaffold |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
+
+Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`.
 
 ## Built-in scenarios
 
@@ -74,6 +101,12 @@ Fidelity target: **behavioural match** (not numeric golden match to the illustra
 3. `uv run payloq generate --scenario <name> --out out/<name>`
 4. `uv run payloq validate out/<name>`
 
+Or invent one from free text:
+
+```bash
+uv run payloq generate --from-text "…" --llm stub --out out/custom
+```
+
 See [docs/schema.md](docs/schema.md).
 
 ## Layout
@@ -88,8 +121,8 @@ tests/
 
 ## Phase status
 
-- **Phase 0/1 (this repo):** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs, benchmark scaffold
-- **Phase 2:** NL → parameters via real local models; richer descriptive text
+- **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs, benchmark scaffold
+- **Phase 2 (this):** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
 - **Phase 3:** multi-model scorecard (latency, tokens, graders)
 - **§4 nice-to-haves:** deferred (chat demo, journal entries, …)
 

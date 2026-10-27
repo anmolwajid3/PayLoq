@@ -55,11 +55,24 @@ class ParametersFromLanguageModel(BaseModel):
     partly_fixed_costs: bool = False
 
 
+class InvoiceDescriptiveTexts(BaseModel):
+    """LLM-authored (or stub) FI/EN invoice labels. Amounts stay in the generator."""
+
+    sales_counterparties: list[str] = Field(min_length=1)
+    purchase_counterparties: list[str] = Field(min_length=1)
+    sales_descriptions: list[str] = Field(min_length=1)
+    purchase_descriptions: list[str] = Field(min_length=1)
+    language: Literal["fi", "en"] = "fi"
+    notes: str | None = None
+
+
 class GeneratorInput(BaseModel):
     meta: ScenarioMeta = Field(default_factory=ScenarioMeta)
     scenario_description: ScenarioDescription
     options: Options
     parameters_from_language_model: ParametersFromLanguageModel
+    # Optional; when set, generator uses these instead of built-in FI stub lists.
+    invoice_texts: InvoiceDescriptiveTexts | None = None
 
 
 class IncomeStatement(BaseModel):

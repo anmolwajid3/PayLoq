@@ -1,15 +1,29 @@
 # PayLoq schema (v0)
 
-Schema is **free to evolve** in Phase 0/1. Figures are owned by code; the LLM only supplies parameters and descriptive text.
+Schema is **free to evolve**. Figures are owned by code; the LLM only supplies parameters and descriptive text.
 
 ## Files per scenario pack
 
 | File | Role |
 | --- | --- |
-| `input.json` | NL descriptions (FI+EN), options, structured parameters |
+| `input.json` | NL descriptions (FI+EN), options, structured parameters, optional `invoice_texts` |
 | `monthly_reports.json` | 12–24 months of P&L + balance sheet |
 | `cash_and_invoices.json` | 26-week balance history, open invoices, 8-week projection |
 | `scenario_<id>.xlsx` | Same data, bilingual FI/EN sheet labels |
+
+## LLM-assisted fields (Phase 2)
+
+`parameters_from_language_model` is validated with Pydantic (`ParametersFromLanguageModel`) after the adapter returns JSON.
+
+Optional `invoice_texts` (`InvoiceDescriptiveTexts`):
+
+| Field | Role |
+| --- | --- |
+| `sales_counterparties` / `purchase_counterparties` | Fictional FI/EN names |
+| `sales_descriptions` / `purchase_descriptions` | Invoice line labels |
+| `language` | `fi` \| `en` |
+
+Amounts, dates, VAT, and IDs remain generator-owned.
 
 ## VAT
 
