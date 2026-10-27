@@ -1,0 +1,20 @@
+{
+  "scenarios": ["good", "weak", "cash_critical"],
+  "hardware_note": "CPU-friendly local workstation (Anmol Desktop first)",
+  "seed": 42,
+  "write_spotcheck": true,
+  "models": [
+    { "id": "stub", "adapter": "stub" },
+    {
+      "id": "ollama:llama3.2:1b",
+      "adapter": "ollama",
+      "model": "llama3.2:1b",
+      "fallback_stub": true
+    }
+  ],
+  "judge": {
+    "enabled": false,
+    "adapter": "ollama",
+    "model": "llama3.2:1b"
+  }
+}

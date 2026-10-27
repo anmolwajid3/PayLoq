@@ -94,6 +94,24 @@ uv run payloq generate --from-text "..." --llm ollama --no-fallback-stub --out o
 | `--ollama-host http://127.0.0.1:11434` | Custom Ollama URL |
 | `--llm stub` | Keyword heuristic + built-in FI/EN invoice texts |
 
+## 9. Phase 3 benchmark (stub + Ollama matrix)
+
+Blank line between each command:
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+
+uv sync
+
+uv run payloq bench --models stub --out runs\benchmark
+
+uv run payloq bench --models stub,ollama:llama3.2:1b --out runs\benchmark_matrix
+
+uv run payloq bench --config benchmarks\matrix.example.json --out runs\benchmark_cfg
+```
+
+Artifacts land under `runs\…` (`results.json`, `scorecard.json`, `metrics.sqlite`, `spotcheck.csv`). See [evaluation.md](evaluation.md).
+
 ## Principle reminder
 
-Code owns **all numbers**. The LLM only supplies parameters and descriptive texts (counterparties / invoice lines).
+Code owns **all numbers**. The LLM only supplies parameters and descriptive texts (counterparties / invoice lines), and interprets ready-made figures in the benchmark.

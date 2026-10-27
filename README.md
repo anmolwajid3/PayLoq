@@ -64,11 +64,27 @@ uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen v
 
 Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.
 
-Benchmark scaffold (stub adapter — no model download):
+### Phase 3: benchmark harness
+
+Stub matrix (CPU, no model download) — Windows (blank line between commands):
+
+```powershell
+cd C:\Users\anmol\Desktop\PayLoq
+
+uv sync
+
+uv run payloq bench --models stub --out runs\benchmark
+```
+
+Any platform:
 
 ```bash
 uv run payloq bench --models stub --out runs/benchmark
+uv run payloq bench --models stub,ollama:llama3.2:1b --out runs/benchmark_matrix
+uv run payloq bench --config benchmarks/matrix.example.json --out runs/benchmark_cfg
 ```
+
+Writes `results.json`, `scorecard.json`, `metrics.sqlite`, and a human `spotcheck.csv` under `--out`. Details: [docs/evaluation.md](docs/evaluation.md).
 
 ## CLI
 
@@ -79,10 +95,12 @@ uv run payloq bench --models stub --out runs/benchmark
 | `payloq generate --from-text "…" --llm stub\|ollama` | NL → params (+ invoice texts) → pack |
 | `payloq generate --from-text-file desc.txt --llm ollama` | Same from a UTF-8 file |
 | `payloq validate <dir>` | Balance / continuity / invoice checks |
-| `payloq bench` | Phase 3 harness scaffold |
+| `payloq bench` | Phase 3 model matrix + graders + SQLite metrics |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
 
 Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`.
+
+Useful `bench` flags: `--models`, `--scenarios`, `--config`, `--judge`, `--spotcheck/--no-spotcheck`, `--ollama-host`, `--seed`.
 
 ## Built-in scenarios
 
@@ -121,9 +139,9 @@ tests/
 
 ## Phase status
 
-- **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs, benchmark scaffold
-- **Phase 2 (this):** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
-- **Phase 3:** multi-model scorecard (latency, tokens, graders)
+- **Phase 0/1:** schemas, deterministic generator, validators, Excel export, CLI, LLM stubs
+- **Phase 2:** NL → parameters via Ollama/stub; LLM invoice descriptive texts; CLI `--from-text` / `--llm`
+- **Phase 3 (this):** model matrix runner, parameter/reading/MoM/interpretation graders, SQLite metrics, optional judge + spot-check sheet
 - **§4 nice-to-haves:** deferred (chat demo, journal entries, …)
 
 ## License
