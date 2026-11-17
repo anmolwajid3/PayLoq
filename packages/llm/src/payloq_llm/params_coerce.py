@@ -22,9 +22,11 @@ from payloq_llm.nl_cash_intent import (
     suggested_target_cash_eur,
 )
 from payloq_llm.nl_param_hints import (
+    extract_growth_rate,
     repair_investment_and_revenue_from_nl,
     suggest_revenue_start_eur,
 )
+from payloq_schemas.company_size import scale_defaults_for_size
 
 DEFAULT_COST_SHARES: dict[str, float] = {
     "materials": 0.37,
@@ -225,7 +227,17 @@ def coerce_parameters_dict(
         suggested = suggest_revenue_start_eur(
             blob, industry=industry, company_size=company_size
         )
-        fill = float(suggested) if suggested is not None else 80_000.0
+        if suggested is not None:
+            fill = float(suggested)
+        else:
+            try:
+                fill = float(
+                    scale_defaults_for_size(company_size or "small")[
+                        "monthly_revenue_start_eur"
+                    ]
+                )
+            except Exception:
+                fill = 80_000.0
         _fill_missing_scalar(
             out,
             "monthly_revenue_start_eur",
@@ -239,7 +251,8 @@ def coerce_parameters_dict(
 
     # --- growth ---
     if out.get("monthly_revenue_growth") in (None, ""):
-        growth = 0.0 if looks_cash_critical(blob) else 0.0
+        nl_growth = extract_growth_rate(blob)
+        growth = float(nl_growth) if nl_growth is not None else 0.0
         _fill_missing_scalar(
             out,
             "monthly_revenue_growth",

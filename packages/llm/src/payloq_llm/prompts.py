@@ -38,12 +38,16 @@ Use low winter factors when sales collapse Oct–Mar. one_off_events (or
 special_investment_*) land capex/repairs in a specific month — copy the euro amount
 and month from the description (e.g. oven repair €42k in month 3 → 42000, month 3).
 Do not invent absolute P&L or balance-sheet figures — code will compute those.
-Scale monthly_revenue_start_eur to company size (small bakery ≪ 200000).
-HARD: If the description mentions a bank covenant, winter cash, or thin cash figure
-(e.g. €10k covenant, ~€8k winter cash), set target_cash_at_end_eur to that scale.
-NEVER invent a healthy default like 330000 when the story is cash-stressed,
-hotel winter collapse, bakery thin cash, or covenant-bound. Finnish (kovenantti,
-ohut kassa, talvi, leipomo) counts the same as English.
+Scale monthly_revenue_start_eur to company size (small bakery ≪ 200000;
+large / ~420-employee steel fabricator can be millions/month — copy explicit euros).
+HARD: If the description mentions a bank covenant, winter cash/trough, or thin cash figure
+(e.g. €10k covenant, ~€8k winter cash, or mid-market trough €1.2M / covenant €1.5M),
+set target_cash_at_end_eur to that scale. Copy growth % and one-off CAPEX amount+month
+when stated (e.g. €2.8M in month 4 → 2800000, month 4).
+NEVER invent SME defaults like revenue 200000 / invest 80000 / target 500000 when the
+NL states millions. NEVER invent a healthy default like 330000 when the story is
+cash-stressed, hotel winter collapse, bakery thin cash, or covenant-bound. Finnish
+(kovenantti, ohut kassa, talvi, leipomo, teräs, miljoonaa) counts the same as English.
 """.strip()
 
 

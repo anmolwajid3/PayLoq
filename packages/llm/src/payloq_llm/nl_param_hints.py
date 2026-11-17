@@ -1,7 +1,7 @@
-"""NL hints for revenue scale and one-off investments (FI + EN).
+"""NL hints for revenue scale, growth, and one-off investments (FI + EN).
 
 Code calculates figures; this only interprets description text so stub / weak
-models do not invent oversized revenue or wrong capex amounts.
+models do not invent oversized SME revenue or crush mid-market millions.
 """
 
 from __future__ import annotations
@@ -10,6 +10,8 @@ import re
 from typing import Any
 
 from payloq_llm.nl_cash_intent import extract_euro_amounts
+from payloq_schemas.constants import PARAM_RANGES
+from payloq_schemas.company_size import scale_defaults_for_size
 
 # Industry size → default monthly revenue start (EUR). Kept ≥ PARAM_RANGES floor (20k).
 _INDUSTRY_REV_DEFAULTS: dict[str, float] = {
@@ -26,10 +28,17 @@ _INDUSTRY_REV_DEFAULTS: dict[str, float] = {
     "workshop": 200_000.0,
     "konepaja": 200_000.0,
     "metal": 200_000.0,
+    # Mid-market manufacturing — size band still scales this further.
+    "steel": 1_200_000.0,
+    "teräs": 1_200_000.0,
+    "teras": 1_200_000.0,
+    "fabricat": 1_200_000.0,
+    "valmistus": 1_200_000.0,
+    "manufactur": 1_200_000.0,
 }
 
 _SMALL_KEYS = ("small", "pieni", "pieno", "micro", "mikro")
-_MEDIUM_KEYS = ("medium", "mid-size", "keskisuuri", "keski")
+_MEDIUM_KEYS = ("medium", "mid-size", "midmarket", "mid-market", "keskisuuri", "keski")
 _LARGE_KEYS = ("large", "iso", "suuri")
 
 _INVEST_CONTEXT: tuple[str, ...] = (
@@ -49,6 +58,13 @@ _INVEST_CONTEXT: tuple[str, ...] = (
     "laitteisto",
     "machine",
     "kone",
+    "line",
+    "production line",
+    "tuotantolinja",
+    "press",
+    "puristin",
+    "one-off",
+    "kertaluonteinen",
 )
 
 _MONTH_PATTERNS: tuple[str, ...] = (
@@ -58,6 +74,9 @@ _MONTH_PATTERNS: tuple[str, ...] = (
     r"kk\s*(?P<m>\d{1,2})",
     r"in\s+month\s*(?P<m>\d{1,2})",
 )
+
+_REV_LO, _REV_HI = PARAM_RANGES["monthly_revenue_start_eur"]
+_INV_LO, _INV_HI = PARAM_RANGES["special_investment_eur"]
 
 
 def _blob_industry(text: str, industry: str | None = None) -> str:
@@ -69,16 +88,68 @@ def looks_bakery(text: str, industry: str | None = None) -> bool:
     return any(k in blob for k in ("bakery", "leipomo", "leipuri", "baker", "pastry", "leivon"))
 
 
+def looks_steel_or_manufacturing(text: str, industry: str | None = None) -> bool:
+    blob = _blob_industry(text, industry)
+    return any(
+        k in blob
+        for k in (
+            "steel",
+            "teräs",
+            "teras",
+            "fabricat",
+            "konepaja",
+            "metal",
+            "manufactur",
+            "valmistus",
+            "workshop",
+        )
+    )
+
+
 def company_size_scale(text: str, company_size: str | None = None) -> float:
     """Multiplier on industry revenue default from size wording."""
     blob = f"{text or ''} {company_size or ''}".lower()
     if any(k in blob for k in _SMALL_KEYS):
         return 0.85
-    if any(k in blob for k in _LARGE_KEYS):
+    if any(k in blob for k in _LARGE_KEYS) or re.search(r"\b([3-9]\d{2}|\d{4,})\b", blob):
+        # Explicit large label or 300+ headcount → mid-market scale
         return 1.6
     if any(k in blob for k in _MEDIUM_KEYS):
         return 1.15
     return 1.0
+
+
+def extract_growth_rate(text: str) -> float | None:
+    """
+    Parse monthly revenue growth from NL.
+
+    Examples: 'growth ~0.3%/month', 'kasvu 0,3 %', '0.3 percent moM'.
+    Returns a fraction (0.003 for 0.3%), clamped to PARAM_RANGES.
+    """
+    blob = text or ""
+    patterns = [
+        r"(?:growth|kasvu|revenue growth|liikevaihdon kasvu)\s*[~≈:]?\s*"
+        r"(-?\d+[.,]?\d*)\s*%",
+        r"(-?\d+[.,]?\d*)\s*%\s*(?:/\s*month|per month|/kk|kuukaudessa|mom|mo\b)",
+        r"(-?\d+[.,]?\d*)\s*(?:percent|prosenttia)\s*"
+        r"(?:/\s*month|per month|kuukaudessa|mom)?",
+    ]
+    lo, hi = PARAM_RANGES["monthly_revenue_growth"]
+    for pat in patterns:
+        m = re.search(pat, blob, flags=re.IGNORECASE)
+        if not m:
+            continue
+        try:
+            pct = float(m.group(1).replace(",", "."))
+        except (TypeError, ValueError):
+            continue
+        # Values like 0.3 mean 0.3%; values like 0.003 already fraction-like near %
+        if abs(pct) <= 0.05 and "%" not in m.group(0):
+            growth = pct
+        else:
+            growth = pct / 100.0
+        return float(min(hi, max(lo, growth)))
+    return None
 
 
 def suggest_revenue_start_eur(
@@ -99,30 +170,46 @@ def suggest_revenue_start_eur(
         "monthly revenue",
         "revenue ~",
         "revenue €",
+        "revenue ~€",
         "turnover",
         "myynti",
         "kuukausimyynti",
         "kuukausittainen",
+        "kuukausiliikevaihto",
     )
     for amt, idx in extract_euro_amounts(text):
-        window = blob[max(0, idx - 40) : idx + 48]
-        if any(c in window for c in rev_ctx) and 15_000 <= amt <= 500_000:
+        window = blob[max(0, idx - 48) : idx + 56]
+        if any(c in window for c in rev_ctx) and _REV_LO <= amt <= _REV_HI:
             return float(amt)
 
+    # No explicit euro revenue — only invent industry defaults where SME scale
+    # matters (bakery). Workshop/steel without figures defer to size-band stub defaults
+    # so large/420 stays on scale_defaults_for_size (and small konepaja stays 200k).
+    if looks_bakery(text, industry):
+        base = 32_000.0
+        scaled = base * company_size_scale(text, company_size)
+        return float(max(_REV_LO, min(_REV_HI, round(scaled, -3))))
+
     industry_blob = _blob_industry(text, industry)
-    base: float | None = None
-    for key, default in _INDUSTRY_REV_DEFAULTS.items():
+    cafe_keys = ("cafe", "kahvila", "restaurant", "ravintola")
+    for key in cafe_keys:
         if key in industry_blob:
-            base = default
-            break
-    if base is None:
-        if looks_bakery(text, industry):
-            base = 32_000.0
-        else:
-            return None
-    scaled = base * company_size_scale(text, company_size)
-    # Stay inside typical PARAM_RANGES floor/ceiling without inventing tiny shops
-    return float(max(20_000.0, min(500_000.0, round(scaled, -3))))
+            base = _INDUSTRY_REV_DEFAULTS[key]
+            scaled = base * company_size_scale(text, company_size)
+            return float(max(_REV_LO, min(_REV_HI, round(scaled, -3))))
+
+    # Hotel without explicit revenue: mild size-aware default
+    if any(k in industry_blob for k in ("hotel", "hotelli", "boutique")):
+        try:
+            band_defaults = scale_defaults_for_size(company_size or "small")
+            base = float(band_defaults["monthly_revenue_start_eur"])
+            if band_defaults.get("band") == "small":
+                base = max(base, 180_000.0)
+        except Exception:
+            base = 180_000.0
+        return float(max(_REV_LO, min(_REV_HI, round(base, -3))))
+
+    return None
 
 
 def extract_special_investment(text: str) -> tuple[float, int] | None:
@@ -133,19 +220,30 @@ def extract_special_investment(text: str) -> tuple[float, int] | None:
       'Oven repair €42,000 in month 3' → (42000, 3)
       'Capex: €95,000 roof repair in month 2' → (95000, 2)
       'Uunikorjaus 42 000 € kuukaudessa 3' → (42000, 3)
+      'One-off CAPEX €2.8M in month 4' → (2800000, 4)
     """
     blob = text or ""
     low = blob.lower()
     best: tuple[float, int, float] | None = None  # amount, month, score
 
     for amt, idx in extract_euro_amounts(text):
-        if amt < 5_000 or amt > 2_000_000:
+        if amt < 5_000 or amt > _INV_HI:
             continue
         window = low[max(0, idx - 56) : idx + 72]
         if not any(k in window for k in _INVEST_CONTEXT):
             continue
         # Skip thin cash / covenant figures even if "repair" is far away
-        cashish = ("covenant", "kovenantti", "winter cash", "talvikassa", "target cash", "tavoitekassa")
+        cashish = (
+            "covenant",
+            "kovenantti",
+            "winter cash",
+            "talvikassa",
+            "target cash",
+            "tavoitekassa",
+            "trough",
+            "talvipohja",
+            "kassapohja",
+        )
         if any(c in window for c in cashish) and amt <= 40_000:
             # Prefer investment label proximity
             invest_pos = max((window.rfind(k) for k in _INVEST_CONTEXT if k in window), default=-1)
@@ -171,8 +269,22 @@ def extract_special_investment(text: str) -> tuple[float, int] | None:
         score = 1.0
         if month_found:
             score += 2.0
-        if any(k in window for k in ("oven", "uuni", "roof", "katto", "hvac", "capex")):
+        if any(
+            k in window
+            for k in (
+                "oven",
+                "uuni",
+                "roof",
+                "katto",
+                "hvac",
+                "capex",
+                "production line",
+                "tuotantolinja",
+            )
+        ):
             score += 1.5
+        if amt >= 1_000_000:
+            score += 0.5
         if best is None or score > best[2] or (score == best[2] and amt > best[0]):
             best = (amt, month, score)
 
@@ -200,7 +312,7 @@ def repair_investment_and_revenue_from_nl(
             cur = float(data.get("special_investment_eur") or 0)
         except (TypeError, ValueError):
             cur = 0.0
-        # Replace default-ish invents (0, 70k, 80k) or large mismatches
+        # Replace default-ish invents (0, 70k, 80k) or large mismatches either way
         if cur <= 0 or abs(cur - amt) / max(amt, 1.0) > 0.15:
             changes.append(
                 {
@@ -235,18 +347,27 @@ def repair_investment_and_revenue_from_nl(
             data["special_investment_month"] = month
         # Keep one_off_events aligned when present / empty
         events = list(data.get("one_off_events") or [])
-        label = "oven_repair" if looks_bakery(blob, industry) else "special_investment"
-        if looks_bakery(blob, industry) or any(
-            k in blob.lower() for k in ("oven", "uuni")
-        ):
+        label = "special_investment"
+        if looks_bakery(blob, industry) or any(k in blob.lower() for k in ("oven", "uuni")):
             label = "oven_repair"
         elif any(k in blob.lower() for k in ("roof", "katto", "hvac")):
             label = "roof_repair"
+        elif any(
+            k in blob.lower()
+            for k in ("production line", "tuotantolinja", "capex", "steel", "teräs")
+        ):
+            label = "capex_line"
         matched = False
         for ev in events:
             if not isinstance(ev, dict):
                 continue
-            if str(ev.get("label") or "") in {label, "special_investment", "roof_repair", "oven_repair"}:
+            if str(ev.get("label") or "") in {
+                label,
+                "special_investment",
+                "roof_repair",
+                "oven_repair",
+                "capex_line",
+            }:
                 ev["amount_eur"] = amt
                 ev["month_index"] = month
                 ev["direction"] = "out"
@@ -279,7 +400,11 @@ def repair_investment_and_revenue_from_nl(
             and suggested_rev < 80_000
         )
         mild_over = cur_rev > suggested_rev * 2.5 and suggested_rev < 80_000
-        if oversized or mild_over:
+        # Undersized SME invents for mid-market / steel NL stating millions
+        undersized = suggested_rev >= 1_000_000 and (
+            cur_rev <= 0 or cur_rev < suggested_rev * 0.5
+        )
+        if oversized or mild_over or undersized:
             changes.append(
                 {
                     "field": "monthly_revenue_start_eur",
@@ -293,5 +418,26 @@ def repair_investment_and_revenue_from_nl(
                 }
             )
             data["monthly_revenue_start_eur"] = suggested_rev
+
+    nl_growth = extract_growth_rate(blob)
+    if nl_growth is not None:
+        try:
+            cur_g = float(data.get("monthly_revenue_growth") or 0)
+        except (TypeError, ValueError):
+            cur_g = 0.0
+        if abs(cur_g - nl_growth) > 1e-6:
+            changes.append(
+                {
+                    "field": "monthly_revenue_growth",
+                    "original": cur_g,
+                    "clipped": nl_growth,
+                    "message": (
+                        f"monthly_revenue_growth repaired from {cur_g} to {nl_growth} "
+                        "using NL growth figure"
+                    ),
+                    "source": "nl_param_hints",
+                }
+            )
+            data["monthly_revenue_growth"] = nl_growth
 
     return data, changes

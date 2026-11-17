@@ -37,6 +37,9 @@ CASH_CRITICAL_KEYWORDS: tuple[str, ...] = (
     "viikon päästä",
     "cash cliff",
     "kassa romaht",
+    "winter trough",
+    "talvipohja",
+    "kassapohja",
 )
 
 # Softer cues that, together with a low cash figure or hotel/winter collapse, imply stress.
@@ -52,6 +55,8 @@ SOFT_CASH_STRESS_KEYWORDS: tuple[str, ...] = (
     "hotel",
     "bank",
     "pankki",
+    "trough",
+    "pohja",
 )
 
 # Words near a euro amount that mark it as a cash / covenant target (not revenue/ADR).
@@ -73,6 +78,11 @@ CASH_AMOUNT_CONTEXT: tuple[str, ...] = (
     "ending cash",
     "supplier bill",
     "ostolask",
+    "trough",
+    "winter trough",
+    "talvipohja",
+    "kassapohja",
+    "pohja",
 )
 
 # Amounts that look like ADR / room rates / occupancy — not cash targets.
@@ -91,18 +101,70 @@ _SKIP_NEAR: tuple[str, ...] = (
     "revenue ~",
 )
 
+# Euro parse ceiling (must stay ≥ PARAM_RANGES special/revenue ceilings).
+_EURO_AMOUNT_MAX = 20_000_000.0
+# SME "thin cash" band used by hotel/bakery heuristics.
+_THIN_CASH_MAX = 80_000.0
+# Mid-market / large manufacturing cash targets live above this.
+_MIDMARKET_CASH_MIN = 200_000.0
+
 
 def looks_cash_critical(text: str) -> bool:
     """True when the NL description is a cash-stressed / covenant story."""
     blob = (text or "").lower()
     if any(k in blob for k in CASH_CRITICAL_KEYWORDS):
         return True
-    # Soft path: winter/hotel collapse + a low cash-like figure in the text
+    # Soft path: winter/hotel collapse + a cash-like figure in the text
     soft = any(k in blob for k in SOFT_CASH_STRESS_KEYWORDS)
     if not soft:
         return False
     hints = extract_cash_target_hints(text)
-    return bool(hints) and min(hints) <= 80_000
+    if not hints:
+        return False
+    # Thin SME winter cash OR an explicit mid-market trough/covenant figure
+    return min(hints) <= _THIN_CASH_MAX or max(hints) >= _MIDMARKET_CASH_MIN
+
+
+def _parse_amount_token(raw: str, *, has_k: bool, has_m: bool) -> float | None:
+    """Normalize a numeric token + optional k/m suffix into EUR."""
+    token = (raw or "").strip()
+    if not token:
+        return None
+    # Decimal millions / fractions: 4.2 / 4,2 (1–2 fraction digits, not thousands groups)
+    if re.fullmatch(r"\d+[.,]\d{1,2}", token):
+        try:
+            val = float(token.replace(",", "."))
+        except ValueError:
+            return None
+        if has_m:
+            return val * 1_000_000.0
+        if has_k:
+            return val * 1_000.0
+        return val
+    # Thousands separators: 42,000 / 4,200,000 / 4.200.000 / 4 200 000
+    if "," in token and "." not in token:
+        parts = token.split(",")
+        if all(len(p) == 3 for p in parts[1:]):
+            digits = token.replace(",", "")
+        else:
+            digits = re.sub(r"[^\d]", "", token)
+    elif "." in token and "," not in token:
+        parts = token.split(".")
+        if all(len(p) == 3 for p in parts[1:]):
+            digits = token.replace(".", "")
+        else:
+            digits = re.sub(r"[^\d]", "", token)
+    else:
+        digits = re.sub(r"[.\s,]", "", token)
+    try:
+        val = float(re.sub(r"[^\d]", "", digits) or "0")
+    except ValueError:
+        return None
+    if has_m and val < 1_000_000:
+        val *= 1_000_000.0
+    elif has_k and val < 1_000:
+        val *= 1_000.0
+    return val
 
 
 def extract_euro_amounts(text: str) -> list[tuple[float, int]]:
@@ -110,39 +172,47 @@ def extract_euro_amounts(text: str) -> list[tuple[float, int]]:
     Parse euro-ish amounts from NL.
 
     Returns list of (amount_eur, start_index) for context windows.
-    Supports: €25k, 25,000 €, ~€30k, 25000, 25 000 euroa.
+    Supports: €25k, 25,000 €, ~€30k, 25000, 25 000 euroa, €4.2M, 4.2 million, 4,2 miljoonaa.
     """
     blob = text or ""
     found: list[tuple[float, int]] = []
     patterns = [
-        # €25,000 / €25.000 / €25000 / €25k / €25 k
-        r"[€]\s*~?\s*(\d{1,3}(?:[.,\s]\d{3})*|\d+)(?:\s*[kK])?",
+        # €4.2M / €4,2M / €4.2 m / €4200000
+        r"[€]\s*~?\s*(\d+(?:[.,]\d+)?|\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*([mM]|[kK])?\b",
+        # 4.2M € / 4,2 miljoonaa euroa / 2.8 million EUR
+        r"~?\s*(\d+(?:[.,]\d+)?|\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*"
+        r"([mM]|[kK]|miljoon(?:aa|a)?|millions?)\s*(?:€|euros?\b|euroa\b)?",
         # 25,000 € / 25k EUR / 25000 euroa (no \b after € — € is non-word)
-        r"~?\s*(\d{1,3}(?:[.,\s]\d{3})*|\d+)\s*[kK]?\s*(?:€|euros?\b|euroa\b)",
+        r"~?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*([kK])?\s*(?:€|euros?\b|euroa\b)",
         # bare 25k / 30k near cash words — handled with context filter later
-        r"\b(\d{1,3})\s*[kK]\b",
-        r"\b(\d{4,6})\b",
+        r"\b(\d{1,3})\s*([kK])\b",
+        r"\b(\d{4,7})\b",
     ]
     for pat in patterns:
         for m in re.finditer(pat, blob, flags=re.IGNORECASE):
             raw = m.group(1)
-            has_k = bool(re.search(r"[kK]\s*(?:€|eur|euroa)?\s*$", m.group(0))) or bool(
-                re.search(r"[kK]\b", m.group(0))
+            suffix = ""
+            if m.lastindex and m.lastindex >= 2 and m.group(2):
+                suffix = m.group(2)
+            full = m.group(0)
+            has_m = bool(
+                re.search(r"[mM]\b|miljoon|million", suffix, flags=re.IGNORECASE)
+            ) or bool(re.search(r"(?<![A-Za-z])[mM](?![A-Za-z])", full))
+            # Avoid treating month "m4" noise: require million-ish when M alone
+            if has_m and suffix.lower() in {"m"} and not re.search(
+                r"[€]|eur|euro|miljoon|million", full, flags=re.IGNORECASE
+            ):
+                # Bare "4.2M" without currency still counts as millions in finance NL
+                if not re.search(r"\d+[.,]?\d*\s*[mM]\b", full):
+                    has_m = False
+            has_k = (not has_m) and (
+                bool(re.search(r"[kK]", suffix))
+                or bool(re.search(r"[kK]\s*(?:€|eur|euroa)?\s*$", full))
             )
-            # Normalize thousands separators
-            digits = re.sub(r"[.\s]", "", raw.replace(",", ""))
-            # European 25.000 → 25000 already stripped dots; 25,000 with comma-as-thousands:
-            if "," in raw and "." not in raw and len(raw.split(",")[-1]) == 3:
-                digits = raw.replace(",", "")
-            elif "," in raw and "." not in raw:
-                digits = raw.replace(",", "")
-            try:
-                val = float(re.sub(r"[^\d]", "", digits) or "0")
-            except ValueError:
+            val = _parse_amount_token(raw, has_k=has_k, has_m=has_m)
+            if val is None:
                 continue
-            if has_k and val < 1000:
-                val *= 1000.0
-            if val < 1_000 or val > 2_000_000:
+            if val < 1_000 or val > _EURO_AMOUNT_MAX:
                 continue
             found.append((val, m.start()))
     # De-dupe by amount+nearby index
@@ -164,11 +234,34 @@ def extract_cash_target_hints(text: str) -> list[float]:
     for amt, idx in extract_euro_amounts(text):
         window = blob[max(0, idx - 48) : idx + 56]
         has_cash_ctx = any(c in window for c in CASH_AMOUNT_CONTEXT)
-        has_skip = any(s in window for s in _SKIP_NEAR)
-        # Capex / roof figures are investments, not target cash.
-        invest_keys = ("roof", "katto", "capex", "repair", "remont", "hvac", "invest")
+        # Capex / roof / line figures are investments, not target cash.
+        invest_keys = (
+            "roof",
+            "katto",
+            "capex",
+            "repair",
+            "remont",
+            "hvac",
+            "invest",
+            "investointi",
+            "line",
+            "production line",
+            "tuotantolinja",
+            "oven",
+            "uuni",
+        )
         invest_hits = [window.rfind(k) for k in invest_keys if k in window]
-        covenant_keys = ("covenant", "kovenantti", "target cash", "tavoitekassa", "talvikassa", "winter cash")
+        covenant_keys = (
+            "covenant",
+            "kovenantti",
+            "target cash",
+            "tavoitekassa",
+            "talvikassa",
+            "winter cash",
+            "trough",
+            "talvipohja",
+            "kassapohja",
+        )
         cov_hits = [window.rfind(k) for k in covenant_keys if k in window]
         # Amount sits at ~48 chars into the window; prefer nearest label.
         amt_pos = min(48, len(window) - 1)
@@ -178,8 +271,12 @@ def extract_cash_target_hints(text: str) -> list[float]:
             if abs(amt_pos - nearest_invest) <= abs(amt_pos - nearest_cov):
                 continue
         # Prefer cash/covenant context; skip ADR/revenue-adjacent amounts.
-        if has_cash_ctx:
+        if has_cash_ctx and not any(s in window for s in _SKIP_NEAR):
             hints.append(amt)
+        elif has_cash_ctx:
+            # Revenue words nearby — still accept clear covenant/trough labels.
+            if any(k in window for k in covenant_keys):
+                hints.append(amt)
     return hints
 
 
@@ -187,15 +284,20 @@ def suggested_target_cash_eur(text: str) -> float | None:
     """
     Best target_cash_at_end_eur hint from NL.
 
-    Prefer covenant / winter-cash figures in the thin-cash band (~10k–80k).
+    Prefer thin SME covenant / winter-cash (~5k–80k). For mid-market NL, use
+    trough / covenant figures in the hundreds-of-thousands to millions band.
     """
     hints = extract_cash_target_hints(text)
     if not hints:
         return None
-    thin = [h for h in hints if 5_000 <= h <= 80_000]
+    thin = [h for h in hints if 5_000 <= h <= _THIN_CASH_MAX]
     if thin:
         # Covenant is often the lower bound; winter cash ~30k — use the min thin hint
         return float(min(thin))
+    mid = [h for h in hints if h >= _MIDMARKET_CASH_MIN]
+    if mid:
+        # Winter trough is usually the lower of trough/covenant pair
+        return float(min(mid))
     if looks_cash_critical(text):
         return float(min(hints))
     return None
@@ -223,9 +325,13 @@ def repair_params_from_nl(
     except (TypeError, ValueError):
         cash = 0.0
 
-    if suggested is not None and (critical or cash > 80_000):
-        # Only pull absurdly high targets down; never inflate a low model guess.
-        if cash <= 0 or cash > suggested * 1.5 or (critical and cash > 80_000):
+    if suggested is not None and (critical or cash > _THIN_CASH_MAX or suggested >= _MIDMARKET_CASH_MIN):
+        far_high = cash > suggested * 1.5
+        # Mid-market: stub/LLM often invents SME €200–500k while NL states millions.
+        far_low = suggested >= _MIDMARKET_CASH_MIN and (cash <= 0 or cash < suggested * 0.6)
+        # SME cash-critical: refuse healthy defaults above the thin band.
+        sme_crush = critical and suggested <= _THIN_CASH_MAX and cash > _THIN_CASH_MAX
+        if cash <= 0 or far_high or far_low or sme_crush:
             new_cash = suggested
             if abs(new_cash - cash) > 1.0:
                 changes.append(
@@ -243,8 +349,9 @@ def repair_params_from_nl(
                 data["target_cash_at_end_eur"] = new_cash
                 cash = new_cash
 
-    if critical and cash > 80_000 and suggested is None:
-        # No parseable figure — still refuse healthy-cash default for stressed NL
+    if critical and suggested is None and cash >= 300_000:
+        # No parseable figure — refuse classic healthy invent (~330k), but keep
+        # size-scaled cash_critical baselines (e.g. 45k × large mult ≈ 225k).
         new_cash = 30_000.0
         changes.append(
             {
@@ -277,8 +384,28 @@ def repair_params_from_nl(
         except (TypeError, ValueError):
             growth = 0.0
         # Do not keep a "healthy growth" default when the story is stressed winter cash
-        if growth > 0.005 and any(
-            k in blob.lower() for k in ("winter", "talvi", "collapse", "off-season", "critical", "kriittinen")
+        # — but keep an explicit low positive growth stated in mid-market NL (e.g. 0.3%).
+        from payloq_llm.nl_param_hints import extract_growth_rate
+
+        nl_growth = extract_growth_rate(blob)
+        if nl_growth is not None:
+            if abs(growth - nl_growth) > 1e-6:
+                changes.append(
+                    {
+                        "field": "monthly_revenue_growth",
+                        "original": growth,
+                        "clipped": nl_growth,
+                        "message": (
+                            f"monthly_revenue_growth repaired from {growth} to {nl_growth} "
+                            "using NL growth figure"
+                        ),
+                        "source": "nl_cash_intent",
+                    }
+                )
+                data["monthly_revenue_growth"] = nl_growth
+        elif growth > 0.005 and any(
+            k in blob.lower()
+            for k in ("winter", "talvi", "collapse", "off-season", "critical", "kriittinen")
         ):
             changes.append(
                 {
