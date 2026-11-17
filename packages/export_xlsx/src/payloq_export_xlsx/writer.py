@@ -151,9 +151,9 @@ def _balance_sheet(ws, pack: ScenarioPack) -> None:
 
 
 def _history_sheet(ws, pack: ScenarioPack) -> None:
-    ws.append(["Päivä / Date", "Saldo / Balance"])
+    ws.append(["Viikko / Week", "Päivä / Date", "Saldo / Balance"])
     for p in pack.cash_and_invoices.balance_history:
-        ws.append([p.date, p.balance])
+        ws.append([p.week, p.date, p.balance])
 
 
 def _invoices_sheet(ws, pack: ScenarioPack) -> None:
@@ -165,7 +165,9 @@ def _invoices_sheet(ws, pack: ScenarioPack) -> None:
             "Kuvaus / Description",
             "Laskutuspäivä / Issue date",
             "Eräpäivä / Due date",
-            "Summa sis. ALV / Amount incl. VAT",
+            "Netto / Amount net EUR",
+            "ALV / VAT EUR",
+            "Summa sis. ALV / Amount gross EUR",
             "Tila / Status",
         ]
     )
@@ -178,6 +180,8 @@ def _invoices_sheet(ws, pack: ScenarioPack) -> None:
                 inv.description,
                 inv.issue_date,
                 inv.due_date,
+                inv.amount_net_eur,
+                inv.vat_eur,
                 inv.amount_incl_vat,
                 inv.status,
             ]

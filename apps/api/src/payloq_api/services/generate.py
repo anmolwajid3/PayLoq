@@ -10,7 +10,8 @@ from sqlmodel import Session
 
 from payloq_api.config import Settings
 from payloq_api.models import GenerationRun, Scenario
-from payloq_generator.engine import generate_pack, load_input, write_pack
+from payloq_generator.engine import load_input
+from payloq_generator.pipeline import run_generation
 from payloq_llm.adapters import (
     FallbackAdapter,
     default_options_from_text,
@@ -20,7 +21,6 @@ from payloq_llm.adapters import (
 from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
 from payloq_llm.nl_quality import assess_nl_params
 from payloq_schemas.models import GeneratorInput, ScenarioPack
-from payloq_validate.checks import validate_pack
 
 
 def _pack_summary(
@@ -41,7 +41,8 @@ def _pack_summary(
         "last_revenue": last.income_statement.revenue if last else None,
         "open_invoices": len(cash.open_invoices),
         "balance_history": [
-            {"date": p.date, "balance": p.balance} for p in cash.balance_history
+            {"week": p.week, "date": p.date, "balance": p.balance}
+            for p in cash.balance_history
         ],
         "projection": [
             {
@@ -57,16 +58,6 @@ def _pack_summary(
         "language": getattr(pack.input.options, "language", None) or "fi",
         "parameters": params.model_dump(),
         "nl_soft_warnings": nl_soft_warnings or [],
-    }
-
-
-def _validation_dict(pack: ScenarioPack) -> tuple[bool, dict[str, Any]]:
-    result = validate_pack(pack)
-    return result.ok, {
-        "ok": result.ok,
-        "issues": [
-            {"code": i.code, "message": i.message, "severity": i.severity} for i in result.issues
-        ],
     }
 
 
@@ -101,17 +92,30 @@ def run_preset(
         inp = GeneratorInput.model_validate(scenario.input_json)
         if inp.options.scenario_id is None:
             inp.options.scenario_id = scenario.slug
-        pack = generate_pack(inp, seed=seed)
-        write_pack(pack, out_dir, write_xlsx=write_xlsx, write_journal=write_journal)
-        ok, validation = _validation_dict(pack)
-        run.status = "ok"
+        outcome = run_generation(
+            inp,
+            out_dir,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            write_journal=write_journal,
+        )
+        pack = outcome.pack
+        validation = outcome.validation.as_dict()
         run.artifact_dir = str(out_dir.resolve())
-        run.validation_ok = ok
+        run.validation_ok = outcome.ok if not outcome.test_only_broken else False
         run.validation_json = validation
-        run.pack_summary = _pack_summary(pack)
-        if not ok:
+        run.seed = outcome.seed_used
+        if pack is not None:
+            run.pack_summary = _pack_summary(pack)
+        if outcome.test_only_broken:
+            run.status = "ok"
+            run.validation_ok = False
+            run.error_message = "TEST_ONLY_BROKEN: validation failed as expected (VR-05)"
+        elif outcome.ok and pack is not None:
+            run.status = "ok"
+        else:
             run.status = "error"
-            run.error_message = "Generated pack failed validation"
+            run.error_message = outcome.error_message or "Generated pack failed validation"
     except Exception as exc:  # noqa: BLE001
         run.status = "error"
         run.error_message = str(exc)
@@ -172,30 +176,43 @@ def run_from_text(
             options=opts,
             with_invoice_texts=True,
         )
+        llm_name = llm
         if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
             run.llm_fallback_note = adapter.last_fallback_reason
             run.llm_adapter = f"{llm}->stub"
+            llm_name = run.llm_adapter
         # Persist the concrete Ollama tag even after stub fallback so chat can reuse it.
         if llm == "ollama" and resolved_model:
             run.llm_model = resolved_model
 
-        pack = generate_pack(inp, seed=seed)
-        write_pack(pack, out_dir, write_xlsx=write_xlsx, write_journal=write_journal)
-        ok, validation = _validation_dict(pack)
+        outcome = run_generation(
+            inp,
+            out_dir,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            write_journal=write_journal,
+            raw_llm_output=getattr(adapter, "last_raw_output", None),
+            llm_name=llm_name,
+        )
+        pack = outcome.pack
         soft = assess_nl_params(
             text,
-            pack.input.parameters_from_language_model.model_dump(),
+            (pack.input.parameters_from_language_model.model_dump() if pack else {}),
             language=language,
         )
-        run.status = "ok" if ok else "error"
         run.artifact_dir = str(out_dir.resolve())
-        run.validation_ok = ok
-        run.validation_json = validation
-        run.pack_summary = _pack_summary(pack, nl_soft_warnings=soft)
-        if not ok:
-            run.error_message = "Generated pack failed validation"
+        run.validation_ok = outcome.ok
+        run.validation_json = outcome.validation.as_dict()
+        run.seed = outcome.seed_used
+        if pack is not None:
+            run.pack_summary = _pack_summary(pack, nl_soft_warnings=soft)
+        if outcome.ok and pack is not None:
+            run.status = "ok"
+        else:
+            run.status = "error"
+            run.error_message = outcome.error_message or "Generated pack failed validation"
 
-        if save_as_slug:
+        if save_as_slug and outcome.ok and pack is not None:
             scenario = Scenario(
                 slug=save_as_slug,
                 title_fi=inp.scenario_description.fi[:120],

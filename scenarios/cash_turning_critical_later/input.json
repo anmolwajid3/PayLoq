@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "fictional": true,
+    "note": "Built-in cash_turning_critical_later scenario. Parameters are hand-authored; figures are produced by code.",
+    "scenario": "cash_turning_critical_later"
+  },
+  "scenario_description": {
+    "fi": "Myynti on vakaa, mutta asiakkaat maksavat hitaasti ja hitaammin. Kassa on vielä kunnossa, mutta muuttuu kriittiseksi noin viiden kuukauden päästä.",
+    "en": "Sales are stable, but customers are slowly paying later and later. Cash is fine for now but will be critical in about five months."
+  },
+  "options": {
+    "industry": "metal workshop (machine shop)",
+    "company_size": "small",
+    "months": 12,
+    "language": "fi",
+    "currency": "EUR",
+    "scenario_id": "cash_turning_critical_later",
+    "as_of": "2026-10-31"
+  },
+  "parameters_from_language_model": {
+    "monthly_revenue_start_eur": 75000,
+    "monthly_revenue_growth": 0.0,
+    "cost_shares_of_revenue": {
+      "materials": 0.36,
+      "services": 0.08,
+      "personnel": 0.34,
+      "other": 0.15
+    },
+    "days_sales_outstanding": 55,
+    "days_payables_outstanding": 30,
+    "target_cash_at_end_eur": 8000,
+    "special_investment_eur": 0,
+    "notes": "DSO rising narrative; cash turns negative around balance-history week 20.",
+    "partly_fixed_costs": false
+  }
+}

@@ -35,8 +35,16 @@ from payloq_generator.text_fi import (
 
 
 def _r(value: float) -> float:
-    """Round money to whole euros (matches example style)."""
-    return float(round(value))
+    """Round money to cents (SRS DR-02)."""
+    return float(round(value, 2))
+
+
+def _vat_split(gross: float) -> tuple[float, float, float]:
+    """Return (net, vat, gross) for a VAT-inclusive amount."""
+    gross = _r(gross)
+    net = _r(gross / (1.0 + VAT_RATE_FI))
+    vat = _r(gross - net)
+    return net, vat, gross
 
 
 def _parse_month(yyyy_mm: str) -> date:
@@ -61,7 +69,13 @@ def _fmt_month(d: date) -> str:
 
 def _infer_profile(inp: GeneratorInput) -> str:
     sid = (inp.options.scenario_id or inp.meta.scenario or "").strip().lower()
-    if sid in {"good", "weak", "cash_critical"}:
+    if sid in {
+        "good",
+        "weak",
+        "cash_critical",
+        "cash_turning_critical_later",
+        "invoices_out_of_balance",
+    }:
         return sid
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
@@ -120,8 +134,12 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         weeks=26,
         seed=seed,
     )
-    # Enforce exact link to last month cash
-    history[-1] = BalanceHistoryPoint(date=as_of.isoformat(), balance=last_cash)
+    # Enforce exact link to last month cash (VR-07)
+    history[-1] = BalanceHistoryPoint(
+        week=len(history),
+        date=as_of.isoformat(),
+        balance=last_cash,
+    )
 
     invoice_texts = inp.invoice_texts
     if invoice_texts is None:
@@ -221,6 +239,8 @@ def _generate_months(
         "good": 270_000.0,
         "weak": 265_000.0,
         "cash_critical": 110_000.0,
+        "cash_turning_critical_later": 180_000.0,
+        "invoices_out_of_balance": 200_000.0,
     }.get(profile, 200_000.0)
 
     # Fixed cost bases from start revenue
@@ -237,8 +257,10 @@ def _generate_months(
 
     for i in range(n):
         month_date = _add_months(first_month, i)
-        # Mild seasonal wiggle (deterministic sine) — behavioural, not golden match
-        seasonal = 1.0 + 0.02 * math.sin((i + seed % 7) * 0.9)
+        # Seasonal wiggle ≥5% MoM somewhere (VR-21); deterministic sine + one dip month
+        seasonal = 1.0 + 0.045 * math.sin((i + seed % 7) * 0.9)
+        if i == max(2, n // 3):
+            seasonal *= 0.92  # deliberate ≥5% move vs neighbours
         revenue = _r(start_rev * ((1.0 + growth) ** i) * seasonal)
 
         materials = _r(revenue * shares.materials)
@@ -280,7 +302,7 @@ def _generate_months(
         if profile == "cash_critical":
             # Drift down early, settle near target
             cash_path = cash0 + (target_end - cash0) * (t**0.85)
-        elif profile == "weak":
+        elif profile in {"weak", "cash_turning_critical_later", "invoices_out_of_balance"}:
             cash_path = cash0 + (target_end - cash0) * t
         else:
             cash_path = cash0 + (target_end - cash0) * t
@@ -381,23 +403,34 @@ def _generate_balance_history(
     seed: int,
 ) -> list[BalanceHistoryPoint]:
     points: list[BalanceHistoryPoint] = []
-    # Align week ends to Saturdays like examples (2026-10-31 is Saturday)
-    # Walk back weekly from as_of
-    for w in range(weeks - 1, -1, -1):
-        d = as_of - timedelta(days=7 * w)
-        t = (weeks - 1 - w) / max(1, weeks - 1)
-        # Interpolate with small wave
+    # Walk forward week index 1..weeks ending at as_of
+    for week_idx in range(1, weeks + 1):
+        w_from_end = weeks - week_idx  # 25..0
+        d = as_of - timedelta(days=7 * w_from_end)
+        t = (week_idx - 1) / max(1, weeks - 1)
         base = start_cash + (end_cash - start_cash) * t
-        wave = 4_000.0 * math.sin((w + seed) * 0.55)
+        wave = 4_000.0 * math.sin((week_idx + seed) * 0.55)
         if profile == "good":
             bal = base + abs(wave) * 0.3
         elif profile == "weak":
             bal = base - abs(wave) * 0.2
+        elif profile == "cash_turning_critical_later":
+            # Healthy early; crosses to negative around week 20 (±2)
+            # Piecewise: high until ~18, then steep drop through week 20, settle at end_cash
+            if week_idx < 18:
+                bal = start_cash - (start_cash - 40_000.0) * (week_idx / 18.0) * 0.35
+            elif week_idx <= 22:
+                # Cross zero near week 20
+                bal = 15_000.0 - 8_000.0 * (week_idx - 18)
+            else:
+                bal = base
         else:
             bal = base + wave * 0.15
-        if w == 0:
+        if week_idx == weeks:
             bal = end_cash
-        points.append(BalanceHistoryPoint(date=d.isoformat(), balance=_r(bal)))
+        points.append(
+            BalanceHistoryPoint(week=week_idx, date=d.isoformat(), balance=_r(bal))
+        )
     return points
 
 
@@ -431,7 +464,10 @@ def _generate_invoices(
     seed: int,
     texts: InvoiceDescriptiveTexts,
 ) -> list[OpenInvoice]:
-    n_sales, n_purch = 10, 10
+    # FR-A-23: 15–25 invoices total, split sales/purchases
+    total_n = 15 + (seed % 11)  # 15..25
+    n_sales = max(7, total_n // 2)
+    n_purch = total_n - n_sales
     sales_amts = _split_amounts(receivables, n_sales, seed)
     purch_amts = _split_amounts(payables, n_purch, seed + 9)
 
@@ -478,6 +514,7 @@ def _generate_invoices(
                 due = issue + timedelta(days=int(dso))
                 status = "open" if due >= as_of else "overdue"
 
+        net, vat, gross = _vat_split(amt)
         invoices.append(
             OpenInvoice(
                 id=f"S-{2600 + i}",
@@ -486,7 +523,9 @@ def _generate_invoices(
                 description=pick(list(sales_desc), i),
                 issue_date=issue.isoformat(),
                 due_date=due.isoformat(),
-                amount_incl_vat=amt,
+                amount_incl_vat=gross,
+                amount_net_eur=net,
+                vat_eur=vat,
                 status=status,  # type: ignore[arg-type]
             )
         )
@@ -498,6 +537,11 @@ def _generate_invoices(
             issue = as_of - timedelta(days=10 + (i % 5))
             due = as_of + timedelta(days=15 + (i % 6))  # ~Nov 15–21 if as_of Oct 31
             status = "open"
+        elif profile == "cash_turning_critical_later":
+            # Gradually longer customer terms already in DSO; purchases steady
+            issue = as_of - timedelta(days=8 + (i % 4))
+            due = issue + timedelta(days=int(dpo))
+            status = "open" if due >= as_of else "overdue"
         elif profile == "weak":
             issue = as_of - timedelta(days=5 + i)
             due = as_of + timedelta(days=3 + i * 4)
@@ -507,6 +551,7 @@ def _generate_invoices(
             due = issue + timedelta(days=int(dpo))
             status = "open" if due >= as_of else "overdue"
 
+        net, vat, gross = _vat_split(amt)
         invoices.append(
             OpenInvoice(
                 id=f"P-{2650 + i}",
@@ -515,7 +560,9 @@ def _generate_invoices(
                 description=pick(list(purch_desc), i),
                 issue_date=issue.isoformat(),
                 due_date=due.isoformat(),
-                amount_incl_vat=amt,
+                amount_incl_vat=gross,
+                amount_net_eur=net,
+                vat_eur=vat,
                 status=status,  # type: ignore[arg-type]
             )
         )
@@ -523,15 +570,23 @@ def _generate_invoices(
     # Re-balance exact AR/AP sums after status logic (amounts already split)
     sales_sum = sum(x.amount_incl_vat for x in invoices if x.type == "sales")
     purch_sum = sum(x.amount_incl_vat for x in invoices if x.type == "purchase")
-    if abs(sales_sum - receivables) > 0.5:
+    if abs(sales_sum - receivables) > 0.02:
         for inv in reversed(invoices):
             if inv.type == "sales":
-                inv.amount_incl_vat = _r(inv.amount_incl_vat + (receivables - sales_sum))
+                new_gross = _r(inv.amount_incl_vat + (receivables - sales_sum))
+                net, vat, gross = _vat_split(new_gross)
+                inv.amount_incl_vat = gross
+                inv.amount_net_eur = net
+                inv.vat_eur = vat
                 break
-    if abs(purch_sum - payables) > 0.5:
+    if abs(purch_sum - payables) > 0.02:
         for inv in reversed(invoices):
             if inv.type == "purchase":
-                inv.amount_incl_vat = _r(inv.amount_incl_vat + (payables - purch_sum))
+                new_gross = _r(inv.amount_incl_vat + (payables - purch_sum))
+                net, vat, gross = _vat_split(new_gross)
+                inv.amount_incl_vat = gross
+                inv.amount_net_eur = net
+                inv.vat_eur = vat
                 break
 
     _ = language  # texts.language already selected by caller / LLM
@@ -604,15 +659,59 @@ def write_pack(
     *,
     write_xlsx: bool = True,
     write_journal: bool = True,
+    seed: int = 42,
+    software_version: str | None = None,
+    raw_llm_output: str | None = None,
+    llm_name: str | None = None,
+    validation: dict | None = None,
+    seed_attempts: list | None = None,
+    number_of_retries: int = 0,
+    param_clips: list | None = None,
+    test_only_broken: bool = False,
+    write_data_files: bool = True,
 ) -> Path:
-    """Write JSON (+ optional XLSX / journal) into out_dir. Returns out_dir."""
+    """Write SRS §6.6 folder (JSON + scenario.xlsx + answer_key + run_log)."""
+    import json
+    from datetime import datetime, timezone
+
+    from payloq_generator.answer_key import build_answer_key
+    from payloq_schemas.constants import SOFTWARE_VERSION
+
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if write_journal and pack.journal_entries is None:
+    if write_journal and pack.journal_entries is None and write_data_files:
         from payloq_generator.journal import build_journal_entries
 
         pack = pack.model_copy(update={"journal_entries": build_journal_entries(pack)})
+
+    answer_key = build_answer_key(pack) if write_data_files else None
+    ver = software_version or SOFTWARE_VERSION
+    run_log = {
+        "software_version": ver,
+        "seed": seed,
+        "language_model_name": llm_name,
+        "run_time": datetime.now(timezone.utc).isoformat(),
+        "validation_result": (validation or {}).get("validation_result", "unknown"),
+        "validation": validation,
+        "number_of_retries": number_of_retries,
+        "seed_attempts": seed_attempts or [{"seed": seed, "ok": (validation or {}).get("ok")}],
+        "parameter_clips": param_clips or [],
+        "parameters": pack.input.parameters_from_language_model.model_dump(),
+        "options": pack.input.options.model_dump(),
+        "test_only_broken": test_only_broken or False,
+        "python_version": __import__("sys").version.split()[0],
+    }
+
+    # Always write run_log (even on validation failure — VR-30 reason trail)
+    (out_dir / "run_log.json").write_text(
+        json.dumps(run_log, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    if raw_llm_output is not None:
+        (out_dir / "raw_llm_output.txt").write_text(raw_llm_output, encoding="utf-8")
+
+    if not write_data_files:
+        return out_dir
 
     (out_dir / "input.json").write_text(
         pack.input.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -623,6 +722,10 @@ def write_pack(
     (out_dir / "cash_and_invoices.json").write_text(
         pack.cash_and_invoices.model_dump_json(indent=2) + "\n", encoding="utf-8"
     )
+    if answer_key is not None:
+        (out_dir / "answer_key.json").write_text(
+            json.dumps(answer_key, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     if pack.journal_entries is not None:
         (out_dir / "journal_entries.json").write_text(
@@ -633,6 +736,13 @@ def write_pack(
         from payloq_export_xlsx.writer import write_scenario_xlsx
 
         scenario = pack.input.options.scenario_id or pack.input.meta.scenario or "scenario"
+        # SRS §6.6 canonical name
+        write_scenario_xlsx(
+            pack,
+            out_dir / "scenario.xlsx",
+            include_journal=pack.journal_entries is not None,
+        )
+        # Backward-compatible alias for older app/tests
         write_scenario_xlsx(
             pack,
             out_dir / f"scenario_{scenario}.xlsx",
@@ -640,6 +750,44 @@ def write_pack(
         )
 
     return out_dir
+
+
+def break_receivables_mismatch(pack: ScenarioPack, *, delta_eur: float = 2_100.0) -> ScenarioPack:
+    """Deliberately break VR-05 for TEST_ONLY_BROKEN (scenario 9.5)."""
+    pack = pack.model_copy(deep=True)
+    sales = [i for i in pack.cash_and_invoices.open_invoices if i.type == "sales"]
+    if not sales:
+        return pack
+    # Shrink open sales totals without changing balance-sheet receivables
+    remaining = delta_eur
+    for inv in sales:
+        if remaining <= 0:
+            break
+        cut = min(remaining, max(0.0, inv.amount_incl_vat - 1.0))
+        new_gross = _r(inv.amount_incl_vat - cut)
+        net, vat, gross = _vat_split(new_gross)
+        inv.amount_incl_vat = gross
+        inv.amount_net_eur = net
+        inv.vat_eur = vat
+        remaining = _r(remaining - cut)
+    # Keep projection consistent with (broken) invoices so only VR-05 fails
+    as_of_s = pack.cash_and_invoices.meta.as_of
+    if as_of_s:
+        from datetime import date as _date
+
+        last_cash = pack.monthly_reports.months[-1].balance_sheet.assets.cash
+        pack.cash_and_invoices.projection_from_open_invoices = _project_from_invoices(
+            as_of=_date.fromisoformat(as_of_s),
+            opening_cash=last_cash,
+            invoices=pack.cash_and_invoices.open_invoices,
+            weeks=8,
+        )
+    note = pack.input.meta.note or ""
+    pack.input.meta.note = (note + " TEST_ONLY_BROKEN: receivables ≠ Σ sales invoices.").strip()
+    pack.input.meta.scenario = "invoices_out_of_balance"
+    if pack.input.options.scenario_id:
+        pack.input.options.scenario_id = "invoices_out_of_balance"
+    return pack
 
 
 def load_input(path: Path) -> GeneratorInput:

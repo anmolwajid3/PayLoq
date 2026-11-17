@@ -16,6 +16,12 @@ PRESETS = (
     ("good", "Hyvä tilanne", "Good situation"),
     ("weak", "Heikko tulos", "Weak result"),
     ("cash_critical", "Kriittinen kassa", "Cash critical"),
+    ("cash_turning_critical_later", "Kassa kriittiseksi myöhemmin", "Cash turning critical later"),
+    (
+        "invoices_out_of_balance",
+        "TEST_ONLY_BROKEN laskut ≠ saamiset",
+        "TEST_ONLY_BROKEN invoices out of balance",
+    ),
 )
 
 
@@ -80,7 +86,7 @@ def seed(session: Session | None = None) -> None:
 
 def main() -> None:
     seed()
-    print("Seeded user + preset scenarios (good, weak, cash_critical).")
+    print("Seeded user + preset scenarios (good, weak, cash_critical, …).")
 
 
 if __name__ == "__main__":

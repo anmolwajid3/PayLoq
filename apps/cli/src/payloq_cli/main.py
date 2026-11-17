@@ -30,7 +30,13 @@ def generate(
         None, "--input", "-i", help="Path to input.json (parameters + description)."
     ),
     scenario: Optional[str] = typer.Option(
-        None, "--scenario", "-s", help="Built-in scenario id: good | weak | cash_critical."
+        None,
+        "--scenario",
+        "-s",
+        help=(
+            "Built-in scenario id: good | weak | cash_critical | "
+            "cash_turning_critical_later | invoices_out_of_balance."
+        ),
     ),
     from_text: Optional[str] = typer.Option(
         None,
@@ -83,7 +89,8 @@ def generate(
     ),
 ) -> None:
     """Generate a consistent JSON (+ Excel) pack from parameters or NL text."""
-    from payloq_generator.engine import generate_pack, load_input, write_pack
+    from payloq_generator.engine import load_input
+    from payloq_generator.pipeline import run_generation
     from payloq_llm.adapters import (
         FallbackAdapter,
         default_options_from_text,
@@ -91,7 +98,6 @@ def generate(
         input_from_text,
     )
     from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
-    from payloq_validate.checks import validate_pack
 
     sources = sum(bool(x) for x in (input, scenario, from_text, from_text_file))
     if sources != 1:
@@ -102,6 +108,8 @@ def generate(
         raise typer.Exit(2)
 
     fallback_note: str | None = None
+    raw_llm: str | None = None
+    llm_name: str | None = None
 
     if scenario:
         # Built-in presets: hand-authored params — no LLM required.
@@ -126,7 +134,7 @@ def generate(
             typer.echo("--language must be fi or en", err=True)
             raise typer.Exit(2)
         if months < 12 or months > 24:
-            typer.echo("--months must be between 12 and 24", err=True)
+            typer.echo("Months must be between 12 and 24.", err=True)
             raise typer.Exit(2)
 
         adapter = get_adapter(
@@ -152,21 +160,43 @@ def generate(
             typer.echo(f"LLM parameter extraction failed: {exc}", err=True)
             raise typer.Exit(1) from exc
 
+        raw_llm = getattr(adapter, "last_raw_output", None)
+        llm_name = getattr(adapter, "name", llm)
         if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
             fallback_note = adapter.last_fallback_reason
+            llm_name = f"stub (fallback from {llm})"
             typer.echo(f"Warning: fell back to stub LLM ({fallback_note})", err=True)
 
-    pack = generate_pack(inp, seed=seed)
-    write_pack(pack, out, write_xlsx=xlsx, write_journal=journal)
-    result = validate_pack(pack)
-    if not result.ok:
-        typer.echo("Generated pack failed validation:", err=True)
-        for issue in result.issues:
-            typer.echo(f"  [{issue.severity}] {issue.code}: {issue.message}", err=True)
+    outcome = run_generation(
+        inp,
+        out,
+        seed=seed,
+        write_xlsx=xlsx,
+        write_journal=journal,
+        raw_llm_output=raw_llm,
+        llm_name=llm_name,
+    )
+
+    if outcome.test_only_broken:
+        typer.echo(f"Wrote TEST_ONLY_BROKEN pack to {out.resolve()}")
+        typer.echo(
+            f"Validation caught deliberate break: {outcome.validation.failing_rule_ids()}"
+        )
+        if not any(r == "VR-05" for r in outcome.validation.failing_rule_ids()):
+            typer.echo("Expected VR-05 failure was not observed", err=True)
+            raise typer.Exit(1)
+        return
+
+    if not outcome.ok:
+        typer.echo("Generated pack failed validation (final files not written):", err=True)
+        for issue in outcome.validation.issues:
+            rid = issue.rule_id or issue.code
+            typer.echo(f"  [{issue.severity}] {rid}: {issue.message}", err=True)
+        typer.echo(f"Seed attempts: {outcome.seed_attempts}", err=True)
         raise typer.Exit(1)
 
-    warnings = [i for i in result.issues if i.severity == "warning"]
-    typer.echo(f"Wrote pack to {out.resolve()}")
+    warnings = [i for i in outcome.validation.issues if i.severity == "warning"]
+    typer.echo(f"Wrote pack to {out.resolve()} (seed={outcome.seed_used})")
     if fallback_note:
         typer.echo(f"LLM: stub fallback ({fallback_note})")
     elif from_text or from_text_file:
@@ -174,7 +204,7 @@ def generate(
     if warnings:
         typer.echo(f"{len(warnings)} warning(s):")
         for w in warnings:
-            typer.echo(f"  {w.code}: {w.message}")
+            typer.echo(f"  {w.rule_id or w.code}: {w.message}")
     else:
         typer.echo("Validators: OK")
 
@@ -205,7 +235,9 @@ def bench(
         ),
     ),
     scenarios: str = typer.Option(
-        "good,weak,cash_critical", "--scenarios", help="Comma-separated scenario ids."
+        "good,weak,cash_critical",
+        "--scenarios",
+        help="Comma-separated scenario ids (exclude invoices_out_of_balance from normal benches).",
     ),
     out: Path = typer.Option(Path("runs/benchmark"), "--out", "-o"),
     config: Optional[Path] = typer.Option(
