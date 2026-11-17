@@ -30,6 +30,11 @@ from payloq_llm.prompts import (
     parameter_extraction_prompt,
     parameter_repair_prompt,
 )
+from payloq_llm.nl_cash_intent import (
+    looks_cash_critical,
+    repair_params_from_nl,
+    suggested_target_cash_eur,
+)
 from payloq_llm.stub_texts import stub_invoice_texts
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
@@ -103,7 +108,8 @@ class StubLlmAdapter(LlmAdapter):
             out = self.preset.model_dump()
             self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=32)
             return out
-        text = f"{description_fi} {description_en}".lower()
+        combined = f"{description_fi} {description_en}"
+        text = combined.lower()
         sid = str(options.get("scenario_id") or "").lower()
         industry = str(options.get("industry") or "").lower()
         invest_month = 2
@@ -130,19 +136,15 @@ class StubLlmAdapter(LlmAdapter):
         )
         # Digit-heavy hotel / roof repair heuristics
         roof_repair = any(k in text for k in ("roof", "hvac", "95", "95,000", "95000", "katto"))
+        cash_stressed = sid == "cash_critical" or looks_cash_critical(combined)
+        nl_cash = suggested_target_cash_eur(combined)
 
-        if sid == "cash_critical" or any(
-            k in text
-            for k in (
-                "kriittinen",
-                "critical",
-                "negatiiv",
-                "kolmen viikon",
-                "three weeks",
-                "cash tight",
-            )
-        ):
-            growth, cash, invest, partly = 0.0, 45_000.0, 80_000.0, True
+        if cash_stressed:
+            # Prefer NL covenant / winter-cash figures; never invent healthy 330k.
+            cash = float(nl_cash) if nl_cash is not None else 45_000.0
+            if cash > 80_000:
+                cash = 45_000.0
+            growth, invest, partly = 0.0, 80_000.0, True
             notes = "stub: cash_critical heuristic from NL keywords"
         elif sid == "weak" or any(
             k in text for k in ("laskee", "falling", "tappioll", "weak", "heikko")
@@ -156,8 +158,14 @@ class StubLlmAdapter(LlmAdapter):
         if hotelish:
             rev_start = 180_000.0
             notes = f"{notes}; hotel industry defaults"
-            if cash > 60_000 and any(k in text for k in ("tight", "critical", "kriittinen")):
-                cash, invest, partly = 40_000.0, 95_000.0, True
+            if cash_stressed or (
+                cash > 60_000
+                and any(k in text for k in ("tight", "critical", "kriittinen", "covenant", "kovenantti"))
+            ):
+                cash = float(nl_cash) if nl_cash is not None else min(cash, 40_000.0)
+                if cash > 80_000:
+                    cash = 40_000.0
+                invest, partly = max(invest, 95_000.0), True
         if winter_collapse or (hotelish and any(k in text for k in ("winter", "talvi", "off-season"))):
             # Jan..Dec: winter collapse Oct–Mar (indices 9,10,11,0,1,2)
             factors = [
@@ -175,6 +183,8 @@ class StubLlmAdapter(LlmAdapter):
                 0.30,  # Dec
             ]
             notes = f"{notes}; winter seasonality factors"
+            if cash_stressed and nl_cash is not None:
+                cash = float(nl_cash)
         if roof_repair or (hotelish and invest >= 80_000):
             invest = max(invest, 95_000.0)
             invest_month = 2
@@ -187,6 +197,8 @@ class StubLlmAdapter(LlmAdapter):
                 }
             )
             notes = f"{notes}; special investment month {invest_month}"
+        if nl_cash is not None and cash_stressed:
+            notes = f"{notes}; NL cash/covenant hint {nl_cash:,.0f}"
 
         params = ParametersFromLanguageModel(
             monthly_revenue_start_eur=rev_start,
@@ -208,6 +220,8 @@ class StubLlmAdapter(LlmAdapter):
             partly_fixed_costs=partly,
         )
         out = params.model_dump()
+        # Defense in depth: same repair path used after live Ollama extraction
+        out, _ = repair_params_from_nl(combined, out)
         self.last_raw_output = json.dumps(out, ensure_ascii=False, indent=2)
         self._record(
             latency_ms=(time.perf_counter() - t0) * 1000,
@@ -482,7 +496,11 @@ class OllamaAdapter(LlmAdapter):
                         "must be within ~0.9–1.0 (FR-A-11)"
                     )
                 self.last_raw_output = raw
-                return params.model_dump()
+                out = params.model_dump()
+                out, _ = repair_params_from_nl(
+                    f"{description_fi} {description_en}", out
+                )
+                return out
             except (ValueError, json.JSONDecodeError) as exc:
                 last_err = exc
                 if attempt >= max_attempts - 1:
@@ -493,7 +511,9 @@ class OllamaAdapter(LlmAdapter):
         try:
             data = extract_json_object(raw)
             params = validate_model(ParametersFromLanguageModel, data)
-            return params.model_dump()
+            out = params.model_dump()
+            out, _ = repair_params_from_nl(f"{description_fi} {description_en}", out)
+            return out
         except (ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError(
                 f"Ollama returned invalid parameters JSON after retries: {last_err or exc}"
@@ -616,6 +636,10 @@ class FallbackAdapter(LlmAdapter):
         self.fallback = fallback or StubLlmAdapter()
         self.last_fallback_reason: str | None = None
         self.used_fallback = False
+        # Sticky: extract_parameters fallback must survive later successful invoice-text calls
+        # so the UI does not claim live Ollama when params actually came from stub.
+        self.param_extraction_used_fallback = False
+        self.param_extraction_fallback_reason: str | None = None
         self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
@@ -626,12 +650,19 @@ class FallbackAdapter(LlmAdapter):
             result = getattr(self.primary, method)(*args, **kwargs)
             self.used_fallback = False
             self.last_fallback_reason = None
+            if method == "extract_parameters":
+                self.param_extraction_used_fallback = False
+                self.param_extraction_fallback_reason = None
             self.last_call_metrics = getattr(self.primary, "last_call_metrics", None)
             self.last_raw_output = getattr(self.primary, "last_raw_output", None)
             return result
         except Exception as exc:  # noqa: BLE001 — intentional soft fallback
+            reason = f"{self.primary.name} failed: {exc}"
             self.used_fallback = True
-            self.last_fallback_reason = f"{self.primary.name} failed: {exc}"
+            self.last_fallback_reason = reason
+            if method == "extract_parameters":
+                self.param_extraction_used_fallback = True
+                self.param_extraction_fallback_reason = reason
             result = getattr(self.fallback, method)(*args, **kwargs)
             self.last_call_metrics = getattr(self.fallback, "last_call_metrics", None)
             self.last_raw_output = getattr(self.fallback, "last_raw_output", None)
@@ -792,7 +823,9 @@ def input_from_text(
 
     opts = options or default_options_from_text(language=language)
     params = adapter.extract_parameters(description_fi, description_en, opts)
-    validated = validate_model(ParametersFromLanguageModel, params)
+    # Repair absurd targets after live/stub extraction (covenant / winter cash in NL).
+    repaired, _ = repair_params_from_nl(f"{description_fi} {description_en}", params)
+    validated = validate_model(ParametersFromLanguageModel, repaired)
 
     invoice_texts: InvoiceDescriptiveTexts | None = None
     if with_invoice_texts:
@@ -808,8 +841,15 @@ def input_from_text(
         )
 
     note = f"parameters via {adapter.name} adapter"
-    if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
-        note = f"{note}; {adapter.last_fallback_reason}"
+    if isinstance(adapter, FallbackAdapter) and (
+        adapter.param_extraction_used_fallback or adapter.used_fallback
+    ):
+        reason = (
+            adapter.param_extraction_fallback_reason
+            or adapter.last_fallback_reason
+            or "primary adapter failed"
+        )
+        note = f"{note}; {reason}"
 
     return GeneratorInput(
         meta=ScenarioMeta(fictional=True, note=note),

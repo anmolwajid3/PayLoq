@@ -52,9 +52,28 @@ def run_generation(
     out_dir = Path(out_dir)
     working = inp.model_copy(deep=True)
     clips: list[dict[str, Any]] = []
+    # NL covenant / winter-cash repair before numeric clamp (from_text + weak models).
+    try:
+        from payloq_llm.nl_cash_intent import repair_params_from_nl
+
+        desc = (
+            f"{working.scenario_description.fi} {working.scenario_description.en}"
+        ).strip()
+        if desc:
+            repaired, nl_clips = repair_params_from_nl(
+                desc, working.parameters_from_language_model.model_dump()
+            )
+            if nl_clips:
+                from payloq_schemas.models import ParametersFromLanguageModel as _Params
+
+                working.parameters_from_language_model = _Params.model_validate(repaired)
+                clips.extend(nl_clips)
+    except ImportError:  # pragma: no cover
+        pass
     if clamp:
-        clamped, clips = clamp_parameters(working.parameters_from_language_model)
+        clamped, clamp_clips = clamp_parameters(working.parameters_from_language_model)
         working.parameters_from_language_model = clamped
+        clips.extend(clamp_clips)
 
     sid = (working.options.scenario_id or working.meta.scenario or "").lower()
     deliberate_broken = sid in {"invoices_out_of_balance", "test_only_broken"}

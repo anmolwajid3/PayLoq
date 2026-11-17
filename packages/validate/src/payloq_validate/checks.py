@@ -493,20 +493,41 @@ def _behaviour_sid(pack: ScenarioPack) -> str:
     if sid in presets:
         return sid
     note = pack.input.meta.note or ""
+    profile_from_note: str | None = None
     if "behavior_profile=" in note:
-        profile = note.split("behavior_profile=")[-1].split("|")[0].strip().lower()
-        if profile in presets:
-            return profile
-    # Fall back to param heuristics for custom from_text packs
+        profile_from_note = note.split("behavior_profile=")[-1].split("|")[0].strip().lower()
+    # Fall back to param / NL heuristics for custom from_text packs.
+    # Prefer cash-stress detection over a stale behavior_profile=good stamp when
+    # the description/params clearly contradict a healthy pack (Run #9).
     cash = pack.input.parameters_from_language_model.target_cash_at_end_eur
     growth = pack.input.parameters_from_language_model.monthly_revenue_growth
-    text = f"{pack.input.scenario_description.fi} {pack.input.scenario_description.en}".lower()
+    text = f"{pack.input.scenario_description.fi} {pack.input.scenario_description.en}"
+    text_l = text.lower()
+    try:
+        from payloq_llm.nl_cash_intent import looks_cash_critical
+    except ImportError:  # pragma: no cover
+        looks_cash_critical = None  # type: ignore[assignment]
+    cash_stressed = cash <= 60_000 or (
+        looks_cash_critical is not None and looks_cash_critical(text)
+    ) or any(
+        k in text_l
+        for k in (
+            "kriittinen",
+            "critical",
+            "cash tight",
+            "negatiiv",
+            "covenant",
+            "kovenantti",
+            "winter cash",
+            "ohut kassa",
+        )
+    )
     if growth < -0.005:
         return "weak"
-    if cash <= 60_000 or any(
-        k in text for k in ("kriittinen", "critical", "cash tight", "negatiiv")
-    ):
+    if cash_stressed:
         return "cash_critical"
+    if profile_from_note in presets:
+        return profile_from_note  # type: ignore[return-value]
     return sid or "custom"
 
 
@@ -536,6 +557,9 @@ def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
         )
 
     if sid == "good":
+        # VR-22 / Run #9: never apply good-profit to cash-stressed packs.
+        # _behaviour_sid already prefers cash_critical when NL/params say so;
+        # keep an extra guard if sid is the ready-made "good" preset only.
         if sum(nets) <= 0:
             result.add(
                 "behaviour_good_profit",

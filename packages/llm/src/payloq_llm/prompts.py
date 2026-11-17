@@ -25,7 +25,7 @@ Return ONLY a JSON object with these keys (no markdown, no commentary):
   "one_off_events": [
     {"amount_eur": <positive>, "month_index": <1-based>, "direction": "in"|"out", "label": "<optional>"}
   ],
-  "notes": "<short English or Finnish note>",
+  "notes": "<short English or Finnish note — never write the word stub unless you are the stub>",
   "partly_fixed_costs": <true|false — true when costs stay high while revenue falls or cash is critical>
 }
 Cost shares MUST sum to about 0.9–1.0 (blocking). Prefer ~0.94.
@@ -33,6 +33,11 @@ monthly_revenue_factors: twelve calendar-month multipliers (Jan=first). Use low 
 factors when bookings collapse Oct–Mar. one_off_events (or special_investment_*) land
 capex/repairs in a specific month. Do not invent absolute P&L or balance-sheet figures —
 code will compute those from these parameters.
+HARD: If the description mentions a bank covenant, winter cash, or thin cash figure
+(e.g. €25k covenant, ~€30k winter cash), set target_cash_at_end_eur to that scale
+(typically 20_000–40_000). NEVER invent a healthy default like 330000 when the story
+is cash-stressed, hotel winter collapse, or covenant-bound. Finnish (kovenantti,
+ohut kassa, talvi) counts the same as English.
 """.strip()
 
 
