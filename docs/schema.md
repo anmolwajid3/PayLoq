@@ -14,7 +14,18 @@ Schema is **free to evolve**. Figures are owned by code; the LLM only supplies p
 
 ## LLM-assisted fields (Phase 2)
 
-`parameters_from_language_model` is validated with Pydantic (`ParametersFromLanguageModel`) after the adapter returns JSON.
+`parameters_from_language_model` is validated with Pydantic (`ParametersFromLanguageModel`) after the adapter returns JSON. FR-A-11 clamps out-of-range values and **hard-repairs** `cost_shares_of_revenue` so the sum is ~0.9–1.0 (logged in `run_log.json` → `parameter_clips`).
+
+| Field | Role | Notes |
+| --- | --- | --- |
+| `monthly_revenue_start_eur` | Typical monthly revenue | Clipped 20k–2M |
+| `monthly_revenue_growth` | MoM growth rate | −10% … +5% |
+| `cost_shares_of_revenue` | materials/services/personnel/other | Each 0–1; **sum must be ~0.9–1.0** |
+| `monthly_revenue_factors` | 12 floats Jan–Dec | Seasonality (e.g. winter 0.3, summer 1.0); applied to monthly revenue |
+| `special_investment_eur` / `special_investment_month` | Capex / roof repair | 1-based month index (default 2); raises FA + cash outflow |
+| `one_off_events` | `[{amount_eur, month_index, direction, label}]` | Structured in/out cash events |
+| `target_cash_at_end_eur` | Ending-cash target | Drives dynamics; last cash is **not** forced exact equality (see `run_log.ending_cash`) |
+| `days_sales_outstanding` / `days_payables_outstanding` | Payment terms | 14–90 |
 
 Optional `invoice_texts` (`InvoiceDescriptiveTexts`):
 
@@ -25,6 +36,8 @@ Optional `invoice_texts` (`InvoiceDescriptiveTexts`):
 | `language` | `fi` \| `en` |
 
 Amounts, dates, VAT, and IDs remain generator-owned.
+
+**Pack labelling:** ready-made presets keep `good` / `weak` / `cash_critical` / …. Custom `--from-text` packs use an industry-derived slug (e.g. `boutique_hotel`) so they are not mislabelled `scenario_cash_critical.xlsx`. Behaviour profile is recorded separately (`behavior_profile` in `run_log` / meta note).
 
 ## VAT
 

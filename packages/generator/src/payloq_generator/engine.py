@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 from payloq_schemas.constants import CORPORATE_TAX_RATE, VAT_RATE_FI
 from payloq_schemas.models import (
@@ -19,6 +21,7 @@ from payloq_schemas.models import (
     InvoiceDescriptiveTexts,
     MonthlyReport,
     MonthlyReports,
+    OneOffCashEvent,
     OpenInvoice,
     ProjectionWeek,
     ScenarioMeta,
@@ -68,23 +71,84 @@ def _fmt_month(d: date) -> str:
     return f"{d.year:04d}-{d.month:02d}"
 
 
-def _infer_profile(inp: GeneratorInput) -> str:
-    sid = (inp.options.scenario_id or inp.meta.scenario or "").strip().lower()
-    if sid in {
+_PRESET_IDS = frozenset(
+    {
         "good",
         "weak",
         "cash_critical",
         "cash_turning_critical_later",
         "invoices_out_of_balance",
-    }:
-        return sid
+        "test_only_broken",
+    }
+)
+
+
+def _infer_profile(inp: GeneratorInput) -> str:
+    """Behaviour profile used by the cash/invoice generators (not the pack filename)."""
+    sid = (inp.options.scenario_id or inp.meta.scenario or "").strip().lower()
+    if sid in _PRESET_IDS:
+        return "invoices_out_of_balance" if sid == "test_only_broken" else sid
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
+    text = f"{inp.scenario_description.fi} {inp.scenario_description.en}".lower()
     if g < -0.005:
         return "weak"
-    if cash <= 60_000:
+    if cash <= 60_000 or any(
+        k in text for k in ("kriittinen", "critical", "cash tight", "negatiiv")
+    ):
         return "cash_critical"
     return "good"
+
+
+def _slugify(text: str, *, fallback: str = "custom") -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).strip("_")
+    return (slug[:48] or fallback)
+
+
+def _pack_label(inp: GeneratorInput, profile: str) -> str:
+    """
+    Filename / meta scenario label.
+
+    Ready-made presets keep their ids. Custom --from-text packs use industry
+    (or a short custom_* slug) so a boutique hotel is not mislabelled
+    scenario_cash_critical.xlsx when behaviour is only cash-critical-like.
+    """
+    explicit = (inp.options.scenario_id or inp.meta.scenario or "").strip()
+    if explicit:
+        return _slugify(explicit, fallback=explicit.lower().replace(" ", "_"))
+    industry = (inp.options.industry or "").strip()
+    if industry:
+        return _slugify(industry, fallback="custom")
+    # Last resort: behaviour profile (documented in run_log as assigned_slug_source)
+    return profile
+
+
+def _collect_one_off_events(params) -> list[OneOffCashEvent]:
+    """Merge special_investment_* into the structured one_off_events list."""
+    events = list(params.one_off_events or [])
+    invest = float(params.special_investment_eur or 0.0)
+    if invest > 0:
+        month_i = int(getattr(params, "special_investment_month", None) or 2)
+        already = any(
+            e.direction == "out"
+            and abs(e.amount_eur - invest) < 0.02
+            and e.month_index == month_i
+            for e in events
+        )
+        if not already:
+            events.append(
+                OneOffCashEvent(
+                    amount_eur=invest,
+                    month_index=month_i,
+                    direction="out",
+                    label="special_investment",
+                )
+            )
+    return events
+
+
+def _events_for_month(events: list[OneOffCashEvent], month_index_1based: int) -> list[OneOffCashEvent]:
+    return [e for e in events if e.month_index == month_index_1based]
 
 
 def _ending_month(inp: GeneratorInput) -> date:
@@ -109,23 +173,54 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     last_month = _ending_month(inp)
     first_month = _add_months(last_month, -(n - 1))
     as_of = _as_of_date(inp, last_month)
-    scenario_id = inp.options.scenario_id or inp.meta.scenario or profile
+    scenario_id = _pack_label(inp, profile)
+    one_offs = _collect_one_off_events(params)
 
     partly_fixed = params.partly_fixed_costs or profile in {"weak", "cash_critical"}
 
-    months = _generate_months(
+    months, gen_meta = _generate_months(
         first_month=first_month,
         n=n,
         params=params,
         profile=profile,
         partly_fixed=partly_fixed,
         seed=seed,
+        one_off_events=one_offs,
     )
 
     last_bs = months[-1].balance_sheet
     last_cash = last_bs.assets.cash
     receivables = last_bs.assets.receivables
     payables = last_bs.equity_and_liabilities.payables
+
+    # cash_critical (VR-20): ensure the open-purchase cliff can breach cash even when
+    # seasonality shrinks last-month working capital (e.g. hotel winter collapse).
+    if profile == "cash_critical" and payables < last_cash * 1.15 + 5_000:
+        needed = _r(last_cash * 1.25 + 10_000)
+        bump = _r(needed - payables)
+        payables = needed
+        e = months[-1].balance_sheet.equity_and_liabilities
+        a = months[-1].balance_sheet.assets
+        e.payables = payables
+        e.other_current_liabilities = _r(
+            a.total_assets - e.equity - e.loans - e.payables
+        )
+        if e.other_current_liabilities < 0:
+            a.cash = _r(a.cash + e.other_current_liabilities)
+            last_cash = a.cash
+            e.other_current_liabilities = 0.0
+            a.total_assets = _r(a.fixed_assets + a.inventory + a.receivables + a.cash)
+        e.total_equity_and_liabilities = _r(
+            e.equity + e.loans + e.payables + e.other_current_liabilities
+        )
+        if abs(a.total_assets - e.total_equity_and_liabilities) > 0.5:
+            e.other_current_liabilities = _r(
+                a.total_assets - e.equity - e.loans - e.payables
+            )
+            e.total_equity_and_liabilities = _r(
+                e.equity + e.loans + e.payables + e.other_current_liabilities
+            )
+        gen_meta.setdefault("cash_critical_payable_bump_eur", bump)
 
     history = _generate_balance_history(
         as_of=as_of,
@@ -134,6 +229,8 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         profile=profile,
         weeks=26,
         seed=seed,
+        first_month=first_month,
+        one_off_events=one_offs,
     )
     # Enforce exact link to last month cash (VR-07)
     history[-1] = BalanceHistoryPoint(
@@ -207,15 +304,21 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         projection_from_open_invoices=projection,
     )
 
-    # Stamp scenario id on input meta for round-trips
+    # Stamp pack label on input meta for round-trips (behaviour profile kept in note).
     stamped = inp.model_copy(deep=True)
     stamped.meta.scenario = scenario_id
     stamped.meta.fictional = True
+    note_bits = [stamped.meta.note or "", f"behavior_profile={profile}"]
+    if gen_meta.get("ending_cash_note"):
+        note_bits.append(str(gen_meta["ending_cash_note"]))
+    stamped.meta.note = " | ".join(b for b in note_bits if b).strip(" |")
     if stamped.options.scenario_id is None:
         stamped.options.scenario_id = scenario_id
     stamped.invoice_texts = invoice_texts
-
-    return ScenarioPack(input=stamped, monthly_reports=monthly, cash_and_invoices=cash)
+    # Carry generator meta on a transient attribute for run_log enrichment
+    pack = ScenarioPack(input=stamped, monthly_reports=monthly, cash_and_invoices=cash)
+    setattr(pack, "_generator_meta", gen_meta)
+    return pack
 
 
 def _generate_months(
@@ -226,17 +329,17 @@ def _generate_months(
     profile: str,
     partly_fixed: bool,
     seed: int,
-) -> list[MonthlyReport]:
+    one_off_events: list[OneOffCashEvent] | None = None,
+) -> tuple[list[MonthlyReport], dict[str, Any]]:
     shares = params.cost_shares_of_revenue
     start_rev = params.monthly_revenue_start_eur
     growth = params.monthly_revenue_growth
     vat = 1.0 + VAT_RATE_FI
+    factors = list(params.monthly_revenue_factors) if params.monthly_revenue_factors else None
+    events = list(one_off_events or [])
 
     # Opening BS anchors (deterministic, CPU-friendly)
     fixed_assets = 300_000.0
-    if params.special_investment_eur:
-        # Investment lands mid-horizon (month index ~3)
-        pass
     equity0 = 245_000.0 if profile == "good" else 210_000.0
     loans = 480_000.0
     cash0 = {
@@ -258,13 +361,30 @@ def _generate_months(
     equity = equity0
     cash = cash0
     target_end = params.target_cash_at_end_eur
+    # Past one-off events as (month_index_0based, signed_cash_delta)
+    past_event_scars: list[tuple[int, float]] = []
+    fa_boost = 0.0
+    gen_meta: dict[str, Any] = {
+        "one_off_events_applied": [],
+        "ending_cash_note": None,
+        "target_cash_at_end_eur": target_end,
+    }
 
     for i in range(n):
         month_date = _add_months(first_month, i)
-        # Seasonal wiggle ≥5% MoM somewhere (VR-21); deterministic sine + one dip month
-        seasonal = 1.0 + 0.045 * math.sin((i + seed % 7) * 0.9)
-        if i == max(2, n // 3):
-            seasonal *= 0.92  # deliberate ≥5% move vs neighbours
+        month_index_1based = i + 1
+        # Calendar-month seasonality (Jan=0 … Dec=11) when factors provided;
+        # otherwise mild sine wiggle for VR-21.
+        if factors is not None:
+            cal_factor = float(factors[month_date.month - 1])
+            seasonal = cal_factor
+            # Ensure ≥5% MoM somewhere when factors are nearly flat
+            if i == max(2, n // 3) and abs(cal_factor - 1.0) < 0.02:
+                seasonal *= 0.92
+        else:
+            seasonal = 1.0 + 0.045 * math.sin((i + seed % 7) * 0.9)
+            if i == max(2, n // 3):
+                seasonal *= 0.92  # deliberate ≥5% move vs neighbours
         revenue = _r(start_rev * ((1.0 + growth) ** i) * seasonal)
 
         materials = _r(revenue * shares.materials)
@@ -292,60 +412,67 @@ def _generate_months(
         payables = _r(materials_and_services * (params.days_payables_outstanding / 30.0) * vat)
         inventory = _r(materials * 0.40)
 
-        # Fixed assets path + one-off investment
-        fa = fixed_assets - sum(
+        # Fixed assets path + one-off capex (out events increase FA)
+        month_events = _events_for_month(events, month_index_1based)
+        for ev in month_events:
+            signed = ev.amount_eur if ev.direction == "in" else -ev.amount_eur
+            past_event_scars.append((i, signed))
+            if ev.direction == "out":
+                fa_boost += ev.amount_eur
+            gen_meta["one_off_events_applied"].append(
+                {
+                    "month_index": month_index_1based,
+                    "month": _fmt_month(month_date),
+                    "amount_eur": ev.amount_eur,
+                    "direction": ev.direction,
+                    "label": ev.label,
+                }
+            )
+
+        fa = fixed_assets + fa_boost - sum(
             _r(dep_monthly * (0.99**j)) for j in range(i + 1)
         )
-        if params.special_investment_eur and i == max(2, n // 4):
-            fa += params.special_investment_eur
-            cash -= params.special_investment_eur
         fa = max(50_000.0, _r(fa))
 
-        # Cash path toward target (linear-ish with profile stress)
+        # Cash path toward target via dynamics (not a hard last_cash == target snap).
+        # One-off events create a full scar at their month that linearly fades to 0
+        # by the final month so parameters still drive ending cash near target.
         t = i / max(1, n - 1)
         if profile == "cash_critical":
-            # Drift down early, settle near target
-            cash_path = cash0 + (target_end - cash0) * (t**0.85)
-        elif profile in {"weak", "cash_turning_critical_later", "invoices_out_of_balance"}:
-            cash_path = cash0 + (target_end - cash0) * t
+            path_shape = t**0.85
         else:
-            cash_path = cash0 + (target_end - cash0) * t
+            path_shape = t
+        base_path = cash0 + (target_end - cash0) * path_shape
+        scar = 0.0
+        for event_i, signed in past_event_scars:
+            span = max(1, (n - 1) - event_i)
+            # At event month: factor 1.0; at final month: factor 0.0
+            factor = max(0.0, 1.0 - (i - event_i) / span)
+            scar += signed * factor
+        cash_path = base_path + scar
         cash = _r(cash_path)
-        if i == n - 1:
-            cash = _r(target_end)
 
         loans = _r(max(100_000.0, 480_000.0 - 5_000.0 * (i + 1)))
         equity = _r((equity0 if i == 0 else months[i - 1].balance_sheet.equity_and_liabilities.equity) + net_result)
 
         assets_sum_wo_plug = fa + inventory + receivables + cash
-        # Plug other current liabilities so BS balances
+        # Plug other current liabilities so BS balances — do NOT drain cash to
+        # meet a liability floor (that previously fought the target-cash path).
         other_cl = _r(assets_sum_wo_plug - equity - loans - payables)
-        if other_cl < 5_000:
-            # Shift residual into cash so liabilities stay non-negative
-            deficit = 5_000 - other_cl
-            cash = _r(cash - deficit)
-            if i == n - 1:
-                # Prefer exact target cash on final month: reduce equity plug via other_cl
-                cash = _r(target_end)
-                assets_sum_wo_plug = fa + inventory + receivables + cash
-                other_cl = _r(assets_sum_wo_plug - equity - loans - payables)
-            else:
-                assets_sum_wo_plug = fa + inventory + receivables + cash
-                other_cl = _r(assets_sum_wo_plug - equity - loans - payables)
+        if other_cl < 0:
+            # Absorb negative plug into equity rather than rewriting cash.
+            equity = _r(equity + other_cl)
+            other_cl = 0.0
 
         total_assets = _r(fa + inventory + receivables + cash)
         total_el = _r(equity + loans + payables + other_cl)
-        # Final cent-level reconcile on cash if needed
+        # Final cent-level reconcile via other_cl (prefer not rewriting cash)
         if abs(total_assets - total_el) > 0.5:
-            cash = _r(cash + (total_el - total_assets))
-            if i == n - 1:
-                # Keep target cash; adjust other_cl instead
-                cash = _r(target_end)
-                total_assets = _r(fa + inventory + receivables + cash)
-                other_cl = _r(total_assets - equity - loans - payables)
-                total_el = _r(equity + loans + payables + other_cl)
-            else:
-                total_assets = _r(fa + inventory + receivables + cash)
+            other_cl = _r(total_assets - equity - loans - payables)
+            if other_cl < 0:
+                equity = _r(equity + other_cl)
+                other_cl = 0.0
+            total_el = _r(equity + loans + payables + other_cl)
 
         months.append(
             MonthlyReport(
@@ -394,7 +521,18 @@ def _generate_months(
                 e.equity + e.loans + e.payables + e.other_current_liabilities
             )
 
-    return months
+    final_cash = months[-1].balance_sheet.assets.cash if months else None
+    if final_cash is not None:
+        gap = _r(final_cash - target_end)
+        gen_meta["ending_cash_eur"] = final_cash
+        gen_meta["ending_cash_vs_target_eur"] = gap
+        gen_meta["ending_cash_note"] = (
+            f"ending_cash_via_dynamics={final_cash} "
+            f"(target={target_end}, delta={gap}); "
+            "parameters drive ending cash — not forced exact equality"
+        )
+
+    return months, gen_meta
 
 
 def _generate_balance_history(
@@ -405,9 +543,36 @@ def _generate_balance_history(
     profile: str,
     weeks: int,
     seed: int,
+    first_month: date | None = None,
+    one_off_events: list[OneOffCashEvent] | None = None,
 ) -> list[BalanceHistoryPoint]:
+    """
+    Build 26-week balance history.
+
+    One-off events (e.g. €95k roof repair) punch a discrete step into the week
+    nearest the event month-end so the outflow is visible in weekly history even
+    when the calendar month falls near/before the history window.
+    """
+    # Map one-off events → week index (1..weeks)
+    event_by_week: dict[int, float] = {}
+    if one_off_events and first_month is not None:
+        hist_start = as_of - timedelta(days=7 * (weeks - 1))
+        for ev in one_off_events:
+            event_month = _add_months(first_month, ev.month_index - 1)
+            event_day = _month_end(event_month)
+            signed = ev.amount_eur if ev.direction == "in" else -ev.amount_eur
+            if event_day < hist_start:
+                # Still show the outflow: place near the start of the history window
+                w = 2
+            elif event_day >= as_of:
+                w = max(2, weeks - 1)
+            else:
+                delta_days = (event_day - hist_start).days
+                w = int(round(delta_days / 7.0)) + 1
+                w = min(weeks - 1, max(2, w))
+            event_by_week[w] = event_by_week.get(w, 0.0) + signed
+
     points: list[BalanceHistoryPoint] = []
-    # Walk forward week index 1..weeks ending at as_of
     for week_idx in range(1, weeks + 1):
         w_from_end = weeks - week_idx  # 25..0
         d = as_of - timedelta(days=7 * w_from_end)
@@ -419,17 +584,18 @@ def _generate_balance_history(
         elif profile == "weak":
             bal = base - abs(wave) * 0.2
         elif profile == "cash_turning_critical_later":
-            # Healthy early; crosses to negative around week 20 (±2)
-            # Piecewise: high until ~18, then steep drop through week 20, settle at end_cash
             if week_idx < 18:
                 bal = start_cash - (start_cash - 40_000.0) * (week_idx / 18.0) * 0.35
             elif week_idx <= 22:
-                # Cross zero near week 20
                 bal = 15_000.0 - 8_000.0 * (week_idx - 18)
             else:
                 bal = base
         else:
             bal = base + wave * 0.15
+        # One-off events: single-week step (visible outflow/inflow), not a lasting drag.
+        # Week-to-week delta ≈ event amount; following weeks resume the base path.
+        if week_idx in event_by_week and week_idx < weeks:
+            bal = bal + event_by_week[week_idx]
         if week_idx == weeks:
             bal = end_cash
         points.append(
@@ -691,6 +857,7 @@ def write_pack(
 
     answer_key = build_answer_key(pack) if write_data_files else None
     ver = software_version or SOFTWARE_VERSION
+    gen_meta = getattr(pack, "_generator_meta", None) or {}
     run_log = {
         "software_version": ver,
         "seed": seed,
@@ -703,6 +870,20 @@ def write_pack(
         "parameter_clips": param_clips or [],
         "parameters": pack.input.parameters_from_language_model.model_dump(),
         "options": pack.input.options.model_dump(),
+        "pack_label": pack.input.options.scenario_id or pack.input.meta.scenario,
+        "behavior_profile": (
+            (pack.input.meta.note or "").split("behavior_profile=")[-1].split("|")[0].strip()
+            if pack.input.meta.note and "behavior_profile=" in (pack.input.meta.note or "")
+            else None
+        ),
+        "ending_cash": gen_meta.get("ending_cash_note")
+        or {
+            "ending_cash_eur": gen_meta.get("ending_cash_eur"),
+            "target_cash_at_end_eur": gen_meta.get("target_cash_at_end_eur"),
+            "delta_eur": gen_meta.get("ending_cash_vs_target_eur"),
+            "note": "parameters drive ending cash via dynamics; not forced exact equality",
+        },
+        "one_off_events_applied": gen_meta.get("one_off_events_applied") or [],
         "test_only_broken": test_only_broken or False,
         "python_version": __import__("sys").version.split()[0],
     }

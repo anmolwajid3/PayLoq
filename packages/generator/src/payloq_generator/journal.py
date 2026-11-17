@@ -177,12 +177,24 @@ def build_journal_entries(pack: ScenarioPack) -> JournalEntries:
                 )
             )
 
-    invest = pack.input.parameters_from_language_model.special_investment_eur
+    params = pack.input.parameters_from_language_model
+    invest = params.special_investment_eur
     if invest and invest > 0:
+        # Date the investment at the configured month (1-based) when possible.
+        month_i = int(getattr(params, "special_investment_month", None) or 2) - 1
+        if 0 <= month_i < len(pack.monthly_reports.months):
+            inv_month = pack.monthly_reports.months[month_i].month
+            y, m = map(int, inv_month.split("-"))
+            if m == 12:
+                inv_date = f"{y}-12-28"
+            else:
+                inv_date = f"{y:04d}-{m:02d}-28"
+        else:
+            inv_date = as_of
         entries.append(
             JournalEntry(
                 id=_next_id("JE-INV"),
-                date=as_of,
+                date=inv_date,
                 description_fi="Erityisinvestointi (parametri)",
                 description_en="Special investment (from parameters)",
                 source="investment",

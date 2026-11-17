@@ -75,6 +75,16 @@ def _scenario_sheet(ws, pack: ScenarioPack) -> None:
             inp.parameters_from_language_model.special_investment_eur,
             inp.parameters_from_language_model.special_investment_eur,
         ),
+        (
+            "Investointikuukausi / Special investment month (1-based)",
+            inp.parameters_from_language_model.special_investment_month,
+            inp.parameters_from_language_model.special_investment_month,
+        ),
+        (
+            "Kausivaihtelu / Monthly revenue factors (Jan–Dec)",
+            str(inp.parameters_from_language_model.monthly_revenue_factors or ""),
+            str(inp.parameters_from_language_model.monthly_revenue_factors or ""),
+        ),
         ("Huomiot / Notes", inp.parameters_from_language_model.notes or "", ""),
     ]
     for r in rows:
