@@ -29,15 +29,21 @@ Return ONLY a JSON object with these keys (no markdown, no commentary):
   "partly_fixed_costs": <true|false — true when costs stay high while revenue falls or cash is critical>
 }
 Cost shares MUST sum to about 0.9–1.0 (blocking). Prefer ~0.94.
-monthly_revenue_factors: twelve calendar-month multipliers (Jan=first). Use low winter
-factors when bookings collapse Oct–Mar. one_off_events (or special_investment_*) land
-capex/repairs in a specific month. Do not invent absolute P&L or balance-sheet figures —
-code will compute those from these parameters.
+REQUIRED every time: monthly_revenue_start_eur, monthly_revenue_growth,
+cost_shares_of_revenue (4 keys), days_sales_outstanding, days_payables_outstanding,
+target_cash_at_end_eur.
+monthly_revenue_factors: exactly twelve calendar-month MULTIPLIERS Jan..Dec in about
+0.1–2.0 (SRS clip 0.05–2.0). NEVER absolute euro month totals like 12000.
+Use low winter factors when sales collapse Oct–Mar. one_off_events (or
+special_investment_*) land capex/repairs in a specific month — copy the euro amount
+and month from the description (e.g. oven repair €42k in month 3 → 42000, month 3).
+Do not invent absolute P&L or balance-sheet figures — code will compute those.
+Scale monthly_revenue_start_eur to company size (small bakery ≪ 200000).
 HARD: If the description mentions a bank covenant, winter cash, or thin cash figure
-(e.g. €25k covenant, ~€30k winter cash), set target_cash_at_end_eur to that scale
-(typically 20_000–40_000). NEVER invent a healthy default like 330000 when the story
-is cash-stressed, hotel winter collapse, or covenant-bound. Finnish (kovenantti,
-ohut kassa, talvi) counts the same as English.
+(e.g. €10k covenant, ~€8k winter cash), set target_cash_at_end_eur to that scale.
+NEVER invent a healthy default like 330000 when the story is cash-stressed,
+hotel winter collapse, bakery thin cash, or covenant-bound. Finnish (kovenantti,
+ohut kassa, talvi, leipomo) counts the same as English.
 """.strip()
 
 
@@ -81,8 +87,17 @@ def parameter_repair_prompt(previous: str, error: str) -> str:
         f"Validation error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
         "Return corrected JSON only, matching the required schema.\n"
-        "Remember: cost_shares_of_revenue must sum to ~0.9–1.0; "
-        "monthly_revenue_factors must be 12 floats when present.\n"
+        "MUST include all required fields:\n"
+        "  monthly_revenue_start_eur (positive),\n"
+        "  monthly_revenue_growth (e.g. 0.0),\n"
+        "  cost_shares_of_revenue {{materials,services,personnel,other}} summing ~0.9–1.0,\n"
+        "  days_sales_outstanding, days_payables_outstanding,\n"
+        "  target_cash_at_end_eur.\n"
+        "monthly_revenue_factors MUST be exactly 12 multiplicative floats Jan–Dec "
+        "each in ~0.1–2.0 (NOT absolute euro amounts). "
+        "If you cannot produce valid factors, omit the key (set null).\n"
+        "Copy special_investment_eur / special_investment_month from the description "
+        "when a one-off repair/capex month is stated.\n"
     )
 
 

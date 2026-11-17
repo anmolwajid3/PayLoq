@@ -148,44 +148,57 @@ def clamp_parameters(
             )
         data["cost_shares_of_revenue"] = shares
 
-    # Seasonality factors: pad/trim to 12, clip each to allowed range
+    # Seasonality factors: normalize euro levels / pad/trim to 12, clip each
     factors = data.get("monthly_revenue_factors")
     if factors is not None:
         try:
-            raw = [float(x) for x in list(factors)]
-        except (TypeError, ValueError):
-            raw = [1.0] * 12
-        if len(raw) < 12:
-            raw = raw + [1.0] * (12 - len(raw))
-            changes.append(
-                {
-                    "field": "monthly_revenue_factors",
-                    "message": f"padded monthly_revenue_factors to 12 entries (had {len(factors)})",
-                }
+            from payloq_llm.params_coerce import normalize_monthly_revenue_factors
+
+            try:
+                start_eur = float(data.get("monthly_revenue_start_eur") or 0) or None
+            except (TypeError, ValueError):
+                start_eur = None
+            normalized, fchg = normalize_monthly_revenue_factors(
+                factors, start_eur=start_eur
             )
-        elif len(raw) > 12:
-            raw = raw[:12]
-            changes.append(
-                {
-                    "field": "monthly_revenue_factors",
-                    "message": f"truncated monthly_revenue_factors to 12 entries (had {len(factors)})",
-                }
-            )
-        clipped_factors: list[float] = []
-        for i, fv in enumerate(raw):
-            cf = min(REVENUE_FACTOR_MAX, max(REVENUE_FACTOR_MIN, fv))
-            if cf != fv:
+            changes.extend(fchg)
+            data["monthly_revenue_factors"] = normalized
+        except Exception:  # noqa: BLE001 — keep local pad/clip if llm package unavailable
+            try:
+                raw = [float(x) for x in list(factors)]
+            except (TypeError, ValueError):
+                raw = [1.0] * 12
+            if len(raw) < 12:
+                raw = raw + [1.0] * (12 - len(raw))
                 changes.append(
                     {
-                        "field": f"monthly_revenue_factors[{i}]",
-                        "original": fv,
-                        "clipped": cf,
-                        "range": [REVENUE_FACTOR_MIN, REVENUE_FACTOR_MAX],
-                        "message": f"monthly_revenue_factors[{i}] clipped from {fv} to {cf}",
+                        "field": "monthly_revenue_factors",
+                        "message": f"padded monthly_revenue_factors to 12 entries (had {len(factors)})",
                     }
                 )
-            clipped_factors.append(cf)
-        data["monthly_revenue_factors"] = clipped_factors
+            elif len(raw) > 12:
+                raw = raw[:12]
+                changes.append(
+                    {
+                        "field": "monthly_revenue_factors",
+                        "message": f"truncated monthly_revenue_factors to 12 entries (had {len(factors)})",
+                    }
+                )
+            clipped_factors: list[float] = []
+            for i, fv in enumerate(raw):
+                cf = min(REVENUE_FACTOR_MAX, max(REVENUE_FACTOR_MIN, fv))
+                if cf != fv:
+                    changes.append(
+                        {
+                            "field": f"monthly_revenue_factors[{i}]",
+                            "original": fv,
+                            "clipped": cf,
+                            "range": [REVENUE_FACTOR_MIN, REVENUE_FACTOR_MAX],
+                            "message": f"monthly_revenue_factors[{i}] clipped from {fv} to {cf}",
+                        }
+                    )
+                clipped_factors.append(cf)
+            data["monthly_revenue_factors"] = clipped_factors
 
     # special_investment_month
     try:

@@ -35,6 +35,13 @@ from payloq_llm.nl_cash_intent import (
     repair_params_from_nl,
     suggested_target_cash_eur,
 )
+from payloq_llm.nl_param_hints import (
+    extract_special_investment,
+    looks_bakery,
+    repair_investment_and_revenue_from_nl,
+    suggest_revenue_start_eur,
+)
+from payloq_llm.params_coerce import coerce_parameters_dict
 from payloq_llm.stub_texts import stub_invoice_texts
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
@@ -112,6 +119,7 @@ class StubLlmAdapter(LlmAdapter):
         text = combined.lower()
         sid = str(options.get("scenario_id") or "").lower()
         industry = str(options.get("industry") or "").lower()
+        company_size = str(options.get("company_size") or "").lower()
         invest_month = 2
         factors = None
         one_offs: list[dict] = []
@@ -121,6 +129,7 @@ class StubLlmAdapter(LlmAdapter):
             k in text or k in industry
             for k in ("hotel", "hotelli", "boutique", "adr", "occupancy", "majoitus")
         )
+        bakeryish = looks_bakery(combined, industry)
         winter_collapse = any(
             k in text
             for k in (
@@ -132,31 +141,52 @@ class StubLlmAdapter(LlmAdapter):
                 "collapse",
                 "off-season",
                 "sesongin",
+                "soft in winter",
+                "heikko talvi",
             )
         )
         # Digit-heavy hotel / roof repair heuristics
-        roof_repair = any(k in text for k in ("roof", "hvac", "95", "95,000", "95000", "katto"))
+        roof_repair = any(k in text for k in ("roof", "hvac", "95,000", "95000", "katto"))
         cash_stressed = sid == "cash_critical" or looks_cash_critical(combined)
         nl_cash = suggested_target_cash_eur(combined)
+        nl_invest = extract_special_investment(combined)
+        nl_rev = suggest_revenue_start_eur(
+            combined, industry=industry, company_size=company_size
+        )
 
         if cash_stressed:
             # Prefer NL covenant / winter-cash figures; never invent healthy 330k.
             cash = float(nl_cash) if nl_cash is not None else 45_000.0
             if cash > 80_000:
                 cash = 45_000.0
-            growth, invest, partly = 0.0, 80_000.0, True
+            # Do not invent €80k capex when NL states a different one-off (or none).
+            invest = float(nl_invest[0]) if nl_invest is not None else 0.0
+            growth, partly = 0.0, True
             notes = "stub: cash_critical heuristic from NL keywords"
         elif sid == "weak" or any(
             k in text for k in ("laskee", "falling", "tappioll", "weak", "heikko")
         ):
-            growth, cash, invest, partly = -0.012, 85_000.0, 70_000.0, True
+            growth, cash, partly = -0.012, 85_000.0, True
+            invest = float(nl_invest[0]) if nl_invest is not None else 70_000.0
             notes = "stub: weak heuristic from NL keywords"
         else:
             growth, cash, invest, partly = 0.008, 330_000.0, 0.0, False
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
             notes = "stub: good / default heuristic"
 
+        if nl_rev is not None:
+            rev_start = float(nl_rev)
+        if bakeryish:
+            if nl_rev is None:
+                rev_start = 32_000.0 * (
+                    0.85 if "small" in company_size or "pieni" in text else 1.0
+                )
+                rev_start = max(20_000.0, round(rev_start, -3))
+            notes = f"{notes}; bakery industry defaults"
         if hotelish:
-            rev_start = 180_000.0
+            if nl_rev is None:
+                rev_start = 180_000.0
             notes = f"{notes}; hotel industry defaults"
             if cash_stressed or (
                 cash > 60_000
@@ -165,27 +195,61 @@ class StubLlmAdapter(LlmAdapter):
                 cash = float(nl_cash) if nl_cash is not None else min(cash, 40_000.0)
                 if cash > 80_000:
                     cash = 40_000.0
-                invest, partly = max(invest, 95_000.0), True
+                if nl_invest is None:
+                    invest = max(invest, 95_000.0)
+                partly = True
         if winter_collapse or (hotelish and any(k in text for k in ("winter", "talvi", "off-season"))):
             # Jan..Dec: winter collapse Oct–Mar (indices 9,10,11,0,1,2)
-            factors = [
-                0.30,  # Jan
-                0.30,  # Feb
-                0.35,  # Mar
-                0.70,  # Apr
-                0.90,  # May
-                1.00,  # Jun
-                1.00,  # Jul
-                1.00,  # Aug
-                0.85,  # Sep
-                0.35,  # Oct
-                0.30,  # Nov
-                0.30,  # Dec
-            ]
+            if bakeryish and not hotelish:
+                # Milder winter dip for retail bakery vs hotel occupancy collapse
+                factors = [
+                    0.70,  # Jan
+                    0.70,  # Feb
+                    0.80,  # Mar
+                    0.90,  # Apr
+                    1.00,  # May
+                    1.05,  # Jun
+                    1.05,  # Jul
+                    1.00,  # Aug
+                    0.95,  # Sep
+                    0.80,  # Oct
+                    0.70,  # Nov
+                    0.85,  # Dec (holiday lift)
+                ]
+            else:
+                factors = [
+                    0.30,  # Jan
+                    0.30,  # Feb
+                    0.35,  # Mar
+                    0.70,  # Apr
+                    0.90,  # May
+                    1.00,  # Jun
+                    1.00,  # Jul
+                    1.00,  # Aug
+                    0.85,  # Sep
+                    0.35,  # Oct
+                    0.30,  # Nov
+                    0.30,  # Dec
+                ]
             notes = f"{notes}; winter seasonality factors"
             if cash_stressed and nl_cash is not None:
                 cash = float(nl_cash)
-        if roof_repair or (hotelish and invest >= 80_000):
+        if nl_invest is not None:
+            invest = float(nl_invest[0])
+            invest_month = int(nl_invest[1])
+            label = "oven_repair" if bakeryish or any(k in text for k in ("oven", "uuni")) else (
+                "roof_repair" if roof_repair or hotelish else "special_investment"
+            )
+            one_offs.append(
+                {
+                    "amount_eur": invest,
+                    "month_index": invest_month,
+                    "direction": "out",
+                    "label": label,
+                }
+            )
+            notes = f"{notes}; special investment month {invest_month}"
+        elif roof_repair or (hotelish and invest >= 80_000):
             invest = max(invest, 95_000.0)
             invest_month = 2
             one_offs.append(
@@ -222,6 +286,9 @@ class StubLlmAdapter(LlmAdapter):
         out = params.model_dump()
         # Defense in depth: same repair path used after live Ollama extraction
         out, _ = repair_params_from_nl(combined, out)
+        out, _ = repair_investment_and_revenue_from_nl(
+            combined, out, industry=industry, company_size=company_size
+        )
         self.last_raw_output = json.dumps(out, ensure_ascii=False, indent=2)
         self._record(
             latency_ms=(time.perf_counter() - t0) * 1000,
@@ -482,11 +549,14 @@ class OllamaAdapter(LlmAdapter):
         raw = self._chat(prompt, json_mode=True)
         self.last_raw_output = raw
         last_err: Exception | None = None
+        combined = f"{description_fi} {description_en}"
         # FR-A-11 / FR-A-13: retry invalid JSON or out-of-range cost shares up to 2 times
         max_attempts = max(self.max_retries, 2) + 1
         for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
+                # Soft-repair incomplete / euro-level factors before Pydantic (Run #10).
+                data, _ = coerce_parameters_dict(data, combined, options=options)
                 params = validate_model(ParametersFromLanguageModel, data)
                 shares = params.cost_shares_of_revenue.model_dump()
                 if cost_shares_out_of_range(shares):
@@ -497,8 +567,12 @@ class OllamaAdapter(LlmAdapter):
                     )
                 self.last_raw_output = raw
                 out = params.model_dump()
-                out, _ = repair_params_from_nl(
-                    f"{description_fi} {description_en}", out
+                out, _ = repair_params_from_nl(combined, out)
+                out, _ = repair_investment_and_revenue_from_nl(
+                    combined,
+                    out,
+                    industry=str(options.get("industry") or ""),
+                    company_size=str(options.get("company_size") or ""),
                 )
                 return out
             except (ValueError, json.JSONDecodeError) as exc:
@@ -507,12 +581,19 @@ class OllamaAdapter(LlmAdapter):
                     break
                 raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
                 self.last_raw_output = raw
-        # Accept schema-valid JSON; pipeline clamp_parameters hard-repairs + logs (FR-A-11).
+        # Accept schema-valid JSON after coerce; pipeline clamp_parameters hard-repairs (FR-A-11).
         try:
             data = extract_json_object(raw)
+            data, _ = coerce_parameters_dict(data, combined, options=options)
             params = validate_model(ParametersFromLanguageModel, data)
             out = params.model_dump()
-            out, _ = repair_params_from_nl(f"{description_fi} {description_en}", out)
+            out, _ = repair_params_from_nl(combined, out)
+            out, _ = repair_investment_and_revenue_from_nl(
+                combined,
+                out,
+                industry=str(options.get("industry") or ""),
+                company_size=str(options.get("company_size") or ""),
+            )
             return out
         except (ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError(
@@ -823,8 +904,15 @@ def input_from_text(
 
     opts = options or default_options_from_text(language=language)
     params = adapter.extract_parameters(description_fi, description_en, opts)
-    # Repair absurd targets after live/stub extraction (covenant / winter cash in NL).
-    repaired, _ = repair_params_from_nl(f"{description_fi} {description_en}", params)
+    # Repair absurd targets / wrong scale after live/stub extraction.
+    combined = f"{description_fi} {description_en}"
+    repaired, _ = repair_params_from_nl(combined, params)
+    repaired, _ = repair_investment_and_revenue_from_nl(
+        combined,
+        repaired,
+        industry=str(opts.get("industry") or ""),
+        company_size=str(opts.get("company_size") or ""),
+    )
     validated = validate_model(ParametersFromLanguageModel, repaired)
 
     invoice_texts: InvoiceDescriptiveTexts | None = None
