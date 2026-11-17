@@ -37,6 +37,8 @@ class LlmAdapter(ABC):
     name: str
     # Populated after each call when the adapter records metrics (Phase 3).
     last_call_metrics: dict[str, Any] | None = None
+    # FR-A-12: raw model text for the last parameter-extraction call.
+    last_raw_output: str | None = None
 
     @abstractmethod
     def extract_parameters(
@@ -132,6 +134,7 @@ class StubLlmAdapter(LlmAdapter):
             partly_fixed_costs=partly,
         )
         out = params.model_dump()
+        self.last_raw_output = json.dumps(out, ensure_ascii=False, indent=2)
         self._record(
             latency_ms=(time.perf_counter() - t0) * 1000,
             tokens_in=max(1, len(text) // 4),
@@ -384,17 +387,20 @@ class OllamaAdapter(LlmAdapter):
     ) -> dict[str, Any]:
         prompt = parameter_extraction_prompt(description_fi, description_en, options)
         raw = self._chat(prompt, json_mode=True)
+        self.last_raw_output = raw
         last_err: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
                 data = extract_json_object(raw)
                 params = validate_model(ParametersFromLanguageModel, data)
+                self.last_raw_output = raw
                 return params.model_dump()
             except (ValueError, json.JSONDecodeError) as exc:
                 last_err = exc
                 if attempt >= self.max_retries:
                     break
                 raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
+                self.last_raw_output = raw
         raise RuntimeError(
             f"Ollama returned invalid parameters JSON after retries: {last_err}"
         ) from last_err
@@ -456,7 +462,7 @@ class OllamaAdapter(LlmAdapter):
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": 0.2},
+            "options": {"temperature": 0},
         }
         if json_mode:
             payload["format"] = "json"
@@ -524,12 +530,14 @@ class FallbackAdapter(LlmAdapter):
             self.used_fallback = False
             self.last_fallback_reason = None
             self.last_call_metrics = getattr(self.primary, "last_call_metrics", None)
+            self.last_raw_output = getattr(self.primary, "last_raw_output", None)
             return result
         except Exception as exc:  # noqa: BLE001 — intentional soft fallback
             self.used_fallback = True
             self.last_fallback_reason = f"{self.primary.name} failed: {exc}"
             result = getattr(self.fallback, method)(*args, **kwargs)
             self.last_call_metrics = getattr(self.fallback, "last_call_metrics", None)
+            self.last_raw_output = getattr(self.fallback, "last_raw_output", None)
             return result
 
     def extract_parameters(
@@ -633,7 +641,9 @@ def input_from_text(
     adapter = adapter or StubLlmAdapter()
     text = text.strip()
     if not text:
-        raise ValueError("empty --from-text description")
+        raise ValueError(
+            "Description is missing. Please write one or two sentences."
+        )
 
     if language == "fi":
         description_fi = text

@@ -121,6 +121,7 @@ class MonthlyReports(BaseModel):
 
 
 class BalanceHistoryPoint(BaseModel):
+    week: int = Field(ge=1, description="1..26 week index within the balance history")
     date: str  # YYYY-MM-DD
     balance: float
 
@@ -132,7 +133,9 @@ class OpenInvoice(BaseModel):
     description: str
     issue_date: str
     due_date: str
-    amount_incl_vat: float
+    amount_incl_vat: float  # gross (legacy / primary field; SRS amount_gross_eur)
+    amount_net_eur: float | None = None
+    vat_eur: float | None = None
     status: Literal["open", "overdue"]
 
 

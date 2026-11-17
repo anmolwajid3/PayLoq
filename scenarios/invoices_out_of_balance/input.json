@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "fictional": true,
+    "note": "TEST_ONLY_BROKEN — deliberately mismatches receivables vs open sales invoices (VR-05). Not a realistic company.",
+    "scenario": "invoices_out_of_balance"
+  },
+  "scenario_description": {
+    "fi": "Yrityksen laskulista ei täsmää taseen saamisiin.",
+    "en": "The company's invoice list does not match its balance sheet."
+  },
+  "options": {
+    "industry": "metal workshop (machine shop)",
+    "company_size": "small",
+    "months": 12,
+    "language": "fi",
+    "currency": "EUR",
+    "scenario_id": "invoices_out_of_balance",
+    "as_of": "2026-10-31"
+  },
+  "parameters_from_language_model": {
+    "monthly_revenue_start_eur": 90000,
+    "monthly_revenue_growth": 0.01,
+    "cost_shares_of_revenue": {
+      "materials": 0.36,
+      "services": 0.08,
+      "personnel": 0.33,
+      "other": 0.14
+    },
+    "days_sales_outstanding": 40,
+    "days_payables_outstanding": 30,
+    "target_cash_at_end_eur": 120000,
+    "special_investment_eur": 0,
+    "notes": "TEST_ONLY_BROKEN base params; generator then breaks VR-05 on purpose.",
+    "partly_fixed_costs": false
+  }
+}

@@ -16,18 +16,24 @@ SCENARIOS = ROOT / "scenarios"
 
 @pytest.mark.parametrize("scenario_id", ["good", "weak", "cash_critical"])
 def test_generate_and_validate(tmp_path: Path, scenario_id: str) -> None:
+    from payloq_generator.answer_key import build_answer_key
+
     inp = load_input(SCENARIOS / scenario_id / "input.json")
     pack = generate_pack(inp, seed=42)
-    result = validate_pack(pack)
+    key = build_answer_key(pack)
+    result = validate_pack(pack, answer_key=key)
     errors = [i for i in result.issues if i.severity == "error"]
     assert not errors, errors
 
     out = tmp_path / scenario_id
-    write_pack(pack, out, write_xlsx=True)
+    write_pack(pack, out, write_xlsx=True, seed=42, validation=result.as_dict())
     assert (out / "input.json").exists()
     assert (out / "monthly_reports.json").exists()
     assert (out / "cash_and_invoices.json").exists()
+    assert (out / "scenario.xlsx").exists()
     assert (out / f"scenario_{scenario_id}.xlsx").exists()
+    assert (out / "answer_key.json").exists()
+    assert (out / "run_log.json").exists()
 
     disk = validate_pack_dir(out)
     assert disk.ok, disk.issues
