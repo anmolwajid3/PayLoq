@@ -12,12 +12,13 @@ DEFAULT_TIMEOUT_S = 120
 
 # Official CPU-first shortlist for Anmol Desktop / PayLoq local PoC (PL-7).
 # Recommended always includes llama3.2:1b; larger tags are optional stretch pulls.
+# Tiny tags (0.5b) are for Mac Docker CPU when larger pulls are slow.
 RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
     {
         "id": "stub",
         "adapter": "stub",
         "tier": "baseline",
-        "notes": "Always-on stub — no Ollama required (CI / offline).",
+        "notes": "Always-on stub — no Ollama required (CI / offline / CLI).",
     },
     {
         "id": "ollama:llama3.2:1b",
@@ -26,6 +27,15 @@ RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
         "tier": "recommended",
         "approx_size": "~1.3 GB",
         "notes": "Default CPU-friendly live model. Pull first on Desktop.",
+        "fallback_stub": True,
+    },
+    {
+        "id": "ollama:qwen2.5:0.5b",
+        "adapter": "ollama",
+        "model": "qwen2.5:0.5b",
+        "tier": "optional",
+        "approx_size": "~400 MB",
+        "notes": "Tiny CPU-friendly alternate for fast Mac Docker pulls.",
         "fallback_stub": True,
     },
     {
@@ -46,6 +56,13 @@ RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
         "notes": "Second optional size for multilingual / FI probe comparison.",
         "fallback_stub": True,
     },
+]
+
+# Tags suggested in the web UI / docs when Ollama is empty (excludes stub).
+UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
+    "llama3.2:1b",
+    "qwen2.5:0.5b",
+    "llama3.2:3b",
 ]
 
 

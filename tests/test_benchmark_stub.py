@@ -46,6 +46,7 @@ def test_parse_model_token() -> None:
 def test_cpu_shortlist_includes_llama32_1b_and_optionals() -> None:
     tags = recommended_ollama_tags(include_optional=True)
     assert "llama3.2:1b" in tags
+    assert "qwen2.5:0.5b" in tags
     assert "llama3.2:3b" in tags
     assert "qwen2.5:3b" in tags
     assert any(r.get("tier") == "recommended" for r in RECOMMENDED_CPU_MODELS)
@@ -54,7 +55,8 @@ def test_cpu_shortlist_includes_llama32_1b_and_optionals() -> None:
     ids = [s.id for s in specs]
     assert ids[0] == "stub"
     assert "ollama:llama3.2:1b" in ids
-    assert len(ids) == 4
+    assert "ollama:qwen2.5:0.5b" in ids
+    assert len(ids) == 5
 
     rec_only = expand_model_tokens(["shortlist:recommended"])
     assert [s.id for s in rec_only] == ["stub", "ollama:llama3.2:1b"]
