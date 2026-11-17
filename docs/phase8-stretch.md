@@ -11,7 +11,7 @@ Demo presets (FI + EN):
 | `cash_drop` | Miksi kassa laski? | Why did cash drop? |
 | `cash_negative` | Milloin kassa menee negatiiviseksi? | When does cash go negative? |
 
-Code builds a figure pack (`balance_history_change`, `mom_cash_change`, `largest_weekly_cash_drops`, `first_negative_projection_week`, open-invoice sums, investment, …). The adapter (`stub` or `ollama`) calls `interpret_figures` only.
+Code builds a figure pack (`balance_history_change`, `mom_cash_change`, `largest_weekly_cash_drops`, `first_negative_date` / `first_negative_balance`, `first_negative_projection_week` + week_end + balance, `projection_negative_crossings`, open-invoice sums, investment, …). The adapter (`stub` or `ollama`) calls `interpret_figures` only. Prompts require citing those dates/€ amounts and forbid defining terms (e.g. not “cash goes negative when balance_history_change is negative”).
 
 ### CLI (Windows `cmd` one-liners)
 

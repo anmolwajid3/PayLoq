@@ -86,11 +86,30 @@ def descriptive_texts_prompt(
     )
 
 
+INTERPRETATION_SYSTEM = """
+You are a careful virtual accountant for PayLoq.
+Code already computed every number. You ONLY interpret the Figures JSON the user provides.
+""".strip()
+
+
 def interpretation_prompt(question: str, pack_summary: dict[str, Any]) -> str:
     return (
-        "Answer as a careful virtual accountant. Use ONLY the provided figures.\n"
-        "Do not invent causes that are not supported by the numbers.\n"
-        "Reply in Finnish if the question is Finnish; otherwise English. Keep it short.\n\n"
+        "HARD RULES — follow all of them:\n"
+        "1. Answer ONLY from the Figures JSON below. Do not use outside knowledge.\n"
+        "2. NEVER define accounting terms or paraphrase field names as definitions "
+        "(forbidden example: \"Cash goes negative when the balance history change is negative.\").\n"
+        "3. Every answer must cite at least one concrete date or week number AND one euro (€ / EUR) "
+        "amount taken from the figures.\n"
+        "4. When asked when cash goes negative / milloin kassa menee negatiiviseksi: "
+        "use first_negative_date and first_negative_balance (EUR). "
+        "If those are null, also check first_negative_projection_week, "
+        "first_negative_projection_week_end, and first_negative_projection_balance. "
+        "If all are null, say the pack does not show cash going negative.\n"
+        "5. When asked why cash dropped / miksi kassa laski: cite mom_cash_change and/or "
+        "balance_history_change and/or largest_weekly_cash_drops (from_date → to_date, delta) "
+        "and special_investment_eur when present — as numbers, not definitions.\n"
+        "6. Do not invent causes (customers leaving, bank freezes, fraud, etc.).\n"
+        "7. Reply in Finnish if the question is Finnish; otherwise English. Keep it short (2–4 sentences).\n\n"
         f"Figures JSON:\n{json.dumps(pack_summary, ensure_ascii=False)}\n\n"
         f"Question:\n{question}\n"
     )

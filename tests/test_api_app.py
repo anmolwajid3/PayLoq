@@ -141,7 +141,11 @@ def test_chat_demo_on_run(client: TestClient):
     payload = chat.json()
     assert payload["preset"] == "cash_negative"
     assert payload["figures"]["first_negative_projection_week"] is not None
+    assert payload["figures"]["first_negative_date"] is not None
+    assert payload["figures"]["first_negative_balance"] is not None
     assert payload["answer"]
+    assert payload["figures"]["first_negative_date"] in payload["answer"]
+    assert "when the balance history change is negative" not in payload["answer"].lower()
 
     drop = client.post(
         f"/api/runs/{run_id}/chat",

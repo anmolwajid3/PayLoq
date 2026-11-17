@@ -50,6 +50,13 @@ def test_chat_demo_cash_negative_stub():
     figures = build_chat_figures(pack)
     assert figures["first_negative_projection_week"] is not None
     assert figures["first_negative_projection_week"] <= 3
+    assert figures["first_negative_date"] == figures["first_negative_projection_week_end"]
+    assert figures["first_negative_balance"] == figures["first_negative_projection_balance"]
+    assert figures["currency"] == "EUR"
+    assert figures["projection_negative_crossings"]
+    assert figures["projection_negative_crossings"][0]["week"] == figures[
+        "first_negative_projection_week"
+    ]
 
     result = run_chat_demo(
         pack,
@@ -61,6 +68,12 @@ def test_chat_demo_cash_negative_stub():
     assert result.question == DEMO_PRESETS["cash_negative"]["fi"]
     assert result.llm_adapter == "stub"
     assert "negatiiv" in result.answer.lower() or "negative" in result.answer.lower()
+    # Must cite this run's date + amount — never a glossary-style definition.
+    assert figures["first_negative_date"] in result.answer
+    bal = figures["first_negative_balance"]
+    assert bal is not None
+    assert str(int(bal)) in result.answer.replace(",", "").replace(" ", "")
+    assert "when the balance history change is negative" not in result.answer.lower()
     assert result.figures["cash_end"] == figures["cash_end"]
 
 
@@ -76,6 +89,10 @@ def test_chat_demo_cash_drop_en():
     assert result.question == DEMO_PRESETS["cash_drop"]["en"]
     assert "Cash at period end" in result.answer or "Kassasaldo" in result.answer
     assert "balance_history_change" in result.figures
+    hist = result.figures["balance_history_change"]
+    assert hist is not None
+    assert str(int(hist)) in result.answer.replace(",", "").replace(" ", "")
+    assert "when the balance history change is negative" not in result.answer.lower()
 
 
 def test_chat_demo_custom_question():
@@ -88,4 +105,25 @@ def test_chat_demo_custom_question():
         llm="stub",
     )
     assert result.figures["first_negative_projection_week"] is None
-    assert "non-negative" in result.answer.lower() or "ei mene" in result.answer.lower()
+    assert result.figures["first_negative_date"] is None
+    low = result.answer.lower()
+    assert "not show cash going negative" in low or "ei mene negatiiviseksi" in low
+    assert "330000" in result.answer.replace(",", "").replace(" ", "")
+
+
+def test_interpretation_prompt_forbids_definitions():
+    from payloq_llm.prompts import INTERPRETATION_SYSTEM, interpretation_prompt
+
+    prompt = interpretation_prompt(
+        "When does cash go negative?",
+        {
+            "first_negative_date": "2026-11-21",
+            "first_negative_balance": -41807.0,
+            "currency": "EUR",
+        },
+    )
+    assert "NEVER define" in prompt
+    assert "first_negative_date" in prompt
+    assert "balance history change is negative" in prompt.lower()
+    assert "Figures JSON" in prompt
+    assert "Only interpret" in INTERPRETATION_SYSTEM or "ONLY interpret" in INTERPRETATION_SYSTEM
