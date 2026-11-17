@@ -185,7 +185,7 @@ Writes `results.json`, `scorecard.json`, `scorecard.csv`, `runs.csv`, `metrics.s
 | `payloq bench` | Model matrix + graders + scorecard (JSON/CSV/SQLite) |
 | `payloq list-scenarios` | List `scenarios/*/input.json` |
 
-Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--months`, `--journal/--no-journal`.
+Useful `--from-text` flags: `--ollama-model`, `--ollama-host`, `--no-fallback-stub`, `--language fi`, `--industry`, `--company-size` (employee count or `small`/`medium`), `--months` (12–24), `--seed`, `--journal/--no-journal`.
 
 Useful `chat` flags: `--scenario` or `--pack`, `--preset cash_drop|cash_negative`, `--question`, `--llm stub|ollama`, `--language`, `--show-figures`.
 

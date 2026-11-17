@@ -644,7 +644,7 @@ def get_adapter(
 def default_options_from_text(
     *,
     industry: str = "metal workshop (machine shop)",
-    company_size: str = "small (revenue about 2.3 M EUR / year)",
+    company_size: str = "small",
     months: int = 12,
     language: str = "fi",
     scenario_id: str | None = None,
