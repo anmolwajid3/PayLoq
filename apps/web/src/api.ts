@@ -44,6 +44,7 @@ export type Run = {
       projected_balance: number;
     }[];
     description?: { fi: string; en: string };
+    language?: "fi" | "en" | string;
     parameters?: Record<string, unknown>;
     nl_soft_warnings?: {
       code: string;

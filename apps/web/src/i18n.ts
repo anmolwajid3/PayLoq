@@ -33,9 +33,25 @@ const dict = {
   viewPack: { fi: "Avaa näkymä", en: "Open view" },
   llmStub: { fi: "Stub (CPU)", en: "Stub (CPU)" },
   llmOllama: { fi: "Ollama", en: "Ollama" },
+  llmHint: {
+    fi: "Valitse Stub (CPU) tai Ollama. Ollama vaatii docker compose --profile ollama.",
+    en: "Choose Stub (CPU) or Ollama. Ollama needs docker compose --profile ollama.",
+  },
   language: { fi: "Kieli", en: "Language" },
   months: { fi: "Kuukaudet", en: "Months" },
+  monthsHint: {
+    fi: "Sallittu alue 12–24 (generaattori vaatii vähintään 12 kuukautta).",
+    en: "Allowed range 12–24 (generator requires at least 12 months).",
+  },
   industry: { fi: "Toimiala", en: "Industry" },
+  industryHint: {
+    fi: "Vapaaehtoinen vihje LLM:lle — tyhjänä käytetään oletusta (placeholder).",
+    en: "Optional LLM hint — leave blank to use the placeholder default.",
+  },
+  descriptionHint: {
+    fi: "Kirjoita oma kuvaus; placeholder on vain esimerkki.",
+    en: "Write your own description; the placeholder is only an example.",
+  },
   runGenerate: { fi: "Käynnistä generointi", en: "Run generation" },
   back: { fi: "Takaisin", en: "Back" },
   loginHint: {

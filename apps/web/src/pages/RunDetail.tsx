@@ -148,21 +148,50 @@ export function RunDetailPage() {
             </div>
           )}
 
-          {summary?.description && (
-            <div className="panel">
-              <h3>{t("description", lang)}</h3>
-              <div className="bilingual-block">
-                <div>
-                  <span className="lang-chip">FI</span>
-                  <p>{summary.description.fi}</p>
+          {summary?.description && (() => {
+            const fi = (summary.description.fi || "").trim();
+            const en = (summary.description.en || "").trim();
+            // Single-language from-text runs mirror the same string into both FI/EN —
+            // avoid showing two identical EN chips/blocks.
+            const identical = Boolean(fi && en && fi === en);
+            const scenarioLang = String(summary.language || "").toLowerCase();
+            const primaryLabel =
+              scenarioLang === "en" || scenarioLang === "fi"
+                ? scenarioLang.toUpperCase()
+                : lang === "en"
+                  ? "EN"
+                  : "FI";
+
+            if (identical || (!fi && en) || (fi && !en)) {
+              return (
+                <div className="panel">
+                  <h3>{t("description", lang)}</h3>
+                  <div className="bilingual-block bilingual-block-single">
+                    <div>
+                      <span className="lang-chip">{primaryLabel}</span>
+                      <p>{fi || en}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="lang-chip">EN</span>
-                  <p>{summary.description.en}</p>
+              );
+            }
+
+            return (
+              <div className="panel">
+                <h3>{t("description", lang)}</h3>
+                <div className="bilingual-block">
+                  <div>
+                    <span className="lang-chip">FI</span>
+                    <p>{fi}</p>
+                  </div>
+                  <div>
+                    <span className="lang-chip">EN</span>
+                    <p>{en}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {summary?.balance_history && summary.balance_history.length > 0 && (
             <div className="panel">

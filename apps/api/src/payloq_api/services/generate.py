@@ -54,6 +54,7 @@ def _pack_summary(
             for w in projection
         ],
         "description": pack.input.scenario_description.model_dump(),
+        "language": getattr(pack.input.options, "language", None) or "fi",
         "parameters": params.model_dump(),
         "nl_soft_warnings": nl_soft_warnings or [],
     }

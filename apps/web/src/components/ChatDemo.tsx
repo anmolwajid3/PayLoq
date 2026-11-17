@@ -62,10 +62,14 @@ export function ChatDemo({ runId, lang }: Props) {
 
       <div className="chat-controls">
         <label>
-          {t("llmStub", lang)} / {t("llmOllama", lang)}
-          <select value={llm} onChange={(e) => setLlm(e.target.value as "stub" | "ollama")}>
-            <option value="stub">{t("llmStub", lang)}</option>
-            <option value="ollama">{t("llmOllama", lang)}</option>
+          LLM
+          <select
+            value={llm}
+            onChange={(e) => setLlm(e.target.value as "stub" | "ollama")}
+            aria-label="LLM"
+          >
+            <option value="stub">Stub (CPU)</option>
+            <option value="ollama">Ollama</option>
           </select>
         </label>
 
