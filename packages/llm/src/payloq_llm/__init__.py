@@ -8,6 +8,7 @@ from payloq_llm.adapters import (
     get_adapter,
     input_from_descriptions,
     input_from_text,
+    list_ollama_models,
 )
 from payloq_llm.chat_demo import (
     DEMO_PRESETS,
@@ -20,6 +21,7 @@ from payloq_llm.defaults import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
     RECOMMENDED_CPU_MODELS,
+    UI_SUGGESTED_OLLAMA_TAGS,
     recommended_ollama_tags,
 )
 from payloq_llm.nl_quality import assess_nl_params
@@ -30,6 +32,7 @@ __all__ = [
     "DEMO_PRESETS",
     "ChatDemoResult",
     "RECOMMENDED_CPU_MODELS",
+    "UI_SUGGESTED_OLLAMA_TAGS",
     "FallbackAdapter",
     "LlmAdapter",
     "OllamaAdapter",
@@ -40,6 +43,7 @@ __all__ = [
     "input_from_descriptions",
     "input_from_text",
     "list_demo_presets",
+    "list_ollama_models",
     "recommended_ollama_tags",
     "run_chat_demo",
 ]

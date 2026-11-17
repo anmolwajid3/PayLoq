@@ -29,9 +29,10 @@ ollama pull llama3.2:1b & cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq ch
 
 ### API / UI
 
+- `GET /api/llm/models` — local Ollama tags for Generate (no stub)
 - `GET /api/chat/presets?language=fi|en`
-- `POST /api/runs/{id}/chat` — body: `{ "preset": "cash_drop", "llm": "stub", "language": "fi" }` or `{ "question": "…" }`
-- Run detail page: **Chat demo** panel (stub default; Ollama optional)
+- `POST /api/runs/{id}/chat` — body: `{ "preset": "cash_drop", "language": "fi" }` or `{ "question": "…" }` (omit `llm` in UI; chat reuses the run’s stored `llm_adapter` + `llm_model`. Optional `llm` override remains for tests/CLI.)
+- Run detail: **sidebar chat** with session history, preset chips, and figure sparks (no LLM dropdown)
 
 ## Journal / accounting entries
 

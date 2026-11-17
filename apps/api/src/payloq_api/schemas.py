@@ -56,7 +56,8 @@ class GeneratePresetRequest(BaseModel):
 
 class GenerateFromTextRequest(BaseModel):
     text: str = Field(min_length=3)
-    llm: Literal["stub", "ollama"] = "stub"
+    # stub kept for CI/CLI only — web UI never sends it.
+    llm: Literal["stub", "ollama"] = "ollama"
     language: Literal["fi", "en"] = "fi"
     industry: str = "metal workshop (machine shop)"
     months: int = Field(default=12, ge=12, le=24)
@@ -79,7 +80,8 @@ class ChatRequest(BaseModel):
     )
     preset: Optional[Literal["cash_drop", "cash_negative"]] = None
     language: Literal["fi", "en"] = "fi"
-    llm: Literal["stub", "ollama"] = "stub"
+    # Optional override for tests/CLI. UI omits this — chat uses the run's stored model.
+    llm: Optional[Literal["stub", "ollama"]] = None
     ollama_model: Optional[str] = None
     ollama_host: Optional[str] = None
     no_fallback_stub: bool = False
@@ -91,6 +93,7 @@ class ChatResponse(BaseModel):
     figures: dict[str, Any]
     preset: Optional[str] = None
     llm_adapter: str
+    llm_model: Optional[str] = None
     fallback_note: Optional[str] = None
     metrics: Optional[dict[str, Any]] = None
 
@@ -98,6 +101,26 @@ class ChatResponse(BaseModel):
 class ChatPresetOut(BaseModel):
     id: str
     question: str
+
+
+class OllamaModelOut(BaseModel):
+    name: str
+    size: Optional[int] = None
+    modified_at: Optional[str] = None
+    digest: Optional[str] = None
+    parameter_size: Optional[str] = None
+    family: Optional[str] = None
+
+
+class OllamaModelsResponse(BaseModel):
+    available: bool
+    host: str
+    models: list[OllamaModelOut] = Field(default_factory=list)
+    error: Optional[str] = None
+    recommended: list[str] = Field(
+        default_factory=list,
+        description="Suggested CPU-friendly tags to pull if missing.",
+    )
 
 
 class ValidationIssueOut(BaseModel):
@@ -111,6 +134,7 @@ class RunOut(BaseModel):
     scenario_id: Optional[int]
     source: str
     llm_adapter: str
+    llm_model: Optional[str] = None
     llm_fallback_note: Optional[str]
     seed: int
     status: str

@@ -564,6 +564,46 @@ class FallbackAdapter(LlmAdapter):
     ) -> str:
         return self._call("answer_numeric_probe", probe_id, question, pack_summary)
 
+def list_ollama_models(host: str | None = None) -> dict[str, Any]:
+    """
+    Query Ollama ``GET /api/tags`` and return a normalized payload.
+
+    Returns ``{"available": bool, "host": str, "models": [...], "error": str|None}``.
+    Does not raise on connection failure — callers (API UI) can show a soft empty state.
+    """
+    base = (host or DEFAULT_OLLAMA_HOST).rstrip("/")
+    try:
+        req = urllib.request.Request(f"{base}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "available": False,
+            "host": base,
+            "models": [],
+            "error": str(exc),
+        }
+
+    models: list[dict[str, Any]] = []
+    for row in data.get("models") or []:
+        details = row.get("details") or {}
+        name = row.get("name") or row.get("model")
+        if not name:
+            continue
+        models.append(
+            {
+                "name": str(name),
+                "size": row.get("size"),
+                "modified_at": row.get("modified_at"),
+                "digest": row.get("digest"),
+                "parameter_size": details.get("parameter_size"),
+                "family": details.get("family"),
+            }
+        )
+    models.sort(key=lambda m: m["name"])
+    return {"available": True, "host": base, "models": models, "error": None}
+
+
 def get_adapter(
     name: str = "stub",
     *,

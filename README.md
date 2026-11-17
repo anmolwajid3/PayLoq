@@ -12,6 +12,39 @@ Full-stack experimental UI: browse/create scenarios, generate packs (preset or N
 
 **Login:** `payloq` / `payloq` · **UI:** http://localhost:5173 · **API docs:** http://localhost:8000/docs
 
+**Generate UI** lists **local Ollama models only** (from `GET /api/llm/models` → Ollama `/api/tags`). Stub is CLI/CI-only — never offered in the web UI. Chat on a run uses the **same model that generated** that run (sidebar + session history).
+
+### Mac — Docker Compose + Ollama (recommended)
+
+Primary checkout: `~/Desktop/PayLoq`. Prefer `gh` when cloning PRs.
+
+```bash
+cd ~/Desktop/PayLoq
+git fetch --prune && git checkout main && git pull origin main
+docker compose --profile ollama up --build -d
+```
+
+Pull a few small CPU-friendly models into the Compose Ollama service (tags appear in Generate):
+
+```bash
+cd ~/Desktop/PayLoq
+docker compose --profile ollama up -d
+docker compose --profile ollama exec ollama ollama pull llama3.2:1b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
+docker compose --profile ollama exec ollama ollama pull llama3.2:3b
+docker compose --profile ollama exec ollama ollama list
+```
+
+Open http://localhost:5173 · login `payloq` / `payloq` · **Generate** → pick a model from the dropdown (no Stub).
+
+Review a PR locally with `gh`:
+
+```bash
+cd ~/Desktop/PayLoq
+gh pr checkout <PR_NUMBER>
+docker compose --profile ollama up --build -d
+```
+
 ### Windows — Docker Compose (recommended)
 
 Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if needed, then (Command Prompt / `cmd`):
@@ -98,7 +131,8 @@ Ollama (default small model `llama3.2:1b`; falls back to stub if Ollama is down)
 ollama pull llama3.2:1b & cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --from-text "Pieni konepaja, kassa on kriittinen kolmen viikon päästä." --llm ollama --out out\from_text_ollama
 ```
 
-Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.
+Full Windows Ollama install + commands: **[docs/ollama-windows.md](docs/ollama-windows.md)**.  
+Mac Docker Compose pulls: **[docs/ollama-mac.md](docs/ollama-mac.md)**.
 
 ### §4 stretch: chat demo + journal
 
@@ -110,11 +144,11 @@ cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq chat --scenario cash_critica
 cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq generate --scenario weak --out out\weak --journal & uv run payloq chat --pack out\weak --preset cash_drop --llm stub
 ```
 
-In the UI, open a successful run → **Chat demo** panel. Details: [docs/phase8-stretch.md](docs/phase8-stretch.md).
+In the UI, open a successful run → **sidebar chat** (history per run; no LLM dropdown). Details: [docs/phase8-stretch.md](docs/phase8-stretch.md).
 
 ### Benchmark + Ollama scorecard
 
-CPU shortlist: **stub** (always) · **llama3.2:1b** (recommended) · optional **llama3.2:3b** / **qwen2.5:3b**. Live Ollama cells are **skipped** when the daemon is down (`--skip-unavailable`, default on).
+CPU shortlist: **stub** (CLI/CI) · **llama3.2:1b** (recommended) · optional **qwen2.5:0.5b** / **llama3.2:3b** / **qwen2.5:3b**. Live Ollama cells are **skipped** when the daemon is down (`--skip-unavailable`, default on).
 
 Stub only — Windows:
 

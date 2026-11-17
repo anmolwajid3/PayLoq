@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
 
 # Configure env before importing the app
 _tmp = Path(__file__).resolve().parent / "_api_test_data"
+if _tmp.exists():
+    shutil.rmtree(_tmp)
 _tmp.mkdir(exist_ok=True)
 os.environ["PAYLOQ_DATABASE_URL"] = f"sqlite:///{(_tmp / 'test.db').as_posix()}"
 os.environ["PAYLOQ_ARTIFACT_DIR"] = str(_tmp / "artifacts")
@@ -86,6 +89,20 @@ def test_generate_preset_cash_critical(client: TestClient):
     assert "balance_history" in art.json()
 
 
+def test_llm_models_endpoint(client: TestClient):
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    res = client.get("/api/llm/models", headers=headers)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert "available" in body
+    assert "models" in body
+    assert isinstance(body["models"], list)
+    assert "llama3.2:1b" in body["recommended"]
+    # UI must never need stub here — recommended tags are Ollama-only.
+    assert all("stub" not in t for t in body["recommended"])
+
+
 def test_generate_from_text_stub(client: TestClient):
     login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
@@ -106,6 +123,7 @@ def test_generate_from_text_stub(client: TestClient):
     assert body["validation_ok"] is True
     assert body["source"] == "from_text"
     assert body["llm_adapter"] == "stub"
+    assert body.get("llm_model") in (None, "")
     assert "journal_entries.json" in body["artifacts"]
     soft = (body.get("pack_summary") or {}).get("nl_soft_warnings") or []
     assert isinstance(soft, list)
@@ -113,6 +131,37 @@ def test_generate_from_text_stub(client: TestClient):
     assert any(w.get("code") == "nl_stub_heuristic" for w in soft)
     assert (body.get("pack_summary") or {}).get("parameters")
     assert (body.get("pack_summary") or {}).get("language") == "fi"
+
+
+def test_chat_uses_run_model_without_llm_body(client: TestClient):
+    """UI chat omits llm — endpoint must reuse the run's stored adapter/model."""
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    run = client.post(
+        "/api/generate/from-text",
+        headers=headers,
+        json={
+            "text": "Pieni konepaja, kassa on kriittinen kolmen viikon päästä.",
+            "llm": "stub",
+            "language": "fi",
+            "months": 12,
+        },
+    )
+    assert run.status_code == 200, run.text
+    run_id = run.json()["id"]
+    assert run.json()["llm_adapter"] == "stub"
+
+    chat = client.post(
+        f"/api/runs/{run_id}/chat",
+        headers=headers,
+        json={"preset": "cash_drop", "language": "fi"},
+    )
+    assert chat.status_code == 200, chat.text
+    payload = chat.json()
+    assert payload["preset"] == "cash_drop"
+    assert payload["answer"]
+    assert payload["llm_adapter"] in {"stub", "ollama", "ollama->stub"}
 
 
 def test_chat_demo_on_run(client: TestClient):
@@ -132,6 +181,7 @@ def test_chat_demo_on_run(client: TestClient):
     assert run.status_code == 200, run.text
     run_id = run.json()["id"]
 
+    # Explicit stub override for CI (preset runs have llm_adapter=none).
     chat = client.post(
         f"/api/runs/{run_id}/chat",
         headers=headers,
