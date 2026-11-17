@@ -31,6 +31,7 @@ from payloq_llm.prompts import (
     parameter_repair_prompt,
 )
 from payloq_llm.stub_texts import stub_invoice_texts
+from payloq_llm.text_sanitize import sanitize_invoice_texts
 
 
 class LlmAdapter(ABC):
@@ -153,6 +154,9 @@ class StubLlmAdapter(LlmAdapter):
         t0 = time.perf_counter()
         _ = (description_fi, description_en, industry)
         texts = stub_invoice_texts(language=language)  # type: ignore[arg-type]
+        texts = sanitize_invoice_texts(
+            texts, description_fi=description_fi, description_en=description_en
+        )
         self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=48)
         return texts
 
@@ -423,7 +427,10 @@ class OllamaAdapter(LlmAdapter):
         try:
             data = extract_json_object(raw)
             data.setdefault("language", language)
-            return validate_model(InvoiceDescriptiveTexts, data)
+            texts = validate_model(InvoiceDescriptiveTexts, data)
+            return sanitize_invoice_texts(
+                texts, description_fi=description_fi, description_en=description_en
+            )
         except (ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"Ollama returned invalid invoice texts JSON: {exc}") from exc
 
@@ -699,11 +706,15 @@ def input_from_text(
 
     invoice_texts: InvoiceDescriptiveTexts | None = None
     if with_invoice_texts:
-        invoice_texts = adapter.generate_invoice_texts(
+        invoice_texts = sanitize_invoice_texts(
+            adapter.generate_invoice_texts(
+                description_fi=description_fi,
+                description_en=description_en,
+                industry=str(opts.get("industry", "SME")),
+                language=str(opts.get("language", language)),
+            ),
             description_fi=description_fi,
             description_en=description_en,
-            industry=str(opts.get("industry", "SME")),
-            language=str(opts.get("language", language)),
         )
 
     note = f"parameters via {adapter.name} adapter"
@@ -733,11 +744,15 @@ def input_from_descriptions(
     validated = validate_model(ParametersFromLanguageModel, params)
     invoice_texts = None
     if with_invoice_texts:
-        invoice_texts = adapter.generate_invoice_texts(
+        invoice_texts = sanitize_invoice_texts(
+            adapter.generate_invoice_texts(
+                description_fi=description_fi,
+                description_en=description_en,
+                industry=str(options.get("industry", "SME")),
+                language=str(options.get("language", "fi")),
+            ),
             description_fi=description_fi,
             description_en=description_en,
-            industry=str(options.get("industry", "SME")),
-            language=str(options.get("language", "fi")),
         )
     return GeneratorInput(
         meta=ScenarioMeta(fictional=True, note=f"parameters via {adapter.name} adapter"),

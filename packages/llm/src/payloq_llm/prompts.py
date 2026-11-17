@@ -39,7 +39,10 @@ Return ONLY a JSON object with these keys (no markdown, no commentary):
   "notes": "<optional>"
 }
 Use ONLY synthetic / fictional names. Prefer Finnish (fi) company-style names unless language is en.
-Do NOT include amounts, dates, VAT, or IDs — code owns all numbers.
+HARD RULES for every string:
+- Do NOT write any digits (0-9), euro amounts (€ / EUR), room counts, day counts, or percentages.
+- Do NOT copy or paste the company description text into counterparties or invoice lines.
+- Keep each description short (a few words). Code owns all numbers (amounts, dates, IDs).
 """.strip()
 
 
@@ -77,7 +80,9 @@ def descriptive_texts_prompt(
 ) -> str:
     return (
         "You write fictional Finnish SME invoice counterparties and line descriptions for PayLoq.\n"
-        "Numbers (amounts, dates, VAT) are produced by code — you supply text only.\n\n"
+        "Numbers (amounts, dates, VAT, IDs) are produced by code — you supply text only.\n"
+        "Use the descriptions only to infer industry flavour (hotel, workshop, …). "
+        "Never paste description phrases that contain digits or € amounts into the JSON strings.\n\n"
         f"Industry: {industry}\n"
         f"Preferred language for texts: {language}\n"
         f"Description (FI):\n{description_fi}\n\n"

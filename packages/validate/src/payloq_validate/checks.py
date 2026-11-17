@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -12,8 +11,7 @@ from typing import Any
 
 from payloq_schemas.constants import FORBIDDEN_TEXT_WORDS, MONEY_TOLERANCE_EUR, VAT_RATE_FI
 from payloq_schemas.models import CashAndInvoices, GeneratorInput, MonthlyReports, ScenarioPack
-
-_DIGIT_IN_TEXT = re.compile(r"\d")
+from payloq_schemas.text_rules import descriptive_text_has_numbers
 
 
 @dataclass
@@ -422,7 +420,7 @@ def _check_texts(pack: ScenarioPack, result: ValidationResult) -> None:
             ("description", inv.description),
         ):
             # VR-13: no digits in descriptive texts (invoice id exempt)
-            if _DIGIT_IN_TEXT.search(text or ""):
+            if descriptive_text_has_numbers(text):
                 result.add(
                     "text_has_numbers",
                     f"Invoice {inv.id} {field_name} contains numbers: {text!r}",
@@ -512,9 +510,13 @@ def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
                 numbers={"first_negative_week": min(neg_weeks)},
             )
         if sum(nets) <= 0:
+            # Soft: ready-made cash_critical is designed profitable (VR-22), but
+            # from_text packs inferred as cash_critical via low cash can be
+            # unprofitable without violating the cash-timing VR-20 MUST.
             result.add(
                 "behaviour_cash_critical_pnl",
                 "cash_critical should remain overall profitable",
+                severity="warning",
                 rule_id="VR-20",
             )
         # VR-22 informational: profitable + negative cash is allowed
