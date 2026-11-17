@@ -25,6 +25,7 @@ from payloq_llm.defaults import (
     recommended_ollama_tags,
 )
 from payloq_llm.nl_quality import assess_nl_params
+from payloq_llm.text_sanitize import sanitize_invoice_texts
 
 __all__ = [
     "DEFAULT_OLLAMA_HOST",
@@ -46,4 +47,5 @@ __all__ = [
     "list_ollama_models",
     "recommended_ollama_tags",
     "run_chat_demo",
+    "sanitize_invoice_texts",
 ]

@@ -32,6 +32,7 @@ from payloq_generator.text_fi import (
     SALES_DESCRIPTIONS_FI,
     pick,
 )
+from payloq_generator.text_sanitize import sanitize_invoice_texts_for_pack
 
 
 def _r(value: float) -> float:
@@ -152,6 +153,8 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
             language=inp.options.language,
             notes="built-in stub texts",
         )
+    # VR-13 / FR-A-32: never emit digits in free-text invoice fields (ids stay numeric).
+    invoice_texts = sanitize_invoice_texts_for_pack(invoice_texts)
 
     invoices = _generate_invoices(
         as_of=as_of,
@@ -210,6 +213,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     stamped.meta.fictional = True
     if stamped.options.scenario_id is None:
         stamped.options.scenario_id = scenario_id
+    stamped.invoice_texts = invoice_texts
 
     return ScenarioPack(input=stamped, monthly_reports=monthly, cash_and_invoices=cash)
 
