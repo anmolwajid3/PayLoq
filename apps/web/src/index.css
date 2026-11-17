@@ -751,11 +751,23 @@ textarea {
   margin-top: 0.5rem;
 }
 
+.bilingual-block-single {
+  grid-template-columns: 1fr;
+}
+
 @media (min-width: 720px) {
-  .bilingual-block {
+  .bilingual-block:not(.bilingual-block-single) {
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
   }
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  opacity: 0.9;
 }
 
 .bilingual-block p {

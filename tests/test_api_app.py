@@ -112,6 +112,7 @@ def test_generate_from_text_stub(client: TestClient):
     # Stub heuristics + critical NL should surface at least the stub soft-hint.
     assert any(w.get("code") == "nl_stub_heuristic" for w in soft)
     assert (body.get("pack_summary") or {}).get("parameters")
+    assert (body.get("pack_summary") or {}).get("language") == "fi"
 
 
 def test_chat_demo_on_run(client: TestClient):
