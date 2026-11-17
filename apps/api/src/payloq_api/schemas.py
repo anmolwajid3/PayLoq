@@ -64,7 +64,10 @@ class GenerateFromTextRequest(BaseModel):
     industry: str = "metal workshop (machine shop)"
     company_size: str = Field(
         default="small",
-        description="Employee count (e.g. 8 or '12 employees') or label small/medium.",
+        description=(
+            "Employee count (e.g. 8, 420, or '12 employees') or label "
+            "small/medium/large (case-insensitive; FI: pieni/keskikokoinen/suuri)."
+        ),
     )
     months: int = Field(default=12, ge=12, le=24)
     seed: int = 42

@@ -183,7 +183,7 @@ export function GeneratePage() {
           <input
             value={companySize}
             onChange={(e) => setCompanySize(e.target.value)}
-            placeholder="small | medium | 8 | 12 employees"
+            placeholder="small | medium | large | 8 | 420 | 12 employees"
             required
             aria-label={t("companySize", lang)}
           />

@@ -9,6 +9,7 @@ import urllib.request
 from abc import ABC, abstractmethod
 from typing import Any
 
+from payloq_schemas.company_size import scale_defaults_for_size
 from payloq_schemas.models import (
     GeneratorInput,
     InvoiceDescriptiveTexts,
@@ -36,8 +37,10 @@ from payloq_llm.nl_cash_intent import (
     suggested_target_cash_eur,
 )
 from payloq_llm.nl_param_hints import (
+    extract_growth_rate,
     extract_special_investment,
     looks_bakery,
+    looks_steel_or_manufacturing,
     repair_investment_and_revenue_from_nl,
     suggest_revenue_start_eur,
 )
@@ -120,16 +123,21 @@ class StubLlmAdapter(LlmAdapter):
         sid = str(options.get("scenario_id") or "").lower()
         industry = str(options.get("industry") or "").lower()
         company_size = str(options.get("company_size") or "").lower()
+        size_scale = scale_defaults_for_size(str(options.get("company_size") or "small"))
+        band = str(size_scale["band"])
+        cash_mult = float(size_scale["cash_mult"])
+        invest_mult = float(size_scale["invest_mult"])
         invest_month = 2
         factors = None
         one_offs: list[dict] = []
-        rev_start = 200_000.0
+        rev_start = float(size_scale["monthly_revenue_start_eur"])
 
         hotelish = any(
             k in text or k in industry
             for k in ("hotel", "hotelli", "boutique", "adr", "occupancy", "majoitus")
         )
         bakeryish = looks_bakery(combined, industry)
+        steelish = looks_steel_or_manufacturing(combined, industry)
         winter_collapse = any(
             k in text
             for k in (
@@ -153,28 +161,48 @@ class StubLlmAdapter(LlmAdapter):
         nl_rev = suggest_revenue_start_eur(
             combined, industry=industry, company_size=company_size
         )
+        nl_growth = extract_growth_rate(combined)
+        # Track whether cash/invest came from explicit NL (do not re-scale those).
+        cash_from_nl = False
+        invest_from_nl = False
 
         if cash_stressed:
-            # Prefer NL covenant / winter-cash figures; never invent healthy 330k.
-            cash = float(nl_cash) if nl_cash is not None else 45_000.0
-            if cash > 80_000:
+            # Prefer NL covenant / winter trough / cash figures; never invent healthy 330k.
+            if nl_cash is not None:
+                cash = float(nl_cash)
+                cash_from_nl = True
+            else:
+                cash = 45_000.0
+            # Crush only invented SME-healthy defaults — keep mid-market millions.
+            if not cash_from_nl and cash > 80_000 and band == "small":
                 cash = 45_000.0
             # Do not invent €80k capex when NL states a different one-off (or none).
-            invest = float(nl_invest[0]) if nl_invest is not None else 0.0
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
+                invest_from_nl = True
+            else:
+                invest = 0.0
             growth, partly = 0.0, True
             notes = "stub: cash_critical heuristic from NL keywords"
         elif sid == "weak" or any(
             k in text for k in ("laskee", "falling", "tappioll", "weak", "heikko")
         ):
             growth, cash, partly = -0.012, 85_000.0, True
-            invest = float(nl_invest[0]) if nl_invest is not None else 70_000.0
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
+                invest_from_nl = True
+            else:
+                invest = 70_000.0
             notes = "stub: weak heuristic from NL keywords"
         else:
             growth, cash, invest, partly = 0.008, 330_000.0, 0.0, False
             if nl_invest is not None:
                 invest = float(nl_invest[0])
+                invest_from_nl = True
             notes = "stub: good / default heuristic"
 
+        if nl_growth is not None:
+            growth = float(nl_growth)
         if nl_rev is not None:
             rev_start = float(nl_rev)
         if bakeryish:
@@ -184,18 +212,28 @@ class StubLlmAdapter(LlmAdapter):
                 )
                 rev_start = max(20_000.0, round(rev_start, -3))
             notes = f"{notes}; bakery industry defaults"
+        if steelish and not bakeryish and not hotelish:
+            notes = f"{notes}; steel/manufacturing industry defaults"
         if hotelish:
             if nl_rev is None:
-                rev_start = 180_000.0
+                # Keep hotel base relative to the company-size band (not fixed SME).
+                rev_start = max(40_000.0, float(size_scale["monthly_revenue_start_eur"]) * 0.9)
+                if hotelish and band == "small":
+                    rev_start = max(rev_start, 180_000.0)
             notes = f"{notes}; hotel industry defaults"
             if cash_stressed or (
                 cash > 60_000
                 and any(k in text for k in ("tight", "critical", "kriittinen", "covenant", "kovenantti"))
             ):
-                cash = float(nl_cash) if nl_cash is not None else min(cash, 40_000.0)
-                if cash > 80_000:
+                if nl_cash is not None:
+                    cash = float(nl_cash)
+                    cash_from_nl = True
+                else:
+                    cash = min(cash, 40_000.0)
+                # SME hotel thin-cash only — do not crush mid-market covenant figures.
+                if not cash_from_nl and cash > 80_000 and band == "small":
                     cash = 40_000.0
-                if nl_invest is None:
+                if nl_invest is None and not invest_from_nl:
                     invest = max(invest, 95_000.0)
                 partly = True
         if winter_collapse or (hotelish and any(k in text for k in ("winter", "talvi", "off-season"))):
@@ -234,11 +272,15 @@ class StubLlmAdapter(LlmAdapter):
             notes = f"{notes}; winter seasonality factors"
             if cash_stressed and nl_cash is not None:
                 cash = float(nl_cash)
+                cash_from_nl = True
         if nl_invest is not None:
             invest = float(nl_invest[0])
             invest_month = int(nl_invest[1])
+            invest_from_nl = True
             label = "oven_repair" if bakeryish or any(k in text for k in ("oven", "uuni")) else (
-                "roof_repair" if roof_repair or hotelish else "special_investment"
+                "roof_repair" if roof_repair or hotelish else (
+                    "capex_line" if steelish else "special_investment"
+                )
             )
             one_offs.append(
                 {
@@ -263,6 +305,22 @@ class StubLlmAdapter(LlmAdapter):
             notes = f"{notes}; special investment month {invest_month}"
         if nl_cash is not None and cash_stressed:
             notes = f"{notes}; NL cash/covenant hint {nl_cash:,.0f}"
+
+        # Scale only invented keyword baselines — never multiply explicit NL millions.
+        if not cash_from_nl:
+            cash = round(cash * cash_mult, 2)
+        if not invest_from_nl:
+            invest = round(invest * invest_mult, 2)
+            if one_offs:
+                for event in one_offs:
+                    event["amount_eur"] = invest
+        else:
+            # Keep one-off event amount aligned with the NL figure (no size mult).
+            if one_offs:
+                for event in one_offs:
+                    event["amount_eur"] = invest
+        if band != "small":
+            notes = f"{notes}; company_size band={band}"
 
         params = ParametersFromLanguageModel(
             monthly_revenue_start_eur=rev_start,

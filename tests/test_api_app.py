@@ -157,6 +157,31 @@ def test_generate_from_text_stub(client: TestClient):
     assert run_log["options"]["company_size"] == "8 employees"
 
 
+def test_generate_from_text_accepts_large_company_size(client: TestClient):
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    run = client.post(
+        "/api/generate/from-text",
+        headers=headers,
+        json={
+            "text": "Mid-market steel plant; cash is tight within three weeks.",
+            "llm": "stub",
+            "language": "en",
+            "industry": "steel",
+            "company_size": "Large",
+            "months": 12,
+            "seed": 7,
+        },
+    )
+    assert run.status_code == 200, run.text
+    body = run.json()
+    options = (body.get("pack_summary") or {}).get("options") or {}
+    assert options.get("company_size") == "large"
+    params = (body.get("pack_summary") or {}).get("parameters") or {}
+    assert params.get("monthly_revenue_start_eur") == 1_200_000.0
+
+
 def test_generate_from_text_rejects_bad_company_size(client: TestClient):
     login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
@@ -185,7 +210,7 @@ def test_generate_from_text_rejects_bad_company_size(client: TestClient):
     )
     assert bad.status_code == 422
     detail = str(bad.json())
-    assert "small" in detail.lower() or "employees" in detail.lower()
+    assert "large" in detail.lower() or "employees" in detail.lower()
 
 
 def test_chat_uses_run_model_without_llm_body(client: TestClient):
