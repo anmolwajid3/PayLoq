@@ -7,7 +7,12 @@ from pathlib import Path
 
 from payloq_generator.engine import generate_pack, load_input, write_pack
 from payloq_generator.journal import build_journal_entries
-from payloq_llm.chat_demo import DEMO_PRESETS, build_chat_figures, run_chat_demo
+from payloq_llm.chat_demo import (
+    DEMO_PRESETS,
+    build_chat_figures,
+    run_chat_demo,
+    suggest_followup_questions,
+)
 from payloq_validate.checks import validate_pack
 
 
@@ -109,6 +114,42 @@ def test_chat_demo_custom_question():
     low = result.answer.lower()
     assert "not show cash going negative" in low or "ei mene negatiiviseksi" in low
     assert "330000" in result.answer.replace(",", "").replace(" ", "")
+
+
+def test_suggest_followups_refresh_after_prior_questions():
+    inp = load_input(_repo_root() / "scenarios" / "cash_critical" / "input.json")
+    pack = generate_pack(inp, seed=42)
+    figures = build_chat_figures(pack)
+
+    seed = suggest_followup_questions(figures, language="fi", prior_questions=[])
+    assert seed[0]["id"] == "cash_drop"
+    assert seed[1]["id"] == "cash_negative"
+    assert all("question" in row for row in seed)
+
+    after_drop = suggest_followup_questions(
+        figures,
+        language="en",
+        prior_questions=[DEMO_PRESETS["cash_drop"]["en"]],
+    )
+    ids = [row["id"] for row in after_drop]
+    assert "cash_drop" not in ids
+    assert "cash_negative" in ids
+    # Figure-gated follow-ups appear once seeds are consumed / skipped.
+    assert any(i != "cash_negative" for i in ids)
+
+    after_both = suggest_followup_questions(
+        figures,
+        language="fi",
+        prior_questions=[
+            DEMO_PRESETS["cash_drop"]["fi"],
+            DEMO_PRESETS["cash_negative"]["fi"],
+        ],
+    )
+    after_ids = {row["id"] for row in after_both}
+    assert "cash_drop" not in after_ids
+    assert "cash_negative" not in after_ids
+    assert after_both, "expected figure-based follow-ups after seed presets"
+    assert all(row["question"] for row in after_both)
 
 
 def test_interpretation_prompt_forbids_definitions():

@@ -16,6 +16,7 @@ from payloq_llm.chat_demo import (
     build_chat_figures,
     list_demo_presets,
     run_chat_demo,
+    suggest_followup_questions,
 )
 from payloq_llm.defaults import (
     DEFAULT_OLLAMA_HOST,
@@ -48,4 +49,5 @@ __all__ = [
     "recommended_ollama_tags",
     "run_chat_demo",
     "sanitize_invoice_texts",
+    "suggest_followup_questions",
 ]

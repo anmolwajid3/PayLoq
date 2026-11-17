@@ -122,6 +122,12 @@ class ChatPresetOut(BaseModel):
     question: str
 
 
+class ChatSuggestionsRequest(BaseModel):
+    language: Literal["fi", "en"] = "fi"
+    prior_questions: list[str] = Field(default_factory=list)
+    limit: int = Field(default=4, ge=1, le=8)
+
+
 class OllamaModelOut(BaseModel):
     name: str
     size: Optional[int] = None

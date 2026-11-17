@@ -95,9 +95,10 @@ const dict = {
   },
   chatUsesModel: { fi: "Malli", en: "Model" },
   chatEmpty: {
-    fi: "Ei viestejä vielä — valitse valmis kysymys tai kirjoita oma.",
-    en: "No messages yet — pick a preset or type your own.",
+    fi: "Ei viestejä vielä — valitse ehdotus tai kirjoita oma kysymys.",
+    en: "No messages yet — pick a suggestion or type your own.",
   },
+  suggestedQuestions: { fi: "Ehdotetut kysymykset", en: "Suggested questions" },
   presetUsed: { fi: "Valmis", en: "Preset" },
   customUsed: { fi: "Oma kysymys", en: "Custom" },
   figureSparks: { fi: "Kassaluvut", en: "Cash figures" },

@@ -31,8 +31,9 @@ ollama pull llama3.2:1b & cd /d C:\Users\anmol\Desktop\PayLoq & uv run payloq ch
 
 - `GET /api/llm/models` — local Ollama tags for Generate (no stub)
 - `GET /api/chat/presets?language=fi|en`
+- `POST /api/runs/{id}/chat/suggestions` — body: `{ "language": "fi", "prior_questions": ["…"] }` → dynamic FI/EN follow-ups from this run’s figures (skips already-asked themes)
 - `POST /api/runs/{id}/chat` — body: `{ "preset": "cash_drop", "language": "fi" }` or `{ "question": "…" }` (omit `llm` in UI; chat reuses the run’s stored `llm_adapter` + `llm_model`. Optional `llm` override remains for tests/CLI.)
-- Run detail: **sidebar chat** with session history, preset chips, and figure sparks (no LLM dropdown)
+- Run detail: **always-open sticky Virtual Accountant sidebar** — chat thread scrolls independently of the main run content; suggested questions refresh after each turn (no collapse control; no LLM dropdown)
 
 ## Journal / accounting entries
 
