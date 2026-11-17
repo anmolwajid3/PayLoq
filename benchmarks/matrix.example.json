@@ -11,7 +11,24 @@
       "adapter": "ollama",
       "model": "llama3.2:1b",
       "tier": "recommended",
-      "fallback_stub": true
+      "fallback_stub": true,
+      "size_hint": "~1B"
+    },
+    {
+      "id": "ollama:llama3.2:3b",
+      "adapter": "ollama",
+      "model": "llama3.2:3b",
+      "tier": "optional",
+      "fallback_stub": true,
+      "size_hint": "~3B"
+    },
+    {
+      "id": "ollama:finance-tuned-slot",
+      "adapter": "ollama",
+      "model": "REPLACE_WITH_FINANCE_TUNED_TAG",
+      "tier": "finance_tuned_if_available",
+      "fallback_stub": false,
+      "notes": "FR-B-02: set model to an openly available finance-tuned Ollama tag when available; keep skip_unavailable true."
     }
   ],
   "judge": {

@@ -20,8 +20,11 @@ from payloq_benchmark.graders import (
     grade_fi_quality,
     grade_interpretation,
     grade_parameters,
+    grade_parameters_binary,
     grade_probes,
 )
+
+SLOW_ANSWER_MS = 120_000.0
 from payloq_benchmark.judge import run_llm_judge
 from payloq_benchmark.metrics import (
     CallMetrics,
@@ -176,7 +179,10 @@ def _run_one(
         notes_parts.append(adapter.last_fallback_reason or "fell back to stub")
 
     param_grade = grade_parameters(predicted, parameter_key)
+    param_binary = grade_parameters_binary(predicted, parameter_key)
     detail["parameter"] = param_grade.as_dict()
+    detail["parameter_binary"] = param_binary.as_dict()
+    detail["parameter_fields_correct_share"] = param_binary.score
     detail["predicted_parameters"] = predicted
 
     # --- (b) numeric reading / MoM probes on code-owned figures ---
@@ -252,6 +258,14 @@ def _run_one(
         cost_eur_per_1k_tokens=config.cost_eur_per_1k_tokens,
     )
 
+    too_slow = call_metrics.latency_ms > SLOW_ANSWER_MS
+    if too_slow:
+        notes_parts.append("too_slow_for_chat_demo (>120s total latency)")
+    detail["too_slow_for_chat_demo"] = too_slow
+    detail["peak_rss_mb"] = hardware.peak_rss_mb
+    detail["model_quantisation"] = spec.model  # Ollama tag often encodes quant; else null
+    detail["model_version"] = spec.model or spec.id
+
     return ModelRunMetrics(
         model=spec.id,
         scenario_id=sid,
@@ -261,7 +275,7 @@ def _run_one(
         tokens_in=call_metrics.tokens_in,
         tokens_out=call_metrics.tokens_out,
         hardware=hardware.short(),
-        parameter_score=param_grade.score,
+        parameter_score=param_binary.score,
         reading_score=round(reading_score, 4),
         mom_score=round(mom_score, 4),
         interpretation_score=interp_grade.score,
@@ -271,6 +285,33 @@ def _run_one(
         notes="; ".join(notes_parts) if notes_parts else config.hardware_note,
         detail=detail,
     )
+
+
+def _safe_model_dirname(model_id: str) -> str:
+    return model_id.replace(":", "_").replace("/", "_")
+
+
+def _write_answer_files(
+    out_dir: Path,
+    *,
+    model_id: str,
+    scenario_id: str,
+    detail: dict[str, Any],
+) -> None:
+    """FR-B-25: store every model answer in full under answers/."""
+    base = out_dir / "answers" / _safe_model_dirname(model_id) / f"scenario_{scenario_id}"
+    base.mkdir(parents=True, exist_ok=True)
+    probes = detail.get("probe_answers") or {}
+    for i, (pid, text) in enumerate(probes.items(), start=1):
+        (base / f"q{i}_{pid}.txt").write_text(str(text), encoding="utf-8")
+    interp = detail.get("interpretation_answer")
+    if interp is not None:
+        (base / "interpretation.txt").write_text(str(interp), encoding="utf-8")
+    pred = detail.get("predicted_parameters")
+    if pred is not None:
+        (base / "parameters.json").write_text(
+            json.dumps(pred, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
 
 def run_benchmark(
@@ -357,6 +398,9 @@ def run_benchmark(
                 hardware=hardware,
                 judge_adapter=judge_adapter,
             )
+            _write_answer_files(
+                out_dir, model_id=row.model, scenario_id=sid, detail=row.detail
+            )
             runs.append(row)
             spot_rows.append(
                 {
@@ -369,6 +413,58 @@ def run_benchmark(
                     "judge_score": row.judge_score,
                 }
             )
+
+        # FR-B-10: extra Task-1 descriptions (not used for generation)
+        extras_path = root / "benchmarks" / "task1_extra_descriptions.json"
+        if extras_path.exists():
+            extras = json.loads(extras_path.read_text(encoding="utf-8"))
+            for extra in extras:
+                t0 = time.perf_counter()
+                notes = ""
+                try:
+                    predicted = adapter.extract_parameters(
+                        extra.get("description_fi") or extra.get("description_en") or "",
+                        extra.get("description_en") or extra.get("description_fi") or "",
+                        {"industry": "machine shop", "months": 12, "language": "fi"},
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    predicted = {}
+                    notes = f"extra task1 failed: {exc}"
+                expected = dict(extra.get("expected") or {})
+                binary = grade_parameters_binary(predicted, expected)
+                latency = (time.perf_counter() - t0) * 1000
+                eid = f"task1_extra:{extra.get('id', 'extra')}"
+                detail = {
+                    "parameter_binary": binary.as_dict(),
+                    "predicted_parameters": predicted,
+                    "expected": expected,
+                    "description_en": extra.get("description_en"),
+                    "description_fi": extra.get("description_fi"),
+                }
+                _write_answer_files(
+                    out_dir,
+                    model_id=spec.id,
+                    scenario_id=eid.replace(":", "_"),
+                    detail={
+                        "predicted_parameters": predicted,
+                        "interpretation_answer": json.dumps(
+                            predicted, ensure_ascii=False, indent=2
+                        ),
+                    },
+                )
+                runs.append(
+                    ModelRunMetrics(
+                        model=spec.id,
+                        scenario_id=eid,
+                        adapter=spec.adapter,
+                        status="ok",
+                        latency_ms=round(latency, 3),
+                        hardware=hardware.short(),
+                        parameter_score=binary.score,
+                        notes=notes or config.hardware_note,
+                        detail=detail,
+                    )
+                )
 
     # Persist
     store = MetricsStore(out_dir / "metrics.sqlite")

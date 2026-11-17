@@ -20,6 +20,7 @@ from payloq_benchmark.graders import (
     grade_fi_quality,
     grade_interpretation,
     grade_parameters,
+    grade_parameters_binary,
     grade_probes,
 )
 from payloq_benchmark.runner import run_benchmark, run_benchmark_stub
@@ -153,12 +154,15 @@ def test_bench_stub(tmp_path: Path) -> None:
             write_spotcheck=False,
         )
     )
-    assert result.summary["n_runs"] == 2
+    # 2 scenarios + 2 Task-1 extras
+    assert result.summary["n_runs"] == 4
     assert (tmp_path / "bench" / "results.json").exists()
-    assert all(r.parameter_score is not None for r in result.runs)
-    assert all(r.reading_score is not None for r in result.runs)
-    assert all(r.interpretation_score is not None for r in result.runs)
-    assert all(r.fi_quality_score is not None for r in result.runs)
+    scenario_runs = [r for r in result.runs if not str(r.scenario_id).startswith("task1_extra")]
+    assert len(scenario_runs) == 2
+    assert all(r.parameter_score is not None for r in scenario_runs)
+    assert all(r.reading_score is not None for r in scenario_runs)
+    assert all(r.interpretation_score is not None for r in scenario_runs)
+    assert all(r.fi_quality_score is not None for r in scenario_runs)
 
 
 def test_run_benchmark_full_stub_matrix(tmp_path: Path) -> None:
@@ -173,7 +177,8 @@ def test_run_benchmark_full_stub_matrix(tmp_path: Path) -> None:
     )
 
     result = run_benchmark(cfg, scenarios_root=root)
-    assert result.summary["n_runs"] == 3
+    # 3 scenarios + 2 Task-1 extras (FR-B-10)
+    assert result.summary["n_runs"] == 5
     assert (out / "results.json").exists()
     assert (out / "metrics.sqlite").exists()
     assert (out / "scorecard.json").exists()
@@ -181,9 +186,11 @@ def test_run_benchmark_full_stub_matrix(tmp_path: Path) -> None:
     assert (out / "runs.csv").exists()
     assert (out / "spotcheck.csv").exists()
     assert (out / "hardware.json").exists()
+    assert (out / "answers" / "stub" / "scenario_cash_critical" / "interpretation.txt").exists()
 
     payload = json.loads((out / "results.json").read_text(encoding="utf-8"))
     assert payload["summary"]["status"] == "phase7"
+    assert "peak_rss_mb" in payload["summary"]["hardware"]
 
     scorecard = json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
     assert "fi_band_legend" in scorecard
@@ -194,17 +201,20 @@ def test_run_benchmark_full_stub_matrix(tmp_path: Path) -> None:
     assert rows and "avg_fi_quality" in rows[0]
     assert "fi_band" in rows[0]
 
-    for run in result.runs:
+    scenario_runs = [r for r in result.runs if not str(r.scenario_id).startswith("task1_extra")]
+    assert len(scenario_runs) == 3
+    for run in scenario_runs:
         assert run.reading_score is not None and run.reading_score >= 0.9
         assert run.interpretation_score is not None and run.interpretation_score >= 0.5
         assert run.fi_quality_score is not None
         assert run.rough_cost_eur is not None
+        assert "parameter_binary" in run.detail
 
     con = sqlite3.connect(out / "metrics.sqlite")
     n = con.execute("SELECT COUNT(*) FROM benchmark_runs").fetchone()[0]
     cols = {r[1] for r in con.execute("PRAGMA table_info(benchmark_runs)").fetchall()}
     con.close()
-    assert n == 3
+    assert n == 5
     assert "fi_quality_score" in cols
 
 
@@ -223,8 +233,9 @@ def test_skip_ollama_when_unavailable(tmp_path: Path) -> None:
     cfg.models[1].host = "http://127.0.0.1:1"
 
     result = run_benchmark(cfg, scenarios_root=root)
-    assert result.summary["n_runs"] == 1
-    assert result.runs[0].model == "stub"
+    # stub: 1 scenario + 2 Task-1 extras; ollama skipped
+    assert result.summary["n_runs"] == 3
+    assert all(r.model == "stub" for r in result.runs)
     skipped = result.summary["skipped_models"]
     assert len(skipped) == 1
     assert skipped[0]["model"] == "ollama:llama3.2:1b"
@@ -241,6 +252,24 @@ def test_matrix_cpu_config_loads() -> None:
     assert cfg.skip_unavailable is True
     assert len(cfg.models) == 4
     assert cfg.models[1].model == "llama3.2:1b"
+    example = load_matrix_config(root / "benchmarks" / "matrix.example.json")
+    assert any(m.tier == "finance_tuned_if_available" for m in example.models)
+
+
+def test_grade_parameters_binary_share() -> None:
+    key = {
+        "monthly_revenue_start_eur": 100.0,
+        "monthly_revenue_growth": 0.0,
+        "days_sales_outstanding": 30.0,
+        "days_payables_outstanding": 30.0,
+        "target_cash_at_end_eur": 50.0,
+        "special_investment_eur": 0.0,
+    }
+    pred = dict(key)
+    pred["days_sales_outstanding"] = 90.0  # wrong
+    g = grade_parameters_binary(pred, key)
+    assert g.notes.startswith("5 of 6") or "5 of 6" in g.notes
+    assert g.score == pytest.approx(5 / 6, rel=1e-3)
 
 
 def test_run_with_injected_stub_adapter(tmp_path: Path) -> None:
