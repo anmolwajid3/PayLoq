@@ -24,6 +24,7 @@ from payloq_llm.defaults import (
 )
 from payloq_llm.parse import extract_json_object, validate_model
 from payloq_llm.prompts import (
+    INTERPRETATION_SYSTEM,
     descriptive_texts_prompt,
     interpretation_prompt,
     parameter_extraction_prompt,
@@ -158,40 +159,146 @@ class StubLlmAdapter(LlmAdapter):
         neg = pack_summary.get("first_negative_projection_week")
         neg_date = pack_summary.get("first_negative_projection_week_end")
         neg_bal = pack_summary.get("first_negative_projection_balance")
+        first_neg_date = pack_summary.get("first_negative_date") or neg_date
+        first_neg_bal = pack_summary.get("first_negative_balance")
+        if first_neg_bal is None:
+            first_neg_bal = neg_bal
         mom = pack_summary.get("mom_revenue_change")
         mom_cash = pack_summary.get("mom_cash_change")
         hist_change = pack_summary.get("balance_history_change")
         revenue = pack_summary.get("revenue_last")
         invest = pack_summary.get("special_investment_eur")
         drops = pack_summary.get("largest_weekly_cash_drops") or []
+        currency = pack_summary.get("currency") or "EUR"
         q_l = question.lower()
+        is_neg_q = any(
+            k in q_l
+            for k in (
+                "negative",
+                "negatiiv",
+                "milloin kassa",
+                "when does cash",
+                "goes negative",
+            )
+        )
+        is_drop_q = any(k in q_l for k in ("laski", "drop", "miksi", "why", "laske"))
+
+        # Preset-style questions: lead with figure citations, never definitions.
+        fi_q = any(ch in q_l for ch in ("ä", "ö", "å")) or any(
+            k in q_l for k in ("kassa", "milloin", "miksi", "negatiiv")
+        )
+        if is_neg_q:
+            if first_neg_date is not None and first_neg_bal is not None:
+                if fi_q:
+                    week_bit = f" (viikko {neg})" if neg is not None else ""
+                    out = (
+                        f"[stub] Kassa menee ensimmäisen kerran negatiiviseksi "
+                        f"{first_neg_date}{week_bit}, saldo {first_neg_bal} {currency}. "
+                        f"Kauden lopun kassa on {cash} {currency}."
+                    )
+                else:
+                    week_bit = f" (week {neg})" if neg is not None else ""
+                    out = (
+                        f"[stub] Cash first goes negative on {first_neg_date}{week_bit}, "
+                        f"with balance {first_neg_bal} {currency}. "
+                        f"Period-end cash is {cash} {currency}."
+                    )
+            elif "first_negative_projection_week" in pack_summary or "first_negative_date" in pack_summary:
+                if fi_q:
+                    out = (
+                        f"[stub] Annettujen lukujen mukaan kassa ei mene negatiiviseksi. "
+                        f"Kauden lopun kassa on {cash} {currency}."
+                    )
+                else:
+                    out = (
+                        f"[stub] The pack figures do not show cash going negative. "
+                        f"Period-end cash is {cash} {currency}."
+                    )
+            else:
+                out = (
+                    f"[stub] No negative-cash figures were provided. "
+                    f"Period-end cash is {cash} {currency}."
+                )
+            self._record(
+                latency_ms=(time.perf_counter() - t0) * 1000,
+                tokens_in=max(1, len(question) // 4),
+                tokens_out=max(1, len(out) // 4),
+            )
+            return out
+
+        if is_drop_q:
+            lines = [
+                f"[stub] Kysymys / Question: {question}",
+                f"Kassasaldo kauden lopussa / Cash at period end: {cash} {currency}",
+            ]
+            if hist_change is not None:
+                hist_from = pack_summary.get("balance_history_first_date")
+                hist_to = pack_summary.get("balance_history_last_date")
+                span = (
+                    f" ({hist_from} → {hist_to})"
+                    if hist_from and hist_to
+                    else ""
+                )
+                lines.append(
+                    f"Kassahistorian muutos{span} / Balance-history change: "
+                    f"{hist_change} {currency}"
+                )
+            if mom_cash is not None:
+                lines.append(
+                    f"Kassan MoM-muutos / MoM cash change: {mom_cash} {currency}"
+                )
+            if invest:
+                lines.append(
+                    f"Erityisinvestointi (parametri) / Special investment: {invest} {currency}"
+                )
+            if drops:
+                top = drops[0]
+                lines.append(
+                    "Suurin viikkomuutos historiassa / Largest weekly history move: "
+                    f"{top.get('from_date')} → {top.get('to_date')}: "
+                    f"{top.get('delta')} {currency}"
+                )
+            lines.append(
+                "Huom: stub-vastaus; luvut tulevat koodista — ei määritelmiä."
+            )
+            out = "\n".join(lines)
+            self._record(
+                latency_ms=(time.perf_counter() - t0) * 1000,
+                tokens_in=max(1, len(question) // 4),
+                tokens_out=max(1, len(out) // 4),
+            )
+            return out
+
         lines = [
             f"[stub] Kysymys / Question: {question}",
-            f"Kassasaldo kauden lopussa / Cash at period end: {cash}",
+            f"Kassasaldo kauden lopussa / Cash at period end: {cash} {currency}",
         ]
         if revenue is not None:
-            lines.append(f"Viimeisimmän kuukauden liikevaihto / Last-month revenue: {revenue}")
+            lines.append(
+                f"Viimeisimmän kuukauden liikevaihto / Last-month revenue: {revenue} {currency}"
+            )
         if mom is not None:
-            lines.append(f"Liikevaihdon MoM-muutos / MoM revenue change: {mom}")
+            lines.append(f"Liikevaihdon MoM-muutos / MoM revenue change: {mom} {currency}")
         if mom_cash is not None:
-            lines.append(f"Kassan MoM-muutos / MoM cash change: {mom_cash}")
+            lines.append(f"Kassan MoM-muutos / MoM cash change: {mom_cash} {currency}")
         if hist_change is not None:
             lines.append(
-                f"Kassahistorian muutos (alku→loppu) / Balance-history change: {hist_change}"
+                f"Kassahistorian muutos (alku→loppu) / Balance-history change: "
+                f"{hist_change} {currency}"
             )
         if invest:
-            lines.append(f"Erityisinvestointi (parametri) / Special investment: {invest}")
-        if drops and any(k in q_l for k in ("laski", "drop", "miksi", "why", "laske")):
-            top = drops[0]
             lines.append(
-                "Suurin viikkomuutos historiassa / Largest weekly history move: "
-                f"{top.get('from_date')} → {top.get('to_date')}: {top.get('delta')}"
+                f"Erityisinvestointi (parametri) / Special investment: {invest} {currency}"
             )
         if neg:
             lines.append(
                 "Ennuste menee negatiiviseksi viikolla / Projection turns negative in week: "
                 f"{neg}"
-                + (f" ({neg_date}, saldo/balance {neg_bal})" if neg_date is not None else "")
+                + (
+                    f" ({neg_date}, saldo/balance {neg_bal} {currency})"
+                    if neg_date is not None
+                    else ""
+                )
             )
         elif "first_negative_projection_week" in pack_summary and neg is None:
             lines.append(
@@ -316,7 +423,11 @@ class OllamaAdapter(LlmAdapter):
 
     def interpret_figures(self, question: str, pack_summary: dict[str, Any]) -> str:
         # Free text — do not force JSON format (models invent keys otherwise).
-        return self._chat(interpretation_prompt(question, pack_summary), json_mode=False)
+        return self._chat(
+            interpretation_prompt(question, pack_summary),
+            json_mode=False,
+            system=INTERPRETATION_SYSTEM,
+        )
 
     def chat(self, content: str, *, json_mode: bool = False) -> str:
         return self._chat(content, json_mode=json_mode)
@@ -333,11 +444,17 @@ class OllamaAdapter(LlmAdapter):
         )
         return self._chat(prompt, json_mode=True)
 
-    def _chat(self, content: str, *, json_mode: bool = True) -> str:
+    def _chat(
+        self, content: str, *, json_mode: bool = True, system: str | None = None
+    ) -> str:
         t0 = time.perf_counter()
+        messages: list[dict[str, str]] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": content})
         payload: dict[str, Any] = {
             "model": self.model,
-            "messages": [{"role": "user", "content": content}],
+            "messages": messages,
             "stream": False,
             "options": {"temperature": 0.2},
         }

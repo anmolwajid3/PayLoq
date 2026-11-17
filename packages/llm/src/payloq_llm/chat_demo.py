@@ -98,6 +98,39 @@ def build_chat_figures(pack: ScenarioPack) -> dict[str, Any]:
             first_neg_balance = w.projected_balance
             break
 
+    # Past history may already be negative (separate from forward projection).
+    first_hist_neg_date = None
+    first_hist_neg_balance = None
+    for point in hist:
+        if point.balance < 0:
+            first_hist_neg_date = point.date
+            first_hist_neg_balance = point.balance
+            break
+
+    # Unified keys for "when does cash go negative?" — prefer history if already negative.
+    if first_hist_neg_date is not None:
+        first_negative_date = first_hist_neg_date
+        first_negative_balance = first_hist_neg_balance
+        first_negative_source = "balance_history"
+    elif first_neg_date is not None:
+        first_negative_date = first_neg_date
+        first_negative_balance = first_neg_balance
+        first_negative_source = "projection"
+    else:
+        first_negative_date = None
+        first_negative_balance = None
+        first_negative_source = None
+
+    projection_crossings = [
+        {
+            "week": w.week,
+            "week_end": w.week_end,
+            "projected_balance": w.projected_balance,
+        }
+        for w in cash.projection_from_open_invoices
+        if w.projected_balance < 0
+    ]
+
     open_sales = sum(i.amount_incl_vat for i in cash.open_invoices if i.type == "sales")
     open_purch = sum(i.amount_incl_vat for i in cash.open_invoices if i.type == "purchase")
     overdue_sales = sum(
@@ -109,6 +142,7 @@ def build_chat_figures(pack: ScenarioPack) -> dict[str, Any]:
     params = pack.input.parameters_from_language_model
     return {
         "scenario_id": pack.input.options.scenario_id or pack.input.meta.scenario,
+        "currency": "EUR",
         "months": len(months),
         "last_month": last.month,
         "prev_month": prev.month if prev else None,
@@ -124,6 +158,8 @@ def build_chat_figures(pack: ScenarioPack) -> dict[str, Any]:
         "balance_history_change": history_change,
         "balance_history_first_date": first_hist.date if first_hist else None,
         "balance_history_last_date": last_hist.date if last_hist else None,
+        "first_negative_in_history_date": first_hist_neg_date,
+        "first_negative_in_history_balance": first_hist_neg_balance,
         "largest_weekly_cash_drops": largest_drops,
         "receivables": last.balance_sheet.assets.receivables,
         "payables": last.balance_sheet.equity_and_liabilities.payables,
@@ -135,6 +171,11 @@ def build_chat_figures(pack: ScenarioPack) -> dict[str, Any]:
         "first_negative_projection_week": first_neg,
         "first_negative_projection_week_end": first_neg_date,
         "first_negative_projection_balance": first_neg_balance,
+        # Preferred citation keys for "when does cash go negative?"
+        "first_negative_date": first_negative_date,
+        "first_negative_balance": first_negative_balance,
+        "first_negative_source": first_negative_source,
+        "projection_negative_crossings": projection_crossings,
         "projection_week_1_balance": (
             cash.projection_from_open_invoices[0].projected_balance
             if cash.projection_from_open_invoices
@@ -158,8 +199,10 @@ def build_chat_figures(pack: ScenarioPack) -> dict[str, Any]:
             "All figures above are produced by code from parameters.",
             "Projection excludes payroll/tax/recurring costs; overdue sales assumed paid in week 1.",
             "Do not invent external causes (customers leaving, bank freezes, fraud, etc.).",
-            "If cash dropped, cite history_change / mom_cash_change / largest weekly drops / investment.",
-            "If asked when cash goes negative, use first_negative_projection_week (or say it does not).",
+            "Never define terms; cite concrete dates/weeks and EUR amounts from these figures only.",
+            "If cash dropped, cite balance_history_change / mom_cash_change / largest_weekly_cash_drops / special_investment_eur.",
+            "If asked when cash goes negative, cite first_negative_date and first_negative_balance "
+            "(or first_negative_projection_week + week_end + balance). If null, say it does not go negative.",
         ],
     }
 
