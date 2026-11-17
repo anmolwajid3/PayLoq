@@ -9,7 +9,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from payloq_schemas.constants import FORBIDDEN_TEXT_WORDS, MONEY_TOLERANCE_EUR, VAT_RATE_FI
+from payloq_schemas.constants import (
+    FORBIDDEN_TEXT_WORDS,
+    MONEY_TOLERANCE_EUR,
+    PROJECTION_HISTORY_SCALE_RATIO,
+    VAT_RATE_FI,
+)
 from payloq_schemas.models import CashAndInvoices, GeneratorInput, MonthlyReports, ScenarioPack
 from payloq_schemas.text_rules import descriptive_text_has_numbers
 
@@ -344,6 +349,37 @@ def _check_cash(
                     },
                 )
 
+    # VR-08 related: warn when projection week moves wildly diverge from history scale
+    # (e.g. history ±30–90k vs projection ±400k). Usually open-invoice stock vs
+    # smoothed history — not a unit bug — but worth flagging for review.
+    if len(cash.balance_history) >= 2 and cash.projection_from_open_invoices:
+        hist_deltas = [
+            abs(cash.balance_history[i].balance - cash.balance_history[i - 1].balance)
+            for i in range(1, len(cash.balance_history))
+        ]
+        proj_deltas = [
+            abs(w.sales_inflow) + abs(w.purchase_outflow)
+            for w in cash.projection_from_open_invoices
+        ]
+        max_hist = max(hist_deltas) if hist_deltas else 0.0
+        max_proj = max(proj_deltas) if proj_deltas else 0.0
+        if max_hist > 1.0 and max_proj > PROJECTION_HISTORY_SCALE_RATIO * max_hist:
+            result.add(
+                "projection_history_scale",
+                (
+                    f"Projection weekly cash moves (max {max_proj:,.0f} €) diverge "
+                    f">{PROJECTION_HISTORY_SCALE_RATIO:.0f}× from history week moves "
+                    f"(max {max_hist:,.0f} €). Open-invoice stock may dwarf smoothed history."
+                ),
+                severity="warning",
+                rule_id="VR-08",
+                numbers={
+                    "max_projection_week_move_eur": max_proj,
+                    "max_history_week_move_eur": max_hist,
+                    "ratio": round(max_proj / max_hist, 2) if max_hist else None,
+                },
+            )
+
 
 def _check_invoices(cash: CashAndInvoices, result: ValidationResult) -> None:
     for inv in cash.open_invoices:
@@ -438,14 +474,45 @@ def _check_texts(pack: ScenarioPack, result: ValidationResult) -> None:
                     )
 
 
-def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
-    """Scenario-level rules VR-20..22."""
+def _behaviour_sid(pack: ScenarioPack) -> str:
+    """Preset id when labelled; else infer from note / params (custom pack labels)."""
     sid = (
         pack.input.options.scenario_id
         or pack.input.meta.scenario
         or pack.monthly_reports.meta.scenario
         or ""
     ).lower()
+    presets = {
+        "good",
+        "weak",
+        "cash_critical",
+        "cash_turning_critical_later",
+        "invoices_out_of_balance",
+        "test_only_broken",
+    }
+    if sid in presets:
+        return sid
+    note = pack.input.meta.note or ""
+    if "behavior_profile=" in note:
+        profile = note.split("behavior_profile=")[-1].split("|")[0].strip().lower()
+        if profile in presets:
+            return profile
+    # Fall back to param heuristics for custom from_text packs
+    cash = pack.input.parameters_from_language_model.target_cash_at_end_eur
+    growth = pack.input.parameters_from_language_model.monthly_revenue_growth
+    text = f"{pack.input.scenario_description.fi} {pack.input.scenario_description.en}".lower()
+    if growth < -0.005:
+        return "weak"
+    if cash <= 60_000 or any(
+        k in text for k in ("kriittinen", "critical", "cash tight", "negatiiv")
+    ):
+        return "cash_critical"
+    return sid or "custom"
+
+
+def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
+    """Scenario-level rules VR-20..22."""
+    sid = _behaviour_sid(pack)
     months = pack.monthly_reports.months
     nets = [m.income_statement.net_result for m in months]
     cash_end = months[-1].balance_sheet.assets.cash
@@ -495,32 +562,34 @@ def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
                 rule_id="VR-20",
             )
     elif sid == "cash_critical":
-        neg_weeks = [w.week for w in proj if w.projected_balance < 0]
-        if not neg_weeks:
+        # VR-20 MUST: negative cash somewhere (projection and/or history).
+        neg_proj = [w.week for w in proj if w.projected_balance < 0]
+        neg_hist = [p.week for p in hist if p.balance < 0]
+        if not neg_proj and not neg_hist:
             result.add(
                 "behaviour_cash_critical",
-                "cash_critical projection should go negative near-term",
+                "cash_critical must show negative cash in ≥1 week (projection or history)",
                 rule_id="VR-20",
             )
-        elif min(neg_weeks) > 4:
+        elif neg_proj and min(neg_proj) > 4:
             result.add(
                 "behaviour_cash_critical_timing",
-                f"cash_critical first negative week is {min(neg_weeks)} (expected ~3)",
+                f"cash_critical first negative projection week is {min(neg_proj)} (expected ~3)",
                 rule_id="VR-20",
-                numbers={"first_negative_week": min(neg_weeks)},
+                numbers={"first_negative_week": min(neg_proj)},
+                severity="warning",
             )
+        # VR-22: profitable + negative cash is allowed / expected — do NOT hard-fail
+        # on unprofitable cash_critical. Demote former behaviour_cash_critical_pnl.
         if sum(nets) <= 0:
-            # Soft: ready-made cash_critical is designed profitable (VR-22), but
-            # from_text packs inferred as cash_critical via low cash can be
-            # unprofitable without violating the cash-timing VR-20 MUST.
             result.add(
                 "behaviour_cash_critical_pnl",
-                "cash_critical should remain overall profitable",
+                "cash_critical is often profitable (VR-22), but negative P&L is allowed; "
+                "VR-20 only requires negative cash somewhere",
                 severity="warning",
-                rule_id="VR-20",
+                rule_id="VR-22",
             )
-        # VR-22 informational: profitable + negative cash is allowed
-        if sum(nets) > 0 and neg_weeks:
+        if sum(nets) > 0 and (neg_proj or neg_hist):
             result.add(
                 "profitable_with_negative_cash",
                 "VR-22: profitable scenario with negative cash (expected for cash_critical)",

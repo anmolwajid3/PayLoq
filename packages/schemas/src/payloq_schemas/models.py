@@ -42,6 +42,19 @@ class CostShares(BaseModel):
     other: float = Field(ge=0, le=1)
 
 
+class OneOffCashEvent(BaseModel):
+    """Structured one-off cash event (capex, roof repair, grant, etc.)."""
+
+    amount_eur: float = Field(gt=0)
+    month_index: int = Field(
+        ge=1,
+        le=24,
+        description="1-based index into the generated monthly_reports series",
+    )
+    direction: Literal["in", "out"] = "out"
+    label: str | None = None
+
+
 class ParametersFromLanguageModel(BaseModel):
     monthly_revenue_start_eur: float = Field(gt=0)
     monthly_revenue_growth: float
@@ -50,9 +63,27 @@ class ParametersFromLanguageModel(BaseModel):
     days_payables_outstanding: float = Field(gt=0)
     target_cash_at_end_eur: float
     special_investment_eur: float = 0.0
+    # 1-based month index for special_investment_eur (default 2 → second monthly report).
+    special_investment_month: int = Field(default=2, ge=1, le=24)
+    # Calendar-month seasonality: index 0=Jan … 11=Dec. Applied to monthly revenue.
+    monthly_revenue_factors: list[float] | None = Field(
+        default=None,
+        description="Twelve floats (Jan–Dec); e.g. summer 1.0, winter 0.3 for hotel collapse.",
+    )
+    # Extra structured events; special_investment_* is also applied as an outflow.
+    one_off_events: list[OneOffCashEvent] = Field(default_factory=list)
     notes: str | None = None
     # When True, personnel/other are partly fixed to start-month levels (weak/critical).
     partly_fixed_costs: bool = False
+
+    @field_validator("monthly_revenue_factors")
+    @classmethod
+    def _factors_len(cls, v: list[float] | None) -> list[float] | None:
+        if v is None:
+            return v
+        if len(v) != 12:
+            raise ValueError("monthly_revenue_factors must have exactly 12 floats (Jan–Dec)")
+        return [float(x) for x in v]
 
 
 class InvoiceDescriptiveTexts(BaseModel):

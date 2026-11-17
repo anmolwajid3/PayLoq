@@ -20,10 +20,18 @@ Return ONLY a JSON object with these keys (no markdown, no commentary):
   "days_payables_outstanding": <positive number, typical 25-40>,
   "target_cash_at_end_eur": <number, can be low for cash-critical>,
   "special_investment_eur": <number, 0 if none>,
+  "special_investment_month": <1-based month index in the report series, e.g. 2 for month 2>,
+  "monthly_revenue_factors": [<12 floats Jan..Dec>, e.g. summer 1.0 winter 0.3 for hotel collapse],
+  "one_off_events": [
+    {"amount_eur": <positive>, "month_index": <1-based>, "direction": "in"|"out", "label": "<optional>"}
+  ],
   "notes": "<short English or Finnish note>",
   "partly_fixed_costs": <true|false — true when costs stay high while revenue falls or cash is critical>
 }
-Cost shares should sum roughly to 0.85–0.95. Do not invent absolute P&L or balance-sheet figures —
+Cost shares MUST sum to about 0.9–1.0 (blocking). Prefer ~0.94.
+monthly_revenue_factors: twelve calendar-month multipliers (Jan=first). Use low winter
+factors when bookings collapse Oct–Mar. one_off_events (or special_investment_*) land
+capex/repairs in a specific month. Do not invent absolute P&L or balance-sheet figures —
 code will compute those from these parameters.
 """.strip()
 
@@ -68,6 +76,8 @@ def parameter_repair_prompt(previous: str, error: str) -> str:
         f"Validation error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
         "Return corrected JSON only, matching the required schema.\n"
+        "Remember: cost_shares_of_revenue must sum to ~0.9–1.0; "
+        "monthly_revenue_factors must be 12 floats when present.\n"
     )
 
 

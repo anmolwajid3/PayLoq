@@ -75,12 +75,14 @@ def assess_nl_params(
             )
         )
 
-    if share_sum < 0.7 or share_sum > 1.15:
+    if share_sum < 0.9 or share_sum > 1.0:
         warnings.append(
             _w(
                 "nl_cost_share_sum",
-                f"Kustannusosuuksien summa on {share_sum:.2f} (odotettu ~0.9–1.0).",
-                f"Cost shares sum to {share_sum:.2f} (expected ~0.9–1.0).",
+                f"Kustannusosuuksien summa on {share_sum:.2f} (vaadittu ~0.9–1.0; "
+                "generaattori korjaa FR-A-11:llä).",
+                f"Cost shares sum to {share_sum:.2f} (required ~0.9–1.0; "
+                "generator hard-repairs per FR-A-11).",
             )
         )
 

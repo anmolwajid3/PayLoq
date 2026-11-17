@@ -21,6 +21,18 @@ PARAM_RANGES: dict[str, tuple[float, float]] = {
     "special_investment_eur": (0.0, 2_000_000.0),
 }
 
+# FR-A-11: cost shares of revenue must sum roughly to 0.9–1.0 (blocking repair).
+COST_SHARE_SUM_MIN: float = 0.9
+COST_SHARE_SUM_MAX: float = 1.0
+COST_SHARE_SUM_TARGET: float = 0.94
+
+# Seasonality factor bounds (per calendar month).
+REVENUE_FACTOR_MIN: float = 0.05
+REVENUE_FACTOR_MAX: float = 2.0
+
+# Projection vs history weekly-move scale (VR-08 related soft check).
+PROJECTION_HISTORY_SCALE_RATIO: float = 5.0
+
 FORBIDDEN_TEXT_WORDS: frozenset[str] = frozenset(
     {
         "fraud",

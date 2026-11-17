@@ -105,8 +105,42 @@ class StubLlmAdapter(LlmAdapter):
             return out
         text = f"{description_fi} {description_en}".lower()
         sid = str(options.get("scenario_id") or "").lower()
+        industry = str(options.get("industry") or "").lower()
+        invest_month = 2
+        factors = None
+        one_offs: list[dict] = []
+        rev_start = 200_000.0
+
+        hotelish = any(
+            k in text or k in industry
+            for k in ("hotel", "hotelli", "boutique", "adr", "occupancy", "majoitus")
+        )
+        winter_collapse = any(
+            k in text
+            for k in (
+                "winter",
+                "talvi",
+                "oct–mar",
+                "oct-mar",
+                "october",
+                "collapse",
+                "off-season",
+                "sesongin",
+            )
+        )
+        # Digit-heavy hotel / roof repair heuristics
+        roof_repair = any(k in text for k in ("roof", "hvac", "95", "95,000", "95000", "katto"))
+
         if sid == "cash_critical" or any(
-            k in text for k in ("kriittinen", "critical", "negatiiv", "kolmen viikon", "three weeks")
+            k in text
+            for k in (
+                "kriittinen",
+                "critical",
+                "negatiiv",
+                "kolmen viikon",
+                "three weeks",
+                "cash tight",
+            )
         ):
             growth, cash, invest, partly = 0.0, 45_000.0, 80_000.0, True
             notes = "stub: cash_critical heuristic from NL keywords"
@@ -118,8 +152,44 @@ class StubLlmAdapter(LlmAdapter):
         else:
             growth, cash, invest, partly = 0.008, 330_000.0, 0.0, False
             notes = "stub: good / default heuristic"
+
+        if hotelish:
+            rev_start = 180_000.0
+            notes = f"{notes}; hotel industry defaults"
+            if cash > 60_000 and any(k in text for k in ("tight", "critical", "kriittinen")):
+                cash, invest, partly = 40_000.0, 95_000.0, True
+        if winter_collapse or (hotelish and any(k in text for k in ("winter", "talvi", "off-season"))):
+            # Jan..Dec: winter collapse Oct–Mar (indices 9,10,11,0,1,2)
+            factors = [
+                0.30,  # Jan
+                0.30,  # Feb
+                0.35,  # Mar
+                0.70,  # Apr
+                0.90,  # May
+                1.00,  # Jun
+                1.00,  # Jul
+                1.00,  # Aug
+                0.85,  # Sep
+                0.35,  # Oct
+                0.30,  # Nov
+                0.30,  # Dec
+            ]
+            notes = f"{notes}; winter seasonality factors"
+        if roof_repair or (hotelish and invest >= 80_000):
+            invest = max(invest, 95_000.0)
+            invest_month = 2
+            one_offs.append(
+                {
+                    "amount_eur": invest,
+                    "month_index": invest_month,
+                    "direction": "out",
+                    "label": "roof_repair",
+                }
+            )
+            notes = f"{notes}; special investment month {invest_month}"
+
         params = ParametersFromLanguageModel(
-            monthly_revenue_start_eur=200_000.0,
+            monthly_revenue_start_eur=rev_start,
             monthly_revenue_growth=growth,
             cost_shares_of_revenue={
                 "materials": 0.37,
@@ -131,6 +201,9 @@ class StubLlmAdapter(LlmAdapter):
             days_payables_outstanding=32.0,
             target_cash_at_end_eur=cash,
             special_investment_eur=invest,
+            special_investment_month=invest_month,
+            monthly_revenue_factors=factors,
+            one_off_events=one_offs,
             notes=notes,
             partly_fixed_costs=partly,
         )
@@ -389,25 +462,42 @@ class OllamaAdapter(LlmAdapter):
     def extract_parameters(
         self, description_fi: str, description_en: str, options: dict[str, Any]
     ) -> dict[str, Any]:
+        from payloq_generator.params_clamp import cost_shares_out_of_range
+
         prompt = parameter_extraction_prompt(description_fi, description_en, options)
         raw = self._chat(prompt, json_mode=True)
         self.last_raw_output = raw
         last_err: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        # FR-A-11 / FR-A-13: retry invalid JSON or out-of-range cost shares up to 2 times
+        max_attempts = max(self.max_retries, 2) + 1
+        for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
                 params = validate_model(ParametersFromLanguageModel, data)
+                shares = params.cost_shares_of_revenue.model_dump()
+                if cost_shares_out_of_range(shares):
+                    share_sum = sum(shares.values())
+                    raise ValueError(
+                        f"cost_shares_of_revenue sum to {share_sum:.4f}; "
+                        "must be within ~0.9–1.0 (FR-A-11)"
+                    )
                 self.last_raw_output = raw
                 return params.model_dump()
             except (ValueError, json.JSONDecodeError) as exc:
                 last_err = exc
-                if attempt >= self.max_retries:
+                if attempt >= max_attempts - 1:
                     break
                 raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
                 self.last_raw_output = raw
-        raise RuntimeError(
-            f"Ollama returned invalid parameters JSON after retries: {last_err}"
-        ) from last_err
+        # Accept schema-valid JSON; pipeline clamp_parameters hard-repairs + logs (FR-A-11).
+        try:
+            data = extract_json_object(raw)
+            params = validate_model(ParametersFromLanguageModel, data)
+            return params.model_dump()
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                f"Ollama returned invalid parameters JSON after retries: {last_err or exc}"
+            ) from last_err
 
     def generate_invoice_texts(
         self,

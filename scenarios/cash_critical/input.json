@@ -30,6 +30,7 @@
     "days_payables_outstanding": 33,
     "target_cash_at_end_eur": 45000,
     "special_investment_eur": 80000,
+    "special_investment_month": 2,
     "notes": "Positive P&L; purchase invoices cluster before sales collections (~week 3).",
     "partly_fixed_costs": true
   }
