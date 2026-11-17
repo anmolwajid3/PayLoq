@@ -33,7 +33,9 @@ export function RunsPage() {
             <div>
               <h2>
                 #{r.id} · {r.source}
-                <span className="badge">{r.llm_adapter}</span>
+                <span className="badge">
+                  {r.llm_model ? `${r.llm_adapter} · ${r.llm_model}` : r.llm_adapter}
+                </span>
               </h2>
               <p>
                 {t("status", lang)}:{" "}

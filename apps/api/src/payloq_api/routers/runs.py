@@ -19,15 +19,20 @@ from payloq_api.schemas import (
     ChatResponse,
     GenerateFromTextRequest,
     GeneratePresetRequest,
+    OllamaModelOut,
+    OllamaModelsResponse,
     RunOut,
 )
 from payloq_api.services.chat import (
     chat_on_run,
     demo_presets_payload,
     ensure_journal_artifact,
+    resolve_run_chat_llm,
     result_to_dict,
 )
 from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
+from payloq_llm.adapters import list_ollama_models
+from payloq_llm.defaults import UI_SUGGESTED_OLLAMA_TAGS
 
 router = APIRouter(tags=["runs"])
 
@@ -38,6 +43,7 @@ def _run_out(run: GenerationRun) -> RunOut:
         scenario_id=run.scenario_id,
         source=run.source,
         llm_adapter=run.llm_adapter,
+        llm_model=run.llm_model,
         llm_fallback_note=run.llm_fallback_note,
         seed=run.seed,
         status=run.status,
@@ -123,6 +129,22 @@ def generate_from_text(
     return _run_out(run)
 
 
+@router.get("/llm/models", response_model=OllamaModelsResponse)
+def llm_models(
+    _: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> OllamaModelsResponse:
+    """List local Ollama models (``/api/tags``). Web Generate uses this — no stub option."""
+    payload = list_ollama_models(settings.ollama_host)
+    return OllamaModelsResponse(
+        available=bool(payload.get("available")),
+        host=str(payload.get("host") or settings.ollama_host),
+        models=[OllamaModelOut(**m) for m in (payload.get("models") or [])],
+        error=payload.get("error"),
+        recommended=list(UI_SUGGESTED_OLLAMA_TAGS),
+    )
+
+
 @router.get("/chat/presets", response_model=list[ChatPresetOut])
 def chat_presets(
     _: Annotated[User, Depends(get_current_user)],
@@ -146,6 +168,12 @@ def chat_run(
         raise HTTPException(status_code=400, detail="Run has no usable artifacts")
     if not body.question and not body.preset:
         raise HTTPException(status_code=400, detail="Provide question or preset")
+    _, resolved_model = resolve_run_chat_llm(
+        run,
+        settings,
+        llm_override=body.llm,
+        ollama_model_override=body.ollama_model,
+    )
     try:
         result = chat_on_run(
             run,
@@ -164,7 +192,7 @@ def chat_run(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
-    return ChatResponse(**result_to_dict(result))
+    return ChatResponse(**result_to_dict(result, llm_model=resolved_model))
 
 
 @router.post("/runs/{run_id}/journal", response_model=RunOut)

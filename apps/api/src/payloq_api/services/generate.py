@@ -131,7 +131,7 @@ def run_from_text(
     settings: Settings,
     *,
     text: str,
-    llm: str = "stub",
+    llm: str = "ollama",
     language: str = "fi",
     industry: str = "metal workshop (machine shop)",
     months: int = 12,
@@ -143,9 +143,15 @@ def run_from_text(
     no_fallback_stub: bool = False,
     save_as_slug: str | None = None,
 ) -> GenerationRun:
+    resolved_model = (
+        (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
+        if llm == "ollama"
+        else None
+    )
     run = GenerationRun(
         source="from_text",
         llm_adapter=llm,
+        llm_model=resolved_model,
         seed=seed,
         status="pending",
         from_text=text,
@@ -159,7 +165,7 @@ def run_from_text(
         adapter = get_adapter(
             llm,
             fallback_stub=not no_fallback_stub,
-            model=ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL,
+            model=resolved_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
         )
         opts = default_options_from_text(industry=industry, months=months, language=language)
@@ -175,6 +181,9 @@ def run_from_text(
             run.llm_fallback_note = adapter.last_fallback_reason
             run.llm_adapter = f"{llm}->stub"
             llm_name = run.llm_adapter
+        # Persist the concrete Ollama tag even after stub fallback so chat can reuse it.
+        if llm == "ollama" and resolved_model:
+            run.llm_model = resolved_model
 
         outcome = run_generation(
             inp,

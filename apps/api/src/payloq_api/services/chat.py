@@ -18,6 +18,32 @@ from payloq_schemas.models import (
 )
 
 
+def resolve_run_chat_llm(
+    run: GenerationRun,
+    settings: Settings,
+    *,
+    llm_override: str | None = None,
+    ollama_model_override: str | None = None,
+) -> tuple[str, str | None]:
+    """
+    Pick adapter + model for chat.
+
+    UI omits overrides → reuse the run's generate-time adapter/model.
+    Tests/CLI may pass ``llm_override`` (e.g. stub without Ollama).
+    """
+    if llm_override:
+        model = ollama_model_override or run.llm_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL
+        return llm_override, model if llm_override == "ollama" else None
+
+    adapter = (run.llm_adapter or "none").split("->")[0].strip().lower()
+    if adapter == "stub":
+        return "stub", None
+    if adapter == "ollama":
+        return "ollama", run.llm_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL
+    # Preset runs (adapter none): use configured Ollama default — UI has no LLM picker.
+    return "ollama", run.llm_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL
+
+
 def load_pack_from_run(run: GenerationRun) -> ScenarioPack:
     if not run.artifact_dir:
         raise FileNotFoundError("Run has no artifact directory")
@@ -52,19 +78,25 @@ def chat_on_run(
     question: str | None = None,
     preset: str | None = None,
     language: str = "fi",
-    llm: str = "stub",
+    llm: str | None = None,
     ollama_model: str | None = None,
     ollama_host: str | None = None,
     no_fallback_stub: bool = False,
 ) -> ChatDemoResult:
     pack = load_pack_from_run(run)
+    resolved_llm, resolved_model = resolve_run_chat_llm(
+        run,
+        settings,
+        llm_override=llm,
+        ollama_model_override=ollama_model,
+    )
     return run_chat_demo(
         pack,
         question=question,
         preset=preset,
         language=language,
-        llm=llm,
-        ollama_model=ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL,
+        llm=resolved_llm,
+        ollama_model=resolved_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL,
         ollama_host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
         no_fallback_stub=no_fallback_stub,
     )
@@ -74,13 +106,14 @@ def demo_presets_payload(language: str = "fi") -> list[dict[str, str]]:
     return list_demo_presets(language)
 
 
-def result_to_dict(result: ChatDemoResult) -> dict[str, Any]:
+def result_to_dict(result: ChatDemoResult, *, llm_model: str | None = None) -> dict[str, Any]:
     return {
         "question": result.question,
         "answer": result.answer,
         "figures": result.figures,
         "preset": result.preset,
         "llm_adapter": result.llm_adapter,
+        "llm_model": llm_model,
         "fallback_note": result.fallback_note,
         "metrics": result.metrics,
     }

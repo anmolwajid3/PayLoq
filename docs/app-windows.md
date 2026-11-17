@@ -108,9 +108,9 @@ cd /d C:\Users\anmol\Desktop\PayLoq\apps\api & set PAYLOQ_DATABASE_URL=postgresq
 ## What to try in the UI
 
 1. **Scenarios** — open `good` / `weak` / `cash_critical`, generate a pack.
-2. **Generate** — paste Finnish NL text, choose stub (or Ollama), run.
+2. **Generate** — paste Finnish NL text, pick a **local Ollama model** (no Stub in UI), run.
 3. **Runs** — view validation, cash history + projection charts, download JSON/Excel (incl. `journal_entries.json`).
-4. **Chat demo** (on a successful run) — try presets *Miksi kassa laski?* / *Milloin kassa menee negatiiviseksi?* (stub or Ollama).
+4. **Sidebar chat** (on a successful run) — uses the run’s generate-time model; try presets *Miksi kassa laski?* / *Milloin kassa menee negatiiviseksi?*
 
 CLI chat without the UI:
 

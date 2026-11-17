@@ -3,7 +3,16 @@
 PayLoq calls a **local** Ollama model to map Finnish/English NL → structured parameters, invoice descriptive texts, and benchmark interpretations. Generation and bench still work **without** Ollama via `--llm stub` / `--models stub`.
 
 **Default / recommended CPU model:** `llama3.2:1b`  
+**Tiny optional:** `qwen2.5:0.5b`  
 **Optional larger pulls:** `llama3.2:3b`, `qwen2.5:3b` (see [`benchmarks/matrix.cpu.json`](../benchmarks/matrix.cpu.json))
+
+On **Mac** with Docker Compose, prefer:
+
+```bash
+cd ~/Desktop/PayLoq
+docker compose --profile ollama exec ollama ollama pull llama3.2:1b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
+```
 
 Chat paste often strips newlines — use **one line** with ` & ` between commands.
 

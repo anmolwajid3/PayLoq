@@ -1,5 +1,9 @@
 # PayLoq local stack — Postgres (default) + API + web.
-# Optional: docker compose --profile ollama up
+# Optional Ollama (Mac/Desktop):
+#   docker compose --profile ollama up --build -d
+#   docker compose --profile ollama exec ollama ollama pull llama3.2:1b
+#   docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
+#   docker compose --profile ollama exec ollama ollama pull llama3.2:3b
 services:
   db:
     image: postgres:16-alpine

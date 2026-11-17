@@ -18,6 +18,7 @@ export type Run = {
   scenario_id: number | null;
   source: string;
   llm_adapter: string;
+  llm_model: string | null;
   llm_fallback_note: string | null;
   seed: number;
   status: string;
@@ -132,7 +133,8 @@ export async function generatePreset(scenario_slug: string) {
 
 export async function generateFromText(body: {
   text: string;
-  llm: "stub" | "ollama";
+  llm: "ollama";
+  ollama_model: string;
   language: "fi" | "en";
   industry: string;
   months: number;
@@ -143,6 +145,27 @@ export async function generateFromText(body: {
   });
 }
 
+export type OllamaModel = {
+  name: string;
+  size?: number | null;
+  modified_at?: string | null;
+  digest?: string | null;
+  parameter_size?: string | null;
+  family?: string | null;
+};
+
+export type OllamaModelsResponse = {
+  available: boolean;
+  host: string;
+  models: OllamaModel[];
+  error: string | null;
+  recommended: string[];
+};
+
+export async function listLlmModels() {
+  return request<OllamaModelsResponse>("/api/llm/models");
+}
+
 export type ChatPreset = { id: string; question: string };
 
 export type ChatResponse = {
@@ -151,6 +174,7 @@ export type ChatResponse = {
   figures: Record<string, unknown>;
   preset: string | null;
   llm_adapter: string;
+  llm_model: string | null;
   fallback_note: string | null;
   metrics: Record<string, unknown> | null;
 };
@@ -165,7 +189,6 @@ export async function chatOnRun(
     question?: string;
     preset?: "cash_drop" | "cash_negative";
     language: "fi" | "en";
-    llm: "stub" | "ollama";
   },
 ) {
   return request<ChatResponse>(`/api/runs/${runId}/chat`, {
