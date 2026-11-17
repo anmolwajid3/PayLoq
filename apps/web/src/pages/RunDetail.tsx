@@ -22,6 +22,7 @@ export function RunDetailPage() {
   const [jsonName, setJsonName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [journalBusy, setJournalBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     const runId = Number(id);
@@ -54,6 +55,20 @@ export function RunDetailPage() {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setJournalBusy(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    if (!run || run.status !== "ok") return;
+    setPdfBusy(true);
+    setError(null);
+    try {
+      const { exportRunPdf } = await import("../lib/exportRunPdf");
+      exportRunPdf(run, lang);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setPdfBusy(false);
     }
   }
 
@@ -95,6 +110,16 @@ export function RunDetailPage() {
                   {run.llm_fallback_note ? ` (${run.llm_fallback_note})` : ""}
                 </p>
               </div>
+              {run.status === "ok" && (
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={pdfBusy}
+                  onClick={handleExportPdf}
+                >
+                  {pdfBusy ? t("exportPdfBusy", lang) : t("exportPdf", lang)}
+                </button>
+              )}
             </div>
 
             <div className="meta-row">
