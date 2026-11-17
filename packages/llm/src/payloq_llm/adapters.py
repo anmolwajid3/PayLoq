@@ -9,6 +9,7 @@ import urllib.request
 from abc import ABC, abstractmethod
 from typing import Any
 
+from payloq_schemas.company_size import scale_defaults_for_size
 from payloq_schemas.models import (
     GeneratorInput,
     InvoiceDescriptiveTexts,
@@ -106,10 +107,14 @@ class StubLlmAdapter(LlmAdapter):
         text = f"{description_fi} {description_en}".lower()
         sid = str(options.get("scenario_id") or "").lower()
         industry = str(options.get("industry") or "").lower()
+        size_scale = scale_defaults_for_size(str(options.get("company_size") or "small"))
+        band = str(size_scale["band"])
+        cash_mult = float(size_scale["cash_mult"])
+        invest_mult = float(size_scale["invest_mult"])
         invest_month = 2
         factors = None
         one_offs: list[dict] = []
-        rev_start = 200_000.0
+        rev_start = float(size_scale["monthly_revenue_start_eur"])
 
         hotelish = any(
             k in text or k in industry
@@ -154,7 +159,8 @@ class StubLlmAdapter(LlmAdapter):
             notes = "stub: good / default heuristic"
 
         if hotelish:
-            rev_start = 180_000.0
+            # Keep hotel base relative to the company-size band (not fixed SME).
+            rev_start = max(40_000.0, rev_start * 0.9)
             notes = f"{notes}; hotel industry defaults"
             if cash > 60_000 and any(k in text for k in ("tight", "critical", "kriittinen")):
                 cash, invest, partly = 40_000.0, 95_000.0, True
@@ -187,6 +193,15 @@ class StubLlmAdapter(LlmAdapter):
                 }
             )
             notes = f"{notes}; special investment month {invest_month}"
+
+        # Scale cash / invest off the small-company keyword baselines.
+        cash = round(cash * cash_mult, 2)
+        invest = round(invest * invest_mult, 2)
+        if one_offs:
+            for event in one_offs:
+                event["amount_eur"] = invest
+        if band != "small":
+            notes = f"{notes}; company_size band={band}"
 
         params = ParametersFromLanguageModel(
             monthly_revenue_start_eur=rev_start,

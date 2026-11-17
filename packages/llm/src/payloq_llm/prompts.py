@@ -62,7 +62,9 @@ def parameter_extraction_prompt(
     return (
         "You map a short company situation into structured generator parameters for PayLoq.\n"
         "Finnish support is required: read both FI and EN descriptions.\n"
-        "Code calculates all financial figures; you only choose parameters.\n\n"
+        "Code calculates all financial figures; you only choose parameters.\n"
+        "Respect options.company_size: small ≈ SME monthly revenue, medium higher, "
+        "large / 250+ employees ≈ mid-market scale (do not force small/medium heuristics).\n\n"
         f"Description (FI):\n{description_fi}\n\n"
         f"Description (EN):\n{description_en}\n\n"
         f"Options JSON:\n{json.dumps(options, ensure_ascii=False)}\n\n"

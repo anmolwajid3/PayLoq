@@ -70,12 +70,12 @@ const dict = {
   },
   companySize: { fi: "Yrityksen koko", en: "Company size" },
   companySizeHint: {
-    fi: "Työntekijämäärä (esim. 8 tai 12 employees) tai etiketti small / medium.",
-    en: "Employee count (e.g. 8 or 12 employees) or label small / medium.",
+    fi: "Työntekijämäärä (esim. 8, 420 tai 12 employees) tai etiketti small / medium / large (tai pieni / keskikokoinen / suuri).",
+    en: "Employee count (e.g. 8, 420, or 12 employees) or label small / medium / large.",
   },
   companySizeMissing: {
-    fi: "Yrityksen koko puuttuu. Anna työntekijämäärä tai etiketti (small, medium).",
-    en: "Company size is missing. Use a number of employees or a label (small, medium).",
+    fi: "Yrityksen koko puuttuu. Anna työntekijämäärä tai etiketti (small, medium, large).",
+    en: "Company size is missing. Use a number of employees or a label (small, medium, large).",
   },
   seed: { fi: "Satunnaissiemen", en: "Random seed" },
   seedHint: {
