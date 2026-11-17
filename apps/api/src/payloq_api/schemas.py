@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from payloq_schemas.company_size import parse_company_size
 
 
 class LoginRequest(BaseModel):
@@ -60,6 +62,10 @@ class GenerateFromTextRequest(BaseModel):
     llm: Literal["stub", "ollama"] = "ollama"
     language: Literal["fi", "en"] = "fi"
     industry: str = "metal workshop (machine shop)"
+    company_size: str = Field(
+        default="small",
+        description="Employee count (e.g. 8 or '12 employees') or label small/medium.",
+    )
     months: int = Field(default=12, ge=12, le=24)
     seed: int = 42
     write_xlsx: bool = True
@@ -71,6 +77,19 @@ class GenerateFromTextRequest(BaseModel):
         default=None,
         description="If set, also persist a Scenario row from the generated input.",
     )
+
+    @field_validator("company_size")
+    @classmethod
+    def _normalize_company_size(cls, value: str) -> str:
+        return parse_company_size(value)
+
+    @field_validator("months")
+    @classmethod
+    def _months_range_message(cls, value: int) -> int:
+        # Pydantic ge/le already enforces; keep SRS wording for explicit checks.
+        if value < 12 or value > 24:
+            raise ValueError("Months must be between 12 and 24.")
+        return value
 
 
 class ChatRequest(BaseModel):

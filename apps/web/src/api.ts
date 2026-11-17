@@ -137,11 +137,13 @@ export async function generateFromText(body: {
   ollama_model: string;
   language: "fi" | "en";
   industry: string;
+  company_size: string;
   months: number;
+  seed: number;
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
-    body: JSON.stringify({ ...body, seed: 42, write_xlsx: true, write_journal: true }),
+    body: JSON.stringify({ ...body, write_xlsx: true, write_journal: true }),
   });
 }
 

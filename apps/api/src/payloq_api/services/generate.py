@@ -56,6 +56,7 @@ def _pack_summary(
         ],
         "description": pack.input.scenario_description.model_dump(),
         "language": getattr(pack.input.options, "language", None) or "fi",
+        "options": pack.input.options.model_dump(),
         "parameters": params.model_dump(),
         "nl_soft_warnings": nl_soft_warnings or [],
     }
@@ -134,6 +135,7 @@ def run_from_text(
     llm: str = "ollama",
     language: str = "fi",
     industry: str = "metal workshop (machine shop)",
+    company_size: str = "small",
     months: int = 12,
     seed: int = 42,
     write_xlsx: bool = True,
@@ -168,7 +170,12 @@ def run_from_text(
             model=resolved_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
         )
-        opts = default_options_from_text(industry=industry, months=months, language=language)
+        opts = default_options_from_text(
+            industry=industry,
+            company_size=company_size,
+            months=months,
+            language=language,
+        )
         inp = input_from_text(
             text=text,
             adapter=adapter,

@@ -6,6 +6,7 @@ import { useAuth } from "../auth";
 import { t } from "../i18n";
 
 const DEFAULT_INDUSTRY = "metal workshop (machine shop)";
+const DEFAULT_COMPANY_SIZE = "small";
 const FI_DESC_PLACEHOLDER =
   "Pieni konepaja, kassa on kriittinen kolmen viikon päästä.";
 const EN_DESC_PLACEHOLDER =
@@ -25,6 +26,8 @@ export function GeneratePage() {
   const [language, setLanguage] = useState<"fi" | "en">(lang);
   const [months, setMonths] = useState(12);
   const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState(DEFAULT_COMPANY_SIZE);
+  const [seed, setSeed] = useState(42);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingModels, setLoadingModels] = useState(true);
@@ -68,6 +71,18 @@ export function GeneratePage() {
       );
       return;
     }
+    if (!companySize.trim()) {
+      setError(t("companySizeMissing", lang));
+      return;
+    }
+    if (months < 12 || months > 24) {
+      setError(
+        lang === "fi"
+          ? "Kuukausien on oltava välillä 12–24."
+          : "Months must be between 12 and 24.",
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -77,7 +92,9 @@ export function GeneratePage() {
         ollama_model: model,
         language,
         industry: industry.trim() || DEFAULT_INDUSTRY,
+        company_size: companySize.trim(),
         months,
+        seed,
       });
       navigate(`/runs/${run.id}`);
     } catch (err) {
@@ -153,6 +170,26 @@ export function GeneratePage() {
           </select>
         </label>
         <label>
+          {t("industry", lang)}
+          <input
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder={DEFAULT_INDUSTRY}
+          />
+          <span className="field-hint">{t("industryHint", lang)}</span>
+        </label>
+        <label>
+          {t("companySize", lang)}
+          <input
+            value={companySize}
+            onChange={(e) => setCompanySize(e.target.value)}
+            placeholder="small | medium | 8 | 12 employees"
+            required
+            aria-label={t("companySize", lang)}
+          />
+          <span className="field-hint">{t("companySizeHint", lang)}</span>
+        </label>
+        <label>
           {t("months", lang)}
           <input
             type="number"
@@ -165,18 +202,20 @@ export function GeneratePage() {
           <span className="field-hint">{t("monthsHint", lang)}</span>
         </label>
         <label>
-          {t("industry", lang)}
+          {t("seed", lang)}
           <input
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            placeholder={DEFAULT_INDUSTRY}
+            type="number"
+            step={1}
+            value={seed}
+            onChange={(e) => setSeed(Number(e.target.value))}
+            aria-label={t("seed", lang)}
           />
-          <span className="field-hint">{t("industryHint", lang)}</span>
+          <span className="field-hint">{t("seedHint", lang)}</span>
         </label>
         <button
           className="btn btn-primary"
           type="submit"
-          disabled={busy || !text.trim() || !model || models.length === 0}
+          disabled={busy || !text.trim() || !model || models.length === 0 || !companySize.trim()}
         >
           {busy ? t("loading", lang) : t("runGenerate", lang)}
         </button>

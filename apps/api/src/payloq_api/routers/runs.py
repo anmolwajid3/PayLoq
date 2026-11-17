@@ -117,6 +117,7 @@ def generate_from_text(
         llm=body.llm,
         language=body.language,
         industry=body.industry,
+        company_size=body.company_size,
         months=body.months,
         seed=body.seed,
         write_xlsx=body.write_xlsx,

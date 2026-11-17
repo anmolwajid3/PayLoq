@@ -114,7 +114,10 @@ def test_generate_from_text_stub(client: TestClient):
             "text": "Pieni konepaja, kassa on kriittinen kolmen viikon päästä.",
             "llm": "stub",
             "language": "fi",
+            "industry": "machine shop",
+            "company_size": "8",
             "months": 12,
+            "seed": 42,
         },
     )
     assert run.status_code == 200, run.text
@@ -123,6 +126,7 @@ def test_generate_from_text_stub(client: TestClient):
     assert body["validation_ok"] is True
     assert body["source"] == "from_text"
     assert body["llm_adapter"] == "stub"
+    assert body["seed"] == 42
     assert body.get("llm_model") in (None, "")
     assert "journal_entries.json" in body["artifacts"]
     soft = (body.get("pack_summary") or {}).get("nl_soft_warnings") or []
@@ -131,6 +135,57 @@ def test_generate_from_text_stub(client: TestClient):
     assert any(w.get("code") == "nl_stub_heuristic" for w in soft)
     assert (body.get("pack_summary") or {}).get("parameters")
     assert (body.get("pack_summary") or {}).get("language") == "fi"
+    options = (body.get("pack_summary") or {}).get("options") or {}
+    assert options.get("company_size") == "8 employees"
+    assert options.get("industry") == "machine shop"
+    assert options.get("months") == 12
+
+    art = client.get(
+        f"/api/runs/{body['id']}/artifacts/input.json",
+        headers=headers,
+    )
+    assert art.status_code == 200
+    assert art.json()["options"]["company_size"] == "8 employees"
+
+    log = client.get(
+        f"/api/runs/{body['id']}/artifacts/run_log.json",
+        headers=headers,
+    )
+    assert log.status_code == 200
+    run_log = log.json()
+    assert run_log["seed"] == 42
+    assert run_log["options"]["company_size"] == "8 employees"
+
+
+def test_generate_from_text_rejects_bad_company_size(client: TestClient):
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    empty = client.post(
+        "/api/generate/from-text",
+        headers=headers,
+        json={
+            "text": "Pieni konepaja.",
+            "llm": "stub",
+            "company_size": "  ",
+            "months": 12,
+        },
+    )
+    assert empty.status_code == 422
+
+    bad = client.post(
+        "/api/generate/from-text",
+        headers=headers,
+        json={
+            "text": "Pieni konepaja.",
+            "llm": "stub",
+            "company_size": "huge",
+            "months": 12,
+        },
+    )
+    assert bad.status_code == 422
+    detail = str(bad.json())
+    assert "small" in detail.lower() or "employees" in detail.lower()
 
 
 def test_chat_uses_run_model_without_llm_body(client: TestClient):

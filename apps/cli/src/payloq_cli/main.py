@@ -78,6 +78,14 @@ def generate(
         "--industry",
         help="Industry hint passed to the LLM with --from-text.",
     ),
+    company_size: str = typer.Option(
+        "small",
+        "--company-size",
+        help=(
+            "Company size for --from-text: employee count (e.g. 8 or '12 employees') "
+            "or label small/medium (FR-A-02 / FR-A-06)."
+        ),
+    ),
     months: int = typer.Option(12, "--months", help="Months of history for --from-text (12–24)."),
     out: Path = typer.Option(Path("out"), "--out", "-o", help="Output directory."),
     seed: int = typer.Option(42, "--seed", help="Deterministic seed."),
@@ -137,6 +145,14 @@ def generate(
             typer.echo("Months must be between 12 and 24.", err=True)
             raise typer.Exit(2)
 
+        from payloq_schemas.company_size import parse_company_size
+
+        try:
+            size_norm = parse_company_size(company_size)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(2) from exc
+
         adapter = get_adapter(
             llm,
             fallback_stub=not no_fallback_stub,
@@ -145,6 +161,7 @@ def generate(
         )
         opts = default_options_from_text(
             industry=industry,
+            company_size=size_norm,
             months=months,
             language=language,
         )

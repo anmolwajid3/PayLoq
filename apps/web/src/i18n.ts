@@ -56,6 +56,20 @@ const dict = {
     fi: "Vapaaehtoinen vihje LLM:lle — tyhjänä käytetään oletusta (placeholder).",
     en: "Optional LLM hint — leave blank to use the placeholder default.",
   },
+  companySize: { fi: "Yrityksen koko", en: "Company size" },
+  companySizeHint: {
+    fi: "Työntekijämäärä (esim. 8 tai 12 employees) tai etiketti small / medium.",
+    en: "Employee count (e.g. 8 or 12 employees) or label small / medium.",
+  },
+  companySizeMissing: {
+    fi: "Yrityksen koko puuttuu. Anna työntekijämäärä tai etiketti (small, medium).",
+    en: "Company size is missing. Use a number of employees or a label (small, medium).",
+  },
+  seed: { fi: "Satunnaissiemen", en: "Random seed" },
+  seedHint: {
+    fi: "Sama siemen + samat parametrit → toistettava tulos (FR-A-25).",
+    en: "Same seed + same parameters → repeatable output (FR-A-25).",
+  },
   descriptionHint: {
     fi: "Kirjoita oma kuvaus; placeholder on vain esimerkki.",
     en: "Write your own description; the placeholder is only an example.",

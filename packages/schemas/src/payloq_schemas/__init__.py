@@ -1,5 +1,6 @@
 """PayLoq Pydantic schemas for generator I/O."""
 
+from payloq_schemas.company_size import parse_company_size
 from payloq_schemas.constants import VAT_RATE_FI
 from payloq_schemas.models import (
     BalanceHistoryPoint,
@@ -42,4 +43,5 @@ __all__ = [
     "ScenarioDescription",
     "ScenarioMeta",
     "ScenarioPack",
+    "parse_company_size",
 ]
