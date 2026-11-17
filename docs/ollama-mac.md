@@ -24,6 +24,17 @@ gh pr checkout <PR_NUMBER>
 docker compose --profile ollama up --build -d
 ```
 
+## Rebuild web image (UI-only changes)
+
+Static Vite assets are baked into the `web` image. After pulling a UI PR, rebuild web without cache so nginx serves the new bundle:
+
+```bash
+cd ~/Desktop/PayLoq
+gh pr checkout <PR_NUMBER>
+docker compose --profile ollama build --no-cache web
+docker compose --profile ollama up -d --force-recreate web
+```
+
 ## After merge — sync main
 
 ```bash

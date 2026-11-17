@@ -259,3 +259,29 @@ def test_chat_demo_on_run(client: TestClient):
     )
     assert drop.status_code == 200, drop.text
     assert drop.json()["question"] == "Why did cash drop?"
+
+    empty_sugs = client.post(
+        f"/api/runs/{run_id}/chat/suggestions",
+        headers=headers,
+        json={"language": "fi", "prior_questions": []},
+    )
+    assert empty_sugs.status_code == 200, empty_sugs.text
+    empty_ids = [row["id"] for row in empty_sugs.json()]
+    assert empty_ids[:2] == ["cash_drop", "cash_negative"]
+
+    refreshed = client.post(
+        f"/api/runs/{run_id}/chat/suggestions",
+        headers=headers,
+        json={
+            "language": "en",
+            "prior_questions": [
+                "Why did cash drop?",
+                "When does cash go negative?",
+            ],
+        },
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    refreshed_ids = {row["id"] for row in refreshed.json()}
+    assert "cash_drop" not in refreshed_ids
+    assert "cash_negative" not in refreshed_ids
+    assert refreshed.json(), "expected dynamic follow-ups from run figures"

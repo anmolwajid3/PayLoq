@@ -266,3 +266,160 @@ def run_chat_demo(
 def list_demo_presets(language: str = "fi") -> list[dict[str, str]]:
     lang = language if language in {"fi", "en"} else "fi"
     return [{"id": pid, "question": texts[lang]} for pid, texts in DEMO_PRESETS.items()]
+
+
+# Follow-up suggestion catalog: figure-gated + bilingual. Seed presets stay first.
+_SUGGESTION_CATALOG: list[dict[str, Any]] = [
+    {
+        "id": "cash_drop",
+        "fi": DEMO_PRESETS["cash_drop"]["fi"],
+        "en": DEMO_PRESETS["cash_drop"]["en"],
+        "themes": ("cash", "drop", "laski", "miksi"),
+        "when": lambda f: True,
+    },
+    {
+        "id": "cash_negative",
+        "fi": DEMO_PRESETS["cash_negative"]["fi"],
+        "en": DEMO_PRESETS["cash_negative"]["en"],
+        "themes": ("negative", "negatiiv", "milloin", "when"),
+        "when": lambda f: True,
+    },
+    {
+        "id": "largest_weekly_drop",
+        "fi": "Mikä oli suurin viikoittainen kassan pudotus?",
+        "en": "What was the largest weekly cash drop?",
+        "themes": ("weekly", "viikko", "pudotus", "largest", "suurin"),
+        "when": lambda f: bool(f.get("largest_weekly_cash_drops")),
+    },
+    {
+        "id": "mom_cash",
+        "fi": "Miten kassa muuttui edellisestä kuukaudesta?",
+        "en": "How did cash change versus last month?",
+        "themes": ("month", "kuukaus", "mom", "edellis"),
+        "when": lambda f: f.get("mom_cash_change") is not None,
+    },
+    {
+        "id": "special_investment",
+        "fi": "Miten erikoisinvestointi näkyy kassassa?",
+        "en": "How does the special investment show in cash?",
+        "themes": ("invest", "erikois"),
+        "when": lambda f: bool(f.get("special_investment_eur")),
+    },
+    {
+        "id": "overdue_sales",
+        "fi": "Kuinka paljon myyntisaamisia on erääntynyt?",
+        "en": "How much overdue sales receivables are there?",
+        "themes": ("overdue", "eräänt", "receiv", "saamis"),
+        "when": lambda f: (f.get("overdue_sales_sum") or 0) > 0,
+    },
+    {
+        "id": "open_purchases",
+        "fi": "Kuinka suuret avoimet ostovelat ovat?",
+        "en": "How large are the open purchase payables?",
+        "themes": ("purchase", "osto", "payable", "velat"),
+        "when": lambda f: (f.get("open_purchase_sum") or 0) > 0,
+    },
+    {
+        "id": "open_sales",
+        "fi": "Mikä on avointen myyntisaamisten summa?",
+        "en": "What is the sum of open sales receivables?",
+        "themes": ("open sales", "avoimet myynt", "receiv"),
+        "when": lambda f: (f.get("open_sales_sum") or 0) > 0,
+    },
+    {
+        "id": "target_cash",
+        "fi": "Miten kassasaldo vertautuu tavoitteeseen?",
+        "en": "How does ending cash compare to the target?",
+        "themes": ("target", "tavoite"),
+        "when": lambda f: f.get("target_cash_at_end_eur") is not None,
+    },
+    {
+        "id": "revenue_mom",
+        "fi": "Miten liikevaihto muuttui edellisestä kuukaudesta?",
+        "en": "How did revenue change versus last month?",
+        "themes": ("revenue", "liikevaihto"),
+        "when": lambda f: f.get("mom_revenue_change") is not None,
+    },
+    {
+        "id": "projection_week1",
+        "fi": "Mikä on kassan ennuste viikolla 1?",
+        "en": "What is the cash projection in week 1?",
+        "themes": ("projection", "ennuste", "week 1", "viikolla 1"),
+        "when": lambda f: f.get("projection_week_1_balance") is not None,
+    },
+    {
+        "id": "net_result",
+        "fi": "Mikä oli viimeisen kuukauden nettotulos?",
+        "en": "What was last month's net result?",
+        "themes": ("net", "tulos", "result"),
+        "when": lambda f: f.get("net_result_last") is not None,
+    },
+]
+
+
+def _norm_q(text: str) -> str:
+    return " ".join((text or "").lower().split())
+
+
+def _already_asked(candidate: dict[str, Any], prior_norms: list[str], lang: str) -> bool:
+    q_norm = _norm_q(str(candidate[lang]))
+    if any(q_norm == p or q_norm in p or p in q_norm for p in prior_norms if p):
+        return True
+    themes: tuple[str, ...] = candidate.get("themes") or ()
+    for prior in prior_norms:
+        hits = sum(1 for theme in themes if theme in prior)
+        if hits >= 2:
+            return True
+        if themes and themes[0] in prior and len(themes[0]) >= 5:
+            # Strong single theme match (e.g. "invest", "overdue")
+            return True
+    return False
+
+
+def suggest_followup_questions(
+    figures: dict[str, Any],
+    *,
+    prior_questions: list[str] | None = None,
+    language: str = "fi",
+    limit: int = 4,
+) -> list[dict[str, str]]:
+    """
+    Dynamic suggested questions from run figures + prior chat questions.
+
+    Filters out suggestions already covered by prior questions and ones that
+    do not apply to the current figure pack. Keeps FI/EN seed presets when
+    still unused.
+    """
+    lang = language if language in {"fi", "en"} else "fi"
+    prior_norms = [_norm_q(q) for q in (prior_questions or []) if q and q.strip()]
+    out: list[dict[str, str]] = []
+    for cand in _SUGGESTION_CATALOG:
+        when = cand["when"]
+        try:
+            applicable = bool(when(figures))
+        except Exception:  # noqa: BLE001 — never break the UI on a bad figure
+            applicable = False
+        if not applicable:
+            continue
+        if _already_asked(cand, prior_norms, lang):
+            continue
+        out.append({"id": str(cand["id"]), "question": str(cand[lang])})
+        if len(out) >= limit:
+            break
+    # If everything was filtered (long chat), surface remaining applicable ones
+    # ignoring theme match but still skipping exact duplicates.
+    if not out:
+        asked_exact = set(prior_norms)
+        for cand in _SUGGESTION_CATALOG:
+            q = str(cand[lang])
+            if _norm_q(q) in asked_exact:
+                continue
+            try:
+                if not bool(cand["when"](figures)):
+                    continue
+            except Exception:  # noqa: BLE001
+                continue
+            out.append({"id": str(cand["id"]), "question": q})
+            if len(out) >= limit:
+                break
+    return out

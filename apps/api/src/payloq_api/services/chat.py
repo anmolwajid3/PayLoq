@@ -7,7 +7,13 @@ from typing import Any
 
 from payloq_api.config import Settings
 from payloq_api.models import GenerationRun
-from payloq_llm.chat_demo import ChatDemoResult, list_demo_presets, run_chat_demo
+from payloq_llm.chat_demo import (
+    ChatDemoResult,
+    build_chat_figures,
+    list_demo_presets,
+    run_chat_demo,
+    suggest_followup_questions,
+)
 from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
 from payloq_schemas.models import (
     CashAndInvoices,
@@ -104,6 +110,23 @@ def chat_on_run(
 
 def demo_presets_payload(language: str = "fi") -> list[dict[str, str]]:
     return list_demo_presets(language)
+
+
+def suggestions_for_run(
+    run: GenerationRun,
+    *,
+    language: str = "fi",
+    prior_questions: list[str] | None = None,
+    limit: int = 4,
+) -> list[dict[str, str]]:
+    pack = load_pack_from_run(run)
+    figures = build_chat_figures(pack)
+    return suggest_followup_questions(
+        figures,
+        prior_questions=prior_questions,
+        language=language,
+        limit=limit,
+    )
 
 
 def result_to_dict(result: ChatDemoResult, *, llm_model: str | None = None) -> dict[str, Any]:

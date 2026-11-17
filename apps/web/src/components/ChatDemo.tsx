@@ -25,10 +25,7 @@ type HistoryItem = {
   fallback_note: string | null;
 };
 
-const PRESET_META: Record<
-  string,
-  { icon: string; sparkKeys: string[] }
-> = {
+const PRESET_META: Record<string, { icon: string; sparkKeys: string[] }> = {
   cash_drop: {
     icon: "↓",
     sparkKeys: [
@@ -46,6 +43,46 @@ const PRESET_META: Record<
       "first_negative_projection_week",
       "first_negative_projection_balance",
     ],
+  },
+  largest_weekly_drop: {
+    icon: "↓",
+    sparkKeys: ["largest_weekly_cash_drops", "balance_history_change"],
+  },
+  mom_cash: {
+    icon: "↔",
+    sparkKeys: ["mom_cash_change", "cash_end", "cash_prev_month"],
+  },
+  special_investment: {
+    icon: "€",
+    sparkKeys: ["special_investment_eur", "balance_history_change", "cash_end"],
+  },
+  overdue_sales: {
+    icon: "!",
+    sparkKeys: ["overdue_sales_sum", "open_sales_sum", "receivables"],
+  },
+  open_purchases: {
+    icon: "↑",
+    sparkKeys: ["open_purchase_sum", "payables"],
+  },
+  open_sales: {
+    icon: "↗",
+    sparkKeys: ["open_sales_sum", "receivables", "overdue_sales_sum"],
+  },
+  target_cash: {
+    icon: "◎",
+    sparkKeys: ["cash_end", "target_cash_at_end_eur"],
+  },
+  revenue_mom: {
+    icon: "%",
+    sparkKeys: ["mom_revenue_change", "revenue_last", "revenue_prev"],
+  },
+  projection_week1: {
+    icon: "→",
+    sparkKeys: ["projection_week_1_balance", "first_negative_date"],
+  },
+  net_result: {
+    icon: "=",
+    sparkKeys: ["net_result_last", "revenue_last", "cash_end"],
   },
 };
 
@@ -82,12 +119,18 @@ function sparkValues(
         key.includes("cash") ||
         key.includes("balance") ||
         key.includes("investment") ||
-        key.includes("eur");
+        key.includes("eur") ||
+        key.includes("sales") ||
+        key.includes("purchase") ||
+        key.includes("receiv") ||
+        key.includes("payab") ||
+        key.includes("result") ||
+        key.includes("revenue");
       out.push({
         label: key.replace(/_/g, " "),
         value: isMoney ? fmtEur(v, lang) : String(v),
       });
-    } else if (typeof v === "string" || typeof v === "number") {
+    } else if (typeof v === "string") {
       out.push({ label: key.replace(/_/g, " "), value: String(v) });
     } else if (Array.isArray(v) && v.length > 0 && key === "largest_weekly_cash_drops") {
       const top = v[0] as { delta?: number; to_date?: string };
@@ -103,12 +146,16 @@ function sparkValues(
   return out;
 }
 
-function toHistoryItem(res: ChatResponse, kind: "preset" | "custom"): HistoryItem {
+function toHistoryItem(
+  res: ChatResponse,
+  kind: "preset" | "custom",
+  suggestionId: string | null,
+): HistoryItem {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     at: new Date().toISOString(),
     kind,
-    presetId: res.preset,
+    presetId: res.preset || suggestionId,
     question: res.question,
     answer: res.answer,
     figures: res.figures,
@@ -118,66 +165,97 @@ function toHistoryItem(res: ChatResponse, kind: "preset" | "custom"): HistoryIte
   };
 }
 
-/** Company-style sidebar chat bound to the run's generate-time model. */
+/** Persistent sticky Virtual Accountant sidebar bound to the run's generate-time model. */
 export function ChatDemo({ runId, lang, llmAdapter, llmModel }: Props) {
-  const [presets, setPresets] = useState<ChatPreset[]>([]);
-  const [preset, setPreset] = useState<"cash_drop" | "cash_negative" | "">("cash_drop");
+  const [suggestions, setSuggestions] = useState<ChatPreset[]>([]);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory(runId));
   const [expandedFigures, setExpandedFigures] = useState<string | null>(null);
-  const [open, setOpen] = useState(true);
+  const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const threadRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setHistory(loadHistory(runId));
   }, [runId]);
 
   useEffect(() => {
+    let cancelled = false;
+    setSuggestionsBusy(true);
+    const prior = history.map((h) => h.question);
     api
-      .listChatPresets(lang)
+      .listChatSuggestions(runId, { language: lang, prior_questions: prior, limit: 4 })
       .then((rows) => {
-        setPresets(rows);
-        if (rows[0]?.id === "cash_drop" || rows[0]?.id === "cash_negative") {
-          setPreset(rows[0].id);
+        if (!cancelled) setSuggestions(rows);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          // Fallback to static seed presets if suggestions endpoint fails.
+          void api.listChatPresets(lang).then((rows) => {
+            if (!cancelled) setSuggestions(rows);
+          });
         }
       })
-      .catch(() => setPresets([]));
-  }, [lang]);
+      .finally(() => {
+        if (!cancelled) setSuggestionsBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, lang, history]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = threadRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, [history, busy]);
 
-  async function ask(nextPreset?: "cash_drop" | "cash_negative" | null) {
+  async function ask(opts?: { suggestion?: ChatPreset | null; freeText?: boolean }) {
     setBusy(true);
     setError(null);
     try {
       const body: Parameters<typeof api.chatOnRun>[1] = { language: lang };
-      const customQ = custom.trim();
       let kind: "preset" | "custom" = "custom";
-      if (customQ && nextPreset == null) {
-        body.question = customQ;
-        kind = "custom";
-      } else {
-        const pid = nextPreset || preset;
-        if (!pid) {
+      let suggestionId: string | null = null;
+      const suggestion = opts?.suggestion;
+      const customQ = custom.trim();
+
+      if (opts?.freeText || (!suggestion && customQ)) {
+        if (!customQ) {
           throw new Error(
-            lang === "fi" ? "Valitse valmis kysymys tai kirjoita oma." : "Pick a preset or type a question.",
+            lang === "fi" ? "Valitse ehdotus tai kirjoita oma kysymys." : "Pick a suggestion or type a question.",
           );
         }
-        body.preset = pid;
-        kind = "preset";
+        body.question = customQ;
+        kind = "custom";
+      } else if (suggestion) {
+        suggestionId = suggestion.id;
+        if (suggestion.id === "cash_drop" || suggestion.id === "cash_negative") {
+          body.preset = suggestion.id;
+          kind = "preset";
+        } else {
+          body.question = suggestion.question;
+          kind = "custom";
+        }
+      } else {
+        throw new Error(
+          lang === "fi" ? "Valitse ehdotus tai kirjoita oma kysymys." : "Pick a suggestion or type a question.",
+        );
       }
+
       const res = await api.chatOnRun(runId, body);
-      const item = toHistoryItem(res, kind);
+      const item = toHistoryItem(res, kind, suggestionId);
       setHistory((prev) => {
         const next = [...prev, item];
         saveHistory(runId, next);
         return next;
       });
-      if (kind === "custom") setCustom("");
+      if (kind === "custom" || opts?.freeText) setCustom("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -190,12 +268,10 @@ export function ChatDemo({ runId, lang, llmAdapter, llmModel }: Props) {
     sessionStorage.removeItem(historyKey(runId));
   }
 
-  const modelLabel = llmModel
-    ? `${llmAdapter} · ${llmModel}`
-    : llmAdapter;
+  const modelLabel = llmModel ? `${llmAdapter} · ${llmModel}` : llmAdapter;
 
   return (
-    <aside className={`run-chat-sidebar ${open ? "open" : "collapsed"}`} aria-label={t("chatTitle", lang)}>
+    <aside className="run-chat-sidebar" aria-label={t("chatTitle", lang)}>
       <div className="run-chat-head">
         <div>
           <h3>{t("chatTitle", lang)}</h3>
@@ -203,146 +279,133 @@ export function ChatDemo({ runId, lang, llmAdapter, llmModel }: Props) {
             {t("chatUsesModel", lang)}: <strong>{modelLabel}</strong>
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost chat-toggle"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          {open ? "⟩" : "⟨"}
-        </button>
       </div>
 
-      {open && (
-        <>
-          <p className="muted chat-sidebar-hint">{t("chatHint", lang)}</p>
+      <p className="muted chat-sidebar-hint">{t("chatHint", lang)}</p>
 
-          <div className="chat-thread" role="log" aria-live="polite">
-            {history.length === 0 && (
-              <p className="muted chat-empty">{t("chatEmpty", lang)}</p>
-            )}
-            {history.map((item) => {
-              const meta = item.presetId ? PRESET_META[item.presetId] : null;
-              const sparks = meta
-                ? sparkValues(item.figures, meta.sparkKeys, lang)
-                : sparkValues(item.figures, ["special_investment_eur", "cash_end", "balance_history_change"], lang);
-              return (
-                <div key={item.id} className="chat-turn">
-                  <div className="chat-bubble chat-bubble-user">
-                    <div className="chat-chip-row">
-                      {item.kind === "preset" && item.presetId ? (
-                        <span className="chat-chip chat-chip-preset">
-                          <span className="chat-chip-icon" aria-hidden>
-                            {PRESET_META[item.presetId]?.icon || "?"}
-                          </span>
-                          {t("presetUsed", lang)}: {item.presetId}
-                        </span>
-                      ) : (
-                        <span className="chat-chip chat-chip-custom">
-                          <span className="chat-chip-icon" aria-hidden>
-                            ✎
-                          </span>
-                          {t("customUsed", lang)}
-                        </span>
-                      )}
-                    </div>
-                    <p>{item.question}</p>
-                  </div>
-                  <div className="chat-bubble chat-bubble-assistant">
-                    <pre className="chat-answer">{item.answer}</pre>
-                    {sparks.length > 0 && (
-                      <div className="chat-sparks" aria-label={t("figureSparks", lang)}>
-                        {sparks.map((s) => (
-                          <span key={s.label} className="chat-spark">
-                            <span className="chat-spark-dot" aria-hidden />
-                            <span className="chat-spark-label">{s.label}</span>
-                            <strong>{s.value}</strong>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      className="btn btn-ghost"
-                      type="button"
-                      onClick={() =>
-                        setExpandedFigures((cur) => (cur === item.id ? null : item.id))
-                      }
-                    >
-                      {expandedFigures === item.id ? t("hideFigures", lang) : t("showFigures", lang)}
-                    </button>
-                    {expandedFigures === item.id && (
-                      <pre className="json-view">{JSON.stringify(item.figures, null, 2)}</pre>
-                    )}
-                  </div>
-                </div>
+      <div className="chat-thread" role="log" aria-live="polite" ref={threadRef}>
+        {history.length === 0 && <p className="muted chat-empty">{t("chatEmpty", lang)}</p>}
+        {history.map((item) => {
+          const meta = item.presetId ? PRESET_META[item.presetId] : null;
+          const sparks = meta
+            ? sparkValues(item.figures, meta.sparkKeys, lang)
+            : sparkValues(
+                item.figures,
+                ["special_investment_eur", "cash_end", "balance_history_change"],
+                lang,
               );
-            })}
-            <div ref={bottomRef} />
-          </div>
-
-          <div className="chat-composer">
-            <div className="preset-row" role="group" aria-label={t("chatTitle", lang)}>
-              {presets.map((p) => {
-                const meta = PRESET_META[p.id];
-                const active = preset === p.id && !custom.trim();
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`btn btn-ghost preset-chip ${active ? "active-preset" : ""}`}
-                    onClick={() => {
-                      setPreset(p.id as "cash_drop" | "cash_negative");
-                      setCustom("");
-                      void ask(p.id as "cash_drop" | "cash_negative");
-                    }}
-                    disabled={busy}
-                    title={p.question}
-                  >
-                    <span className="chat-chip-icon" aria-hidden>
-                      {meta?.icon || "?"}
+          return (
+            <div key={item.id} className="chat-turn">
+              <div className="chat-bubble chat-bubble-user">
+                <div className="chat-chip-row">
+                  {item.kind === "preset" && item.presetId ? (
+                    <span className="chat-chip chat-chip-preset">
+                      <span className="chat-chip-icon" aria-hidden>
+                        {PRESET_META[item.presetId]?.icon || "?"}
+                      </span>
+                      {t("presetUsed", lang)}: {item.presetId}
                     </span>
-                    {p.question}
-                  </button>
-                );
-              })}
-            </div>
-
-            <label className="chat-custom-label">
-              {t("customQuestion", lang)}
-              <div className="chat-input-row">
-                <input
-                  type="text"
-                  value={custom}
-                  onChange={(e) => setCustom(e.target.value)}
-                  placeholder={lang === "fi" ? "Esim. Miksi kassa laski?" : "e.g. Why did cash drop?"}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !busy && custom.trim()) {
-                      e.preventDefault();
-                      void ask(null);
-                    }
-                  }}
-                />
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  onClick={() => void ask(null)}
-                  disabled={busy || !custom.trim()}
-                >
-                  {busy ? t("loading", lang) : t("ask", lang)}
-                </button>
+                  ) : (
+                    <span className="chat-chip chat-chip-custom">
+                      <span className="chat-chip-icon" aria-hidden>
+                        ✎
+                      </span>
+                      {t("customUsed", lang)}
+                    </span>
+                  )}
+                </div>
+                <p>{item.question}</p>
               </div>
-            </label>
+              <div className="chat-bubble chat-bubble-assistant">
+                <pre className="chat-answer">{item.answer}</pre>
+                {sparks.length > 0 && (
+                  <div className="chat-sparks" aria-label={t("figureSparks", lang)}>
+                    {sparks.map((s) => (
+                      <span key={s.label} className="chat-spark">
+                        <span className="chat-spark-dot" aria-hidden />
+                        <span className="chat-spark-label">{s.label}</span>
+                        <strong>{s.value}</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={() => setExpandedFigures((cur) => (cur === item.id ? null : item.id))}
+                >
+                  {expandedFigures === item.id ? t("hideFigures", lang) : t("showFigures", lang)}
+                </button>
+                {expandedFigures === item.id && (
+                  <pre className="json-view">{JSON.stringify(item.figures, null, 2)}</pre>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
 
-            {history.length > 0 && (
-              <button className="btn btn-ghost" type="button" onClick={clearHistory}>
-                {t("clearChat", lang)}
+      <div className="chat-composer">
+        <div className="preset-row" role="group" aria-label={t("suggestedQuestions", lang)}>
+          <p className="muted chat-suggest-label">
+            {t("suggestedQuestions", lang)}
+            {suggestionsBusy ? ` · ${t("loading", lang)}` : ""}
+          </p>
+          {suggestions.map((p) => {
+            const meta = PRESET_META[p.id];
+            return (
+              <button
+                key={`${p.id}-${p.question}`}
+                type="button"
+                className="btn btn-ghost preset-chip"
+                onClick={() => void ask({ suggestion: p })}
+                disabled={busy}
+                title={p.question}
+              >
+                <span className="chat-chip-icon" aria-hidden>
+                  {meta?.icon || "?"}
+                </span>
+                {p.question}
               </button>
-            )}
+            );
+          })}
+        </div>
 
-            {error && <div className="error-banner">{error}</div>}
+        <label className="chat-custom-label">
+          {t("customQuestion", lang)}
+          <div className="chat-input-row">
+            <input
+              type="text"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder={lang === "fi" ? "Esim. Miksi kassa laski?" : "e.g. Why did cash drop?"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !busy && custom.trim()) {
+                  e.preventDefault();
+                  void ask({ freeText: true });
+                }
+              }}
+            />
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => void ask({ freeText: true })}
+              disabled={busy || !custom.trim()}
+            >
+              {busy ? t("loading", lang) : t("ask", lang)}
+            </button>
           </div>
-        </>
-      )}
+        </label>
+
+        {history.length > 0 && (
+          <button className="btn btn-ghost" type="button" onClick={clearHistory}>
+            {t("clearChat", lang)}
+          </button>
+        )}
+
+        {error && <div className="error-banner">{error}</div>}
+      </div>
     </aside>
   );
 }

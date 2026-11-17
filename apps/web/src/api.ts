@@ -185,6 +185,20 @@ export async function listChatPresets(language: "fi" | "en" = "fi") {
   return request<ChatPreset[]>(`/api/chat/presets?language=${language}`);
 }
 
+export async function listChatSuggestions(
+  runId: number,
+  body: {
+    language: "fi" | "en";
+    prior_questions?: string[];
+    limit?: number;
+  },
+) {
+  return request<ChatPreset[]>(`/api/runs/${runId}/chat/suggestions`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function chatOnRun(
   runId: number,
   body: {

@@ -152,8 +152,10 @@ textarea {
   }
 
   .run-chat-sidebar {
-    position: static;
-    max-height: none;
+    position: sticky;
+    top: 4.75rem;
+    height: min(70vh, 560px);
+    max-height: min(70vh, 560px);
   }
 }
 
@@ -459,6 +461,7 @@ textarea {
 .run-chat-sidebar {
   position: sticky;
   top: 4.75rem;
+  height: calc(100vh - 5.5rem);
   max-height: calc(100vh - 5.5rem);
   display: flex;
   flex-direction: column;
@@ -469,6 +472,8 @@ textarea {
   padding: 0.85rem 0.9rem 1rem;
   box-shadow: var(--shadow);
   animation: chat-slide-in 0.35s ease-out;
+  overflow: hidden;
+  align-self: start;
 }
 
 @keyframes chat-slide-in {
@@ -482,16 +487,12 @@ textarea {
   }
 }
 
-.run-chat-sidebar.collapsed {
-  max-height: none;
-  padding-bottom: 0.85rem;
-}
-
 .run-chat-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .run-chat-head h3 {
@@ -505,25 +506,21 @@ textarea {
   font-size: 0.82rem;
 }
 
-.chat-toggle {
-  min-width: 2rem;
-  padding: 0.25rem 0.45rem;
-}
-
 .chat-sidebar-hint {
   margin: 0;
   font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 .chat-thread {
-  flex: 1;
-  overflow: auto;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
   padding: 0.35rem 0.1rem 0.6rem;
-  min-height: 180px;
-  max-height: min(48vh, 420px);
+  min-height: 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -660,6 +657,13 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.chat-suggest-label {
+  width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .chat-custom-label {

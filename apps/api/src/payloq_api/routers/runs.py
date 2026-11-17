@@ -17,6 +17,7 @@ from payloq_api.schemas import (
     ChatPresetOut,
     ChatRequest,
     ChatResponse,
+    ChatSuggestionsRequest,
     GenerateFromTextRequest,
     GeneratePresetRequest,
     OllamaModelOut,
@@ -29,6 +30,7 @@ from payloq_api.services.chat import (
     ensure_journal_artifact,
     resolve_run_chat_llm,
     result_to_dict,
+    suggestions_for_run,
 )
 from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
 from payloq_llm.adapters import list_ollama_models
@@ -152,6 +154,31 @@ def chat_presets(
     language: Literal["fi", "en"] = "fi",
 ) -> list[ChatPresetOut]:
     return [ChatPresetOut(**row) for row in demo_presets_payload(language)]
+
+
+@router.post("/runs/{run_id}/chat/suggestions", response_model=list[ChatPresetOut])
+def chat_suggestions(
+    run_id: int,
+    body: ChatSuggestionsRequest,
+    _: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> list[ChatPresetOut]:
+    """Dynamic follow-ups from prior questions + this run's code figures."""
+    run = session.get(GenerationRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status != "ok" or not run.artifact_dir:
+        raise HTTPException(status_code=400, detail="Run has no usable artifacts")
+    try:
+        rows = suggestions_for_run(
+            run,
+            language=body.language,
+            prior_questions=body.prior_questions,
+            limit=body.limit,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [ChatPresetOut(**row) for row in rows]
 
 
 @router.post("/runs/{run_id}/chat", response_model=ChatResponse)
