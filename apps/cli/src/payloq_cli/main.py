@@ -82,8 +82,8 @@ def generate(
         "small",
         "--company-size",
         help=(
-            "Company size for --from-text: employee count (e.g. 8 or '12 employees') "
-            "or label small/medium (FR-A-02 / FR-A-06)."
+            "Company size for --from-text: employee count (e.g. 8, 420, or '12 employees') "
+            "or label small/medium/large (FR-A-02 / FR-A-06)."
         ),
     ),
     months: int = typer.Option(12, "--months", help="Months of history for --from-text (12–24)."),
