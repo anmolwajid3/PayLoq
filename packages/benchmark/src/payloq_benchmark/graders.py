@@ -105,6 +105,70 @@ def grade_parameters(
     )
 
 
+def grade_parameters_binary(
+    predicted: dict[str, Any],
+    key: dict[str, Any],
+    *,
+    rel_tol: float = 0.05,
+    growth_abs_tol: float = 0.01,
+) -> GradeDetail:
+    """
+    FR-B-11 / FR-B-12: each field correct (1) or wrong (0); score = share correct.
+    """
+    per_field: dict[str, float] = {}
+    correct = 0
+    total = 0
+
+    def _mark(name: str, ok: bool) -> None:
+        nonlocal correct, total
+        total += 1
+        per_field[name] = 1.0 if ok else 0.0
+        if ok:
+            correct += 1
+
+    for k in PARAM_NUMERIC_KEYS:
+        if k not in key:
+            continue
+        if k not in predicted:
+            _mark(k, False)
+            continue
+        try:
+            p, t = float(predicted[k]), float(key[k])
+        except (TypeError, ValueError):
+            _mark(k, False)
+            continue
+        if k == "monthly_revenue_growth":
+            _mark(k, abs(p - t) <= growth_abs_tol)
+        else:
+            denom = max(abs(t), 1e-6)
+            _mark(k, abs(p - t) / denom <= rel_tol)
+
+    pred_shares = predicted.get("cost_shares_of_revenue") or {}
+    key_shares = key.get("cost_shares_of_revenue") or {}
+    if isinstance(key_shares, dict):
+        for k in COST_SHARE_KEYS:
+            if k not in key_shares:
+                continue
+            if not isinstance(pred_shares, dict) or k not in pred_shares:
+                _mark(f"cost_shares.{k}", False)
+                continue
+            t = float(key_shares[k])
+            p = float(pred_shares[k])
+            denom = max(abs(t), 1e-6)
+            _mark(f"cost_shares.{k}", abs(p - t) / denom <= rel_tol)
+
+    if "partly_fixed_costs" in key:
+        ok = bool(predicted.get("partly_fixed_costs")) == bool(key["partly_fixed_costs"])
+        _mark("partly_fixed_costs", ok)
+
+    share = correct / total if total else 0.0
+    return GradeDetail(
+        score=round(share, 4),
+        notes=f"{correct} of {total} fields correct (binary, rel_tol={rel_tol})",
+        per_field=per_field,
+    )
+
+
 def extract_first_number(text: str) -> float | None:
     """Pull the first numeric literal from free text (handles FI/EN decimals)."""
     if not text:

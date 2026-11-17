@@ -1,0 +1,23 @@
+[
+  {
+    "id": "late_payers_ok_cash",
+    "description_en": "Cash is fine but customers pay very late.",
+    "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä.",
+    "expected": {
+      "days_sales_outstanding": 75,
+      "target_cash_at_end_eur": 200000,
+      "monthly_revenue_growth": 0.0,
+      "partly_fixed_costs": false
+    }
+  },
+  {
+    "id": "tight_now_critical_three_weeks",
+    "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+    "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä.",
+    "expected": {
+      "target_cash_at_end_eur": 45000,
+      "partly_fixed_costs": true,
+      "monthly_revenue_growth": 0.0
+    }
+  }
+]

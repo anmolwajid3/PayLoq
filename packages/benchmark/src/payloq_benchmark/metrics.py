@@ -40,6 +40,19 @@ def _sum_optional(a: int | None, b: int | None) -> int | None:
     return (a or 0) + (b or 0)
 
 
+def _rss_mb() -> float | None:
+    try:
+        import resource
+
+        # ru_maxrss is KB on Linux, bytes on macOS — normalize roughly to MB
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if sys.platform == "darwin":
+            return round(rss / (1024 * 1024), 2)
+        return round(rss / 1024.0, 2)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @dataclass
 class HardwareNotes:
     """Portable hardware fingerprint for scorecards (CPU-first PoC)."""
@@ -49,12 +62,15 @@ class HardwareNotes:
     processor: str = field(default_factory=lambda: platform.processor() or platform.machine())
     machine: str = field(default_factory=lambda: platform.machine())
     note: str = "CPU-friendly local workstation (PayLoq PoC)"
+    peak_rss_mb: float | None = field(default_factory=_rss_mb)
+    gpu_note: str | None = "not measured (CPU-first PoC)"
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def short(self) -> str:
-        return f"{self.machine}/{self.processor or 'cpu'} · py{self.python}"
+        mem = f" · rss≈{self.peak_rss_mb}MB" if self.peak_rss_mb is not None else ""
+        return f"{self.machine}/{self.processor or 'cpu'} · py{self.python}{mem}"
 
 
 # Rough local-electricity heuristic — not cloud API pricing.
