@@ -244,6 +244,21 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     dso_weeks = max(1.0, float(params.days_sales_outstanding) / 7.0)
     wc_weekly = (abs(receivables) + abs(payables)) / max(dso_weeks, 4.0)
     weekly_flow = max(10_000.0, last_rev / 3.2, wc_weekly * 0.55)
+    # cash_critical clusters supplier dues into ~one projection week (VR-20 cliff).
+    # When that cliff would exceed VR-08's history-scale ratio, punch one mid-window
+    # settlement step (rebounds next week) so max history delta stays in range —
+    # without inventing CAPEX or driving early history negative.
+    settlement_eur = 0.0
+    if profile == "cash_critical" and abs(payables) > 1.0:
+        from payloq_schemas.constants import PROJECTION_HISTORY_SCALE_RATIO
+
+        # Observed smooth-wave max move is ~0.3× weekly_flow for cash_critical.
+        est_wave_move = max(weekly_flow * 0.3, 1.0)
+        cliff = abs(payables)
+        if cliff > PROJECTION_HISTORY_SCALE_RATIO * est_wave_move:
+            # Size the step so cliff / step <= threshold (with a little margin).
+            settlement_eur = _r(cliff / (PROJECTION_HISTORY_SCALE_RATIO * 0.92))
+            gen_meta["cash_critical_history_settlement_eur"] = settlement_eur
 
     history = _generate_balance_history(
         as_of=as_of,
@@ -255,6 +270,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         first_month=first_month,
         one_off_events=one_offs,
         weekly_flow_eur=weekly_flow,
+        cash_critical_settlement_eur=settlement_eur,
     )
     # Enforce exact link to last month cash (VR-07)
     history[-1] = BalanceHistoryPoint(
@@ -627,6 +643,7 @@ def _generate_balance_history(
     first_month: date | None = None,
     one_off_events: list[OneOffCashEvent] | None = None,
     weekly_flow_eur: float = 8_000.0,
+    cash_critical_settlement_eur: float = 0.0,
 ) -> list[BalanceHistoryPoint]:
     """
     Build 26-week balance history.
@@ -637,6 +654,10 @@ def _generate_balance_history(
 
     ``weekly_flow_eur`` sizes the settlement wave so history week moves stay in the
     same order of magnitude as open-invoice projection weeks (VR-08 scale).
+
+    ``cash_critical_settlement_eur`` adds one mid-window outflow step (then rebound
+    to the base path) so VR-08 scale matches a large purchase cliff without driving
+    early history negative (first crisis stays in the open-invoice projection).
     """
     # Map one-off events → week index (1..weeks)
     event_by_week: dict[int, float] = {}
@@ -656,6 +677,16 @@ def _generate_balance_history(
                 w = int(round(delta_days / 7.0)) + 1
                 w = min(weeks - 1, max(2, w))
             event_by_week[w] = event_by_week.get(w, 0.0) + signed
+
+    # Mid-window settlement pulse for cash_critical vs large payable cliff (VR-08).
+    settlement = max(0.0, float(cash_critical_settlement_eur))
+    if settlement > 0.0:
+        # Keep the punched week solvent so first_negative stays in projection.
+        headroom = max(0.0, float(start_cash) - 12_000.0)
+        settlement = min(settlement, headroom) if headroom > 0 else 0.0
+        if settlement > 0.0:
+            settle_w = min(weeks - 3, max(8, 10 + (seed % 6)))
+            event_by_week[settle_w] = event_by_week.get(settle_w, 0.0) - settlement
 
     flow = max(5_000.0, float(weekly_flow_eur))
     points: list[BalanceHistoryPoint] = []
