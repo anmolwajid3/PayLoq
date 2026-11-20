@@ -184,8 +184,16 @@ def run_from_text(
             with_invoice_texts=True,
         )
         llm_name = llm
-        if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
-            run.llm_fallback_note = adapter.last_fallback_reason
+        params_from_stub = llm == "stub" or (
+            isinstance(adapter, FallbackAdapter)
+            and (adapter.param_extraction_used_fallback or adapter.used_fallback)
+        )
+        if isinstance(adapter, FallbackAdapter) and (
+            adapter.param_extraction_used_fallback or adapter.used_fallback
+        ):
+            run.llm_fallback_note = (
+                adapter.param_extraction_fallback_reason or adapter.last_fallback_reason
+            )
             run.llm_adapter = f"{llm}->stub"
             llm_name = run.llm_adapter
         # Persist the concrete Ollama tag even after stub fallback so chat can reuse it.
@@ -206,6 +214,7 @@ def run_from_text(
             text,
             (pack.input.parameters_from_language_model.model_dump() if pack else {}),
             language=language,
+            params_from_stub=params_from_stub,
         )
         run.artifact_dir = str(out_dir.resolve())
         run.validation_ok = outcome.ok

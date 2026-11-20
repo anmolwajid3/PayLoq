@@ -31,6 +31,20 @@ from payloq_llm.prompts import (
     parameter_extraction_prompt,
     parameter_repair_prompt,
 )
+from payloq_llm.nl_cash_intent import (
+    looks_cash_critical,
+    repair_params_from_nl,
+    suggested_target_cash_eur,
+)
+from payloq_llm.nl_param_hints import (
+    extract_growth_rate,
+    extract_special_investment,
+    looks_bakery,
+    looks_steel_or_manufacturing,
+    repair_investment_and_revenue_from_nl,
+    suggest_revenue_start_eur,
+)
+from payloq_llm.params_coerce import coerce_parameters_dict
 from payloq_llm.stub_texts import stub_invoice_texts
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
@@ -104,9 +118,11 @@ class StubLlmAdapter(LlmAdapter):
             out = self.preset.model_dump()
             self._record(latency_ms=(time.perf_counter() - t0) * 1000, tokens_out=32)
             return out
-        text = f"{description_fi} {description_en}".lower()
+        combined = f"{description_fi} {description_en}"
+        text = combined.lower()
         sid = str(options.get("scenario_id") or "").lower()
         industry = str(options.get("industry") or "").lower()
+        company_size = str(options.get("company_size") or "").lower()
         size_scale = scale_defaults_for_size(str(options.get("company_size") or "small"))
         band = str(size_scale["band"])
         cash_mult = float(size_scale["cash_mult"])
@@ -120,6 +136,8 @@ class StubLlmAdapter(LlmAdapter):
             k in text or k in industry
             for k in ("hotel", "hotelli", "boutique", "adr", "occupancy", "majoitus")
         )
+        bakeryish = looks_bakery(combined, industry)
+        steelish = looks_steel_or_manufacturing(combined, industry)
         winter_collapse = any(
             k in text
             for k in (
@@ -131,57 +149,149 @@ class StubLlmAdapter(LlmAdapter):
                 "collapse",
                 "off-season",
                 "sesongin",
+                "soft in winter",
+                "heikko talvi",
             )
         )
         # Digit-heavy hotel / roof repair heuristics
-        roof_repair = any(k in text for k in ("roof", "hvac", "95", "95,000", "95000", "katto"))
+        roof_repair = any(k in text for k in ("roof", "hvac", "95,000", "95000", "katto"))
+        cash_stressed = sid == "cash_critical" or looks_cash_critical(combined)
+        nl_cash = suggested_target_cash_eur(combined)
+        nl_invest = extract_special_investment(combined)
+        nl_rev = suggest_revenue_start_eur(
+            combined, industry=industry, company_size=company_size
+        )
+        nl_growth = extract_growth_rate(combined)
+        # Track whether cash/invest came from explicit NL (do not re-scale those).
+        cash_from_nl = False
+        invest_from_nl = False
 
-        if sid == "cash_critical" or any(
-            k in text
-            for k in (
-                "kriittinen",
-                "critical",
-                "negatiiv",
-                "kolmen viikon",
-                "three weeks",
-                "cash tight",
-            )
-        ):
-            growth, cash, invest, partly = 0.0, 45_000.0, 80_000.0, True
+        if cash_stressed:
+            # Prefer NL covenant / winter trough / cash figures; never invent healthy 330k.
+            if nl_cash is not None:
+                cash = float(nl_cash)
+                cash_from_nl = True
+            else:
+                cash = 45_000.0
+            # Crush only invented SME-healthy defaults — keep mid-market millions.
+            if not cash_from_nl and cash > 80_000 and band == "small":
+                cash = 45_000.0
+            # Do not invent €80k capex when NL states a different one-off (or none).
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
+                invest_from_nl = True
+            else:
+                invest = 0.0
+            growth, partly = 0.0, True
             notes = "stub: cash_critical heuristic from NL keywords"
         elif sid == "weak" or any(
             k in text for k in ("laskee", "falling", "tappioll", "weak", "heikko")
         ):
-            growth, cash, invest, partly = -0.012, 85_000.0, 70_000.0, True
+            growth, cash, partly = -0.012, 85_000.0, True
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
+                invest_from_nl = True
+            else:
+                invest = 70_000.0
             notes = "stub: weak heuristic from NL keywords"
         else:
             growth, cash, invest, partly = 0.008, 330_000.0, 0.0, False
+            if nl_invest is not None:
+                invest = float(nl_invest[0])
+                invest_from_nl = True
             notes = "stub: good / default heuristic"
 
+        if nl_growth is not None:
+            growth = float(nl_growth)
+        if nl_rev is not None:
+            rev_start = float(nl_rev)
+        if bakeryish:
+            if nl_rev is None:
+                rev_start = 32_000.0 * (
+                    0.85 if "small" in company_size or "pieni" in text else 1.0
+                )
+                rev_start = max(20_000.0, round(rev_start, -3))
+            notes = f"{notes}; bakery industry defaults"
+        if steelish and not bakeryish and not hotelish:
+            notes = f"{notes}; steel/manufacturing industry defaults"
         if hotelish:
-            # Keep hotel base relative to the company-size band (not fixed SME).
-            rev_start = max(40_000.0, rev_start * 0.9)
+            if nl_rev is None:
+                # Keep hotel base relative to the company-size band (not fixed SME).
+                rev_start = max(40_000.0, float(size_scale["monthly_revenue_start_eur"]) * 0.9)
+                if hotelish and band == "small":
+                    rev_start = max(rev_start, 180_000.0)
             notes = f"{notes}; hotel industry defaults"
-            if cash > 60_000 and any(k in text for k in ("tight", "critical", "kriittinen")):
-                cash, invest, partly = 40_000.0, 95_000.0, True
+            if cash_stressed or (
+                cash > 60_000
+                and any(k in text for k in ("tight", "critical", "kriittinen", "covenant", "kovenantti"))
+            ):
+                if nl_cash is not None:
+                    cash = float(nl_cash)
+                    cash_from_nl = True
+                else:
+                    cash = min(cash, 40_000.0)
+                # SME hotel thin-cash only — do not crush mid-market covenant figures.
+                if not cash_from_nl and cash > 80_000 and band == "small":
+                    cash = 40_000.0
+                if nl_invest is None and not invest_from_nl:
+                    invest = max(invest, 95_000.0)
+                partly = True
         if winter_collapse or (hotelish and any(k in text for k in ("winter", "talvi", "off-season"))):
             # Jan..Dec: winter collapse Oct–Mar (indices 9,10,11,0,1,2)
-            factors = [
-                0.30,  # Jan
-                0.30,  # Feb
-                0.35,  # Mar
-                0.70,  # Apr
-                0.90,  # May
-                1.00,  # Jun
-                1.00,  # Jul
-                1.00,  # Aug
-                0.85,  # Sep
-                0.35,  # Oct
-                0.30,  # Nov
-                0.30,  # Dec
-            ]
+            if bakeryish and not hotelish:
+                # Milder winter dip for retail bakery vs hotel occupancy collapse
+                factors = [
+                    0.70,  # Jan
+                    0.70,  # Feb
+                    0.80,  # Mar
+                    0.90,  # Apr
+                    1.00,  # May
+                    1.05,  # Jun
+                    1.05,  # Jul
+                    1.00,  # Aug
+                    0.95,  # Sep
+                    0.80,  # Oct
+                    0.70,  # Nov
+                    0.85,  # Dec (holiday lift)
+                ]
+            else:
+                factors = [
+                    0.30,  # Jan
+                    0.30,  # Feb
+                    0.35,  # Mar
+                    0.70,  # Apr
+                    0.90,  # May
+                    1.00,  # Jun
+                    1.00,  # Jul
+                    1.00,  # Aug
+                    0.85,  # Sep
+                    0.35,  # Oct
+                    0.30,  # Nov
+                    0.30,  # Dec
+                ]
             notes = f"{notes}; winter seasonality factors"
-        if roof_repair or (hotelish and invest >= 80_000):
+            if cash_stressed and nl_cash is not None:
+                cash = float(nl_cash)
+                cash_from_nl = True
+        if nl_invest is not None:
+            invest = float(nl_invest[0])
+            invest_month = int(nl_invest[1])
+            invest_from_nl = True
+            label = "oven_repair" if bakeryish or any(k in text for k in ("oven", "uuni")) else (
+                "roof_repair" if roof_repair or hotelish else (
+                    "capex_line" if steelish else "special_investment"
+                )
+            )
+            one_offs.append(
+                {
+                    "amount_eur": invest,
+                    "month_index": invest_month,
+                    "direction": "out",
+                    "label": label,
+                }
+            )
+            notes = f"{notes}; special investment month {invest_month}"
+        elif roof_repair or (hotelish and invest >= 80_000):
             invest = max(invest, 95_000.0)
             invest_month = 2
             one_offs.append(
@@ -193,13 +303,22 @@ class StubLlmAdapter(LlmAdapter):
                 }
             )
             notes = f"{notes}; special investment month {invest_month}"
+        if nl_cash is not None and cash_stressed:
+            notes = f"{notes}; NL cash/covenant hint {nl_cash:,.0f}"
 
-        # Scale cash / invest off the small-company keyword baselines.
-        cash = round(cash * cash_mult, 2)
-        invest = round(invest * invest_mult, 2)
-        if one_offs:
-            for event in one_offs:
-                event["amount_eur"] = invest
+        # Scale only invented keyword baselines — never multiply explicit NL millions.
+        if not cash_from_nl:
+            cash = round(cash * cash_mult, 2)
+        if not invest_from_nl:
+            invest = round(invest * invest_mult, 2)
+            if one_offs:
+                for event in one_offs:
+                    event["amount_eur"] = invest
+        else:
+            # Keep one-off event amount aligned with the NL figure (no size mult).
+            if one_offs:
+                for event in one_offs:
+                    event["amount_eur"] = invest
         if band != "small":
             notes = f"{notes}; company_size band={band}"
 
@@ -223,6 +342,11 @@ class StubLlmAdapter(LlmAdapter):
             partly_fixed_costs=partly,
         )
         out = params.model_dump()
+        # Defense in depth: same repair path used after live Ollama extraction
+        out, _ = repair_params_from_nl(combined, out)
+        out, _ = repair_investment_and_revenue_from_nl(
+            combined, out, industry=industry, company_size=company_size
+        )
         self.last_raw_output = json.dumps(out, ensure_ascii=False, indent=2)
         self._record(
             latency_ms=(time.perf_counter() - t0) * 1000,
@@ -483,11 +607,14 @@ class OllamaAdapter(LlmAdapter):
         raw = self._chat(prompt, json_mode=True)
         self.last_raw_output = raw
         last_err: Exception | None = None
+        combined = f"{description_fi} {description_en}"
         # FR-A-11 / FR-A-13: retry invalid JSON or out-of-range cost shares up to 2 times
         max_attempts = max(self.max_retries, 2) + 1
         for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
+                # Soft-repair incomplete / euro-level factors before Pydantic (Run #10).
+                data, _ = coerce_parameters_dict(data, combined, options=options)
                 params = validate_model(ParametersFromLanguageModel, data)
                 shares = params.cost_shares_of_revenue.model_dump()
                 if cost_shares_out_of_range(shares):
@@ -497,18 +624,35 @@ class OllamaAdapter(LlmAdapter):
                         "must be within ~0.9–1.0 (FR-A-11)"
                     )
                 self.last_raw_output = raw
-                return params.model_dump()
+                out = params.model_dump()
+                out, _ = repair_params_from_nl(combined, out)
+                out, _ = repair_investment_and_revenue_from_nl(
+                    combined,
+                    out,
+                    industry=str(options.get("industry") or ""),
+                    company_size=str(options.get("company_size") or ""),
+                )
+                return out
             except (ValueError, json.JSONDecodeError) as exc:
                 last_err = exc
                 if attempt >= max_attempts - 1:
                     break
                 raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
                 self.last_raw_output = raw
-        # Accept schema-valid JSON; pipeline clamp_parameters hard-repairs + logs (FR-A-11).
+        # Accept schema-valid JSON after coerce; pipeline clamp_parameters hard-repairs (FR-A-11).
         try:
             data = extract_json_object(raw)
+            data, _ = coerce_parameters_dict(data, combined, options=options)
             params = validate_model(ParametersFromLanguageModel, data)
-            return params.model_dump()
+            out = params.model_dump()
+            out, _ = repair_params_from_nl(combined, out)
+            out, _ = repair_investment_and_revenue_from_nl(
+                combined,
+                out,
+                industry=str(options.get("industry") or ""),
+                company_size=str(options.get("company_size") or ""),
+            )
+            return out
         except (ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError(
                 f"Ollama returned invalid parameters JSON after retries: {last_err or exc}"
@@ -631,6 +775,10 @@ class FallbackAdapter(LlmAdapter):
         self.fallback = fallback or StubLlmAdapter()
         self.last_fallback_reason: str | None = None
         self.used_fallback = False
+        # Sticky: extract_parameters fallback must survive later successful invoice-text calls
+        # so the UI does not claim live Ollama when params actually came from stub.
+        self.param_extraction_used_fallback = False
+        self.param_extraction_fallback_reason: str | None = None
         self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
@@ -641,12 +789,19 @@ class FallbackAdapter(LlmAdapter):
             result = getattr(self.primary, method)(*args, **kwargs)
             self.used_fallback = False
             self.last_fallback_reason = None
+            if method == "extract_parameters":
+                self.param_extraction_used_fallback = False
+                self.param_extraction_fallback_reason = None
             self.last_call_metrics = getattr(self.primary, "last_call_metrics", None)
             self.last_raw_output = getattr(self.primary, "last_raw_output", None)
             return result
         except Exception as exc:  # noqa: BLE001 — intentional soft fallback
+            reason = f"{self.primary.name} failed: {exc}"
             self.used_fallback = True
-            self.last_fallback_reason = f"{self.primary.name} failed: {exc}"
+            self.last_fallback_reason = reason
+            if method == "extract_parameters":
+                self.param_extraction_used_fallback = True
+                self.param_extraction_fallback_reason = reason
             result = getattr(self.fallback, method)(*args, **kwargs)
             self.last_call_metrics = getattr(self.fallback, "last_call_metrics", None)
             self.last_raw_output = getattr(self.fallback, "last_raw_output", None)
@@ -807,7 +962,16 @@ def input_from_text(
 
     opts = options or default_options_from_text(language=language)
     params = adapter.extract_parameters(description_fi, description_en, opts)
-    validated = validate_model(ParametersFromLanguageModel, params)
+    # Repair absurd targets / wrong scale after live/stub extraction.
+    combined = f"{description_fi} {description_en}"
+    repaired, _ = repair_params_from_nl(combined, params)
+    repaired, _ = repair_investment_and_revenue_from_nl(
+        combined,
+        repaired,
+        industry=str(opts.get("industry") or ""),
+        company_size=str(opts.get("company_size") or ""),
+    )
+    validated = validate_model(ParametersFromLanguageModel, repaired)
 
     invoice_texts: InvoiceDescriptiveTexts | None = None
     if with_invoice_texts:
@@ -823,8 +987,15 @@ def input_from_text(
         )
 
     note = f"parameters via {adapter.name} adapter"
-    if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
-        note = f"{note}; {adapter.last_fallback_reason}"
+    if isinstance(adapter, FallbackAdapter) and (
+        adapter.param_extraction_used_fallback or adapter.used_fallback
+    ):
+        reason = (
+            adapter.param_extraction_fallback_reason
+            or adapter.last_fallback_reason
+            or "primary adapter failed"
+        )
+        note = f"{note}; {reason}"
 
     return GeneratorInput(
         meta=ScenarioMeta(fictional=True, note=note),

@@ -18,13 +18,13 @@ Schema is **free to evolve**. Figures are owned by code; the LLM only supplies p
 
 | Field | Role | Notes |
 | --- | --- | --- |
-| `monthly_revenue_start_eur` | Typical monthly revenue | Clipped 20k–2M |
+| `monthly_revenue_start_eur` | Typical monthly revenue | Clipped 20k–10M (mid-market / large) |
 | `monthly_revenue_growth` | MoM growth rate | −10% … +5% |
 | `cost_shares_of_revenue` | materials/services/personnel/other | Each 0–1; **sum must be ~0.9–1.0** |
 | `monthly_revenue_factors` | 12 floats Jan–Dec | Seasonality (e.g. winter 0.3, summer 1.0); applied to monthly revenue |
-| `special_investment_eur` / `special_investment_month` | Capex / roof repair | 1-based month index (default 2); raises FA + cash outflow |
+| `special_investment_eur` / `special_investment_month` | Capex / roof repair | 1-based month index (default 2); raises FA + cash outflow; clipped 0–10M |
 | `one_off_events` | `[{amount_eur, month_index, direction, label}]` | Structured in/out cash events |
-| `target_cash_at_end_eur` | Ending-cash target | Drives dynamics; last cash is **not** forced exact equality (see `run_log.ending_cash`) |
+| `target_cash_at_end_eur` | Ending-cash target | Drives dynamics; clipped −50k–5M; last cash is **not** forced exact equality (see `run_log.ending_cash`) |
 | `days_sales_outstanding` / `days_payables_outstanding` | Payment terms | 14–90 |
 
 Optional `invoice_texts` (`InvoiceDescriptiveTexts`):
