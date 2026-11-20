@@ -367,33 +367,8 @@ def check_stated_values(
                 )
             )
 
-    # Also ground non-null numeric parameters marked stated via presence in params
-    # when they carry a real value but were not listed in stated (weak models).
-    for field_name in _NUMERIC_STATED_FIELDS:
-        if field_name in stated or field_name in skip_numeric:
-            continue
-        raw = _resolve_param_value(parameters, field_name)
-        if raw is None or raw == "":
-            continue
-        try:
-            val = float(raw)
-        except (TypeError, ValueError):
-            continue
-        if abs(val) < 1e-12:
-            continue
-        if not value_appears_in_description(
-            val, description, field=field_name, numbers=numbers
-        ):
-            issues.append(
-                StatedIssue(
-                    field=field_name,
-                    message=(
-                        f"value {val} does not appear in the description after "
-                        f"parsing units (k, M, %, €); description amounts sample="
-                        f"{sorted(set(round(a, 2) for a in numbers))[:12]}"
-                    ),
-                )
-            )
+    # Unstated non-null invents are cleaned to null upstream; only fields listed
+    # in ``stated`` (or aliases resolved above) are hard-grounded here.
 
     return StatedCheckResult(ok=not issues, issues=issues)
 
@@ -442,21 +417,30 @@ def clean_extraction_output(
             val = float(raw)
         except (TypeError, ValueError):
             continue
+        appears = value_appears_in_description(
+            val, description, field=key, numbers=numbers
+        )
+        listed = key in stated_out or any(
+            B_TO_ENGINE.get(s) == key or ENGINE_TO_B.get(s) == key or s == key
+            for s in stated_out
+        )
         if abs(val) < 1e-12:
             # Zero for a field the description does not mention → null.
-            if not value_appears_in_description(
-                val, description, field=key, numbers=numbers
-            ):
-                # 0 rarely "appears" unless literally written; treat unmentioned 0 as null.
-                # Also null when description has no literal 0 for this field.
-                has_literal_zero = bool(
-                    re.search(r"(?<![\d.,])0(?:\.0+)?(?![\d])", description or "")
-                )
-                if not has_literal_zero:
-                    warnings.append(
-                        f"{key}: unmentioned zero cleaned to null"
-                    )
-                    out[key] = None
+            has_literal_zero = bool(
+                re.search(r"(?<![\d.,])0(?:\.0+)?(?![\d])", description or "")
+            )
+            if not has_literal_zero and not appears:
+                warnings.append(f"{key}: unmentioned zero cleaned to null")
+                out[key] = None
+            continue
+        # Invented non-zero not listed in stated and absent from description → null
+        # (do not fail the run; code will assume). Values listed in stated are
+        # grounded separately and may fail.
+        if not listed and not appears and key in _NUMERIC_STATED_FIELDS:
+            warnings.append(
+                f"{key}: value {val} not in description and not stated — cleaned to null"
+            )
+            out[key] = None
 
     # one_off_events: clean bracketed amount strings
     events = out.get("one_off_events")
