@@ -11,7 +11,9 @@ from typing import Any
 
 from payloq_schemas.constants import (
     FORBIDDEN_TEXT_WORDS,
+    HISTORY_LATE_NEG_WEEK,
     MONEY_TOLERANCE_EUR,
+    PROJECTION_EARLY_NEG_WEEK,
     PROJECTION_HISTORY_SCALE_RATIO,
     VAT_RATE_FI,
 )
@@ -357,9 +359,9 @@ def _check_cash(
                     },
                 )
 
-    # VR-08 related: warn when projection week moves wildly diverge from history scale
-    # (e.g. history ±30–90k vs projection ±400k). Usually open-invoice stock vs
-    # smoothed history — not a unit bug — but worth flagging for review.
+    # VR-08 related: projection week moves must stay within ~5x of history week moves.
+    # Severe mismatch (>PROJECTION_HISTORY_SCALE_RATIO) is blocking — generator should
+    # size history settlement waves and stagger invoice dues so scales agree.
     if len(cash.balance_history) >= 2 and cash.projection_from_open_invoices:
         hist_deltas = [
             abs(cash.balance_history[i].balance - cash.balance_history[i - 1].balance)
@@ -372,21 +374,52 @@ def _check_cash(
         max_hist = max(hist_deltas) if hist_deltas else 0.0
         max_proj = max(proj_deltas) if proj_deltas else 0.0
         if max_hist > 1.0 and max_proj > PROJECTION_HISTORY_SCALE_RATIO * max_hist:
+            ratio = max_proj / max_hist
             result.add(
                 "projection_history_scale",
                 (
-                    f"Projection weekly cash moves (max {max_proj:,.0f} €) diverge "
-                    f">{PROJECTION_HISTORY_SCALE_RATIO:.0f}× from history week moves "
-                    f"(max {max_hist:,.0f} €). Open-invoice stock may dwarf smoothed history."
+                    f"Projection weekly cash moves (max {max_proj:,.0f} EUR) diverge "
+                    f"{ratio:.0f}x from history week moves "
+                    f"(max {max_hist:,.0f} EUR); blocking when >"
+                    f"{PROJECTION_HISTORY_SCALE_RATIO:.0f}x."
                 ),
-                severity="warning",
+                severity="error",
                 rule_id="VR-08",
                 numbers={
                     "max_projection_week_move_eur": max_proj,
                     "max_history_week_move_eur": max_hist,
-                    "ratio": round(max_proj / max_hist, 2) if max_hist else None,
+                    "ratio": round(ratio, 2),
+                    "threshold": PROJECTION_HISTORY_SCALE_RATIO,
                 },
             )
+
+        # Timing: late history crisis (e.g. week ~20) must not coexist with an early
+        # open-invoice projection crash (week <=4) — contradictory cash stories.
+        neg_hist_weeks = [p.week for p in cash.balance_history if p.balance < 0]
+        neg_proj_weeks = [
+            w.week for w in cash.projection_from_open_invoices if w.projected_balance < 0
+        ]
+        if neg_hist_weeks and neg_proj_weeks:
+            first_hist = min(neg_hist_weeks)
+            first_proj = min(neg_proj_weeks)
+            if (
+                first_hist >= HISTORY_LATE_NEG_WEEK
+                and first_proj <= PROJECTION_EARLY_NEG_WEEK
+            ):
+                result.add(
+                    "projection_history_timing",
+                    (
+                        f"Projection goes negative in week {first_proj} but balance "
+                        f"history first turns negative in week {first_hist}; "
+                        "severe early-vs-late timing mismatch."
+                    ),
+                    severity="error",
+                    rule_id="VR-08",
+                    numbers={
+                        "first_negative_projection_week": first_proj,
+                        "first_negative_history_week": first_hist,
+                    },
+                )
 
 
 def _check_invoices(cash: CashAndInvoices, result: ValidationResult) -> None:
@@ -621,6 +654,19 @@ def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
                     rule_id="VR-20",
                     numbers={"first_negative_week": first},
                 )
+        # Near-term open-invoice projection must stay solvent (crisis is history week ~20).
+        early_neg_proj = [w.week for w in proj if w.projected_balance < 0 and w.week <= 4]
+        if early_neg_proj:
+            result.add(
+                "behaviour_later_critical_early_proj",
+                (
+                    f"cash_turning_critical_later projection turns negative in week "
+                    f"{min(early_neg_proj)} (expected non-negative near term; "
+                    "history carries the ~week-20 crisis)"
+                ),
+                rule_id="VR-20",
+                numbers={"first_negative_projection_week": min(early_neg_proj)},
+            )
 
 
 def _check_answer_key(
