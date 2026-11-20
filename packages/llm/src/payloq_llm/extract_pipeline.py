@@ -20,6 +20,7 @@ from payloq_llm.stated_checks import (
     map_b_parameters_to_engine,
     normalize_stated_map,
 )
+from payloq_schemas.field_map import b_to_engine_from_map
 from payloq_schemas.models import ParametersFromLanguageModel
 from payloq_schemas.scenario_shape_ranges import profile_for_shape
 
@@ -80,9 +81,12 @@ def finalize_extracted_parameters(
         scenario_shape = "cash_critical"
     parameters = dict(envelope.get("parameters") or {})
     stated = normalize_stated_map(envelope.get("stated") or {}, parameters)
-    # Options fields echo request config, not extractable NL params — never keep in
-    # stated/field_quotes (also keeps same-seed H8 input.json byte-stable).
+    # Options fields echo request config in field_quotes (H8 stability) but their
+    # stated values are kept in stated_values for generic field-map fidelity.
+    option_stated_values: dict[str, Any] = {}
     for opt_key in ("industry", "company_size"):
+        if opt_key in stated and parameters.get(opt_key) not in (None, ""):
+            option_stated_values[opt_key] = parameters[opt_key]
         stated.pop(opt_key, None)
 
     # TC-ABC item 3: clean before validation.
@@ -135,15 +139,8 @@ def finalize_extracted_parameters(
     parameters, conv_changes = apply_annual_to_monthly(parameters)
     engine = map_b_parameters_to_engine(parameters)
 
-    stated_values: dict[str, Any] = {}
-    b_to_eng = {
-        "revenue_monthly_eur": "monthly_revenue_start_eur",
-        "growth_per_month_fraction": "monthly_revenue_growth",
-        "dso_days": "days_sales_outstanding",
-        "dpo_days": "days_payables_outstanding",
-        "covenant_min_cash_eur": "covenant_min_cash_eur",
-        "starting_cash_eur": "starting_cash_eur",
-    }
+    stated_values: dict[str, Any] = dict(option_stated_values)
+    b_to_eng = b_to_engine_from_map()
     for b_name in stated:
         if b_name in parameters and parameters[b_name] is not None:
             stated_values[b_name] = parameters[b_name]
@@ -151,6 +148,10 @@ def finalize_extracted_parameters(
         if eng in engine and engine[eng] is not None:
             stated_values[eng] = engine[eng]
             stated_values[b_name] = engine[eng]
+    if "one_off_events" in stated and parameters.get("one_off_events") is not None:
+        stated_values["one_off_events"] = parameters.get("one_off_events")
+        if engine.get("one_off_events") is not None:
+            stated_values["one_off_events"] = engine.get("one_off_events")
 
     resolved_industry = parameters.get("industry") or industry
     resolved_size = parameters.get("company_size") or company_size

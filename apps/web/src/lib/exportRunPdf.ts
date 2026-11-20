@@ -3,7 +3,8 @@ import autoTable from "jspdf-autotable";
 import type { Run } from "../api";
 import type { Lang } from "../i18n";
 import { t } from "../i18n";
-import { fmtEur, fmtNum, fmtPct } from "./format";
+import { fmtEur } from "./format";
+import { resolveFieldSummary } from "./fieldSummary";
 
 type Series = { label: string; values: number[]; color: [number, number, number] };
 
@@ -165,12 +166,6 @@ function drawLineChart(
   return ly + 8;
 }
 
-function numParam(params: Record<string, unknown> | undefined, key: string): number | null {
-  if (!params || params[key] == null) return null;
-  const n = Number(params[key]);
-  return Number.isFinite(n) ? n : null;
-}
-
 /**
  * Build a standalone PDF summary for a completed run.
  * Charts are drawn as vector polylines from pack_summary data (no DOM capture).
@@ -280,52 +275,16 @@ export function buildRunPdf(run: Run, lang: Lang): jsPDF {
     y = bodyText(doc, fromText, y);
   }
 
-  // Extracted parameters
-  if (params) {
+  // Extracted parameters — every field-map row (generic display).
+  const fieldRows = resolveFieldSummary(summary, lang);
+  if (fieldRows.length || params) {
     y = sectionTitle(doc, t("extractedParams", lang), y);
-    const paramRows: string[][] = [];
-    const revStart = numParam(params, "monthly_revenue_start_eur");
-    const growth = numParam(params, "monthly_revenue_growth");
-    const target = numParam(params, "target_cash_at_end_eur");
-    const invest = numParam(params, "special_investment_eur");
-    const investMonth = numParam(params, "special_investment_month");
-    const dso = numParam(params, "days_sales_outstanding");
-    const dpo = numParam(params, "days_payables_outstanding");
+    const paramRows: string[][] = fieldRows.map((row) => {
+      const src = row.source ? ` (${row.source})` : "";
+      return [row.label, `${row.display}${src}`];
+    });
 
-    if (revStart != null) paramRows.push([t("revenueStart", lang), fmtEur(revStart, lang)]);
-    if (growth != null) paramRows.push([t("growth", lang), fmtPct(growth, lang)]);
-    if (target != null) paramRows.push([t("targetCash", lang), fmtEur(target, lang)]);
-    if (invest != null) paramRows.push([t("investment", lang), fmtEur(invest, lang)]);
-    if (investMonth != null) {
-      paramRows.push([t("investmentMonth", lang), String(Math.round(investMonth))]);
-    }
-    if (dso != null) paramRows.push([`DSO (${t("days", lang)})`, fmtNum(dso, lang, 0)]);
-    if (dpo != null) paramRows.push([`DPO (${t("days", lang)})`, fmtNum(dpo, lang, 0)]);
-
-    const costShares = params.cost_shares_of_revenue;
-    if (costShares && typeof costShares === "object") {
-      const parts = Object.entries(costShares as Record<string, unknown>)
-        .map(([k, v]) => `${k}: ${fmtPct(Number(v) || 0, lang)}`)
-        .join("; ");
-      if (parts) paramRows.push([t("costShares", lang), parts]);
-    }
-
-    const oneOffs = params.one_off_events;
-    if (Array.isArray(oneOffs) && oneOffs.length) {
-      const parts = oneOffs
-        .map((ev) => {
-          const e = ev as Record<string, unknown>;
-          const amt = Number(e.amount_eur) || 0;
-          const dir = String(e.direction || "outflow");
-          const mi = e.month_index != null ? `M${e.month_index}` : "";
-          const label = e.label ? String(e.label) : "";
-          return [label, mi, dir, fmtEur(amt, lang)].filter(Boolean).join(" ");
-        })
-        .join("; ");
-      if (parts) paramRows.push([t("oneOffEvents", lang), parts]);
-    }
-
-    if (params.notes != null && String(params.notes).trim()) {
+    if (params?.notes != null && String(params.notes).trim()) {
       paramRows.push([t("paramNotes", lang), String(params.notes)]);
     }
 

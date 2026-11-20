@@ -70,6 +70,21 @@ Scope: Task A generator only. Benchmark (Task B) and chat demo kept, with **labe
 | `packages/validate/src/payloq_validate/checks.py` | `validate_pack` | Consistency + fidelity blocking; `projection_history_scale` warning only. |
 | `packages/validate/src/payloq_validate/fidelity.py` | `check_fidelity` | Blocking stated-value match. |
 
+## F2. Generic field map (fidelity + Run summary)
+
+One config table drives every extraction-schema field → `input.json` location, Run summary label, and fidelity rule. No test-/description-specific branches; no hard-coded example amounts.
+
+| File | Function / symbol | Change |
+| --- | --- | --- |
+| `packages/schemas/.../field_map.json` | **new** config | Rows for every section-B parameter (`revenue_monthly_eur`, `starting_cash_eur`, `covenant_min_cash_eur`, growth, DSO/DPO, `one_off_events` amount/month/direction, industry, company_size, …). |
+| `packages/schemas/.../field_map.py` | `load_field_map`, `build_field_summary_rows` | Load map; build summary rows; B↔engine helpers from map. |
+| `packages/validate/.../fidelity.py` | `check_fidelity` | Loops **only** over map rows; mismatch / missing output → `error` naming field + stated + output. |
+| `packages/llm/.../extract_pipeline.py` | `finalize_extracted_parameters` | `stated_values` / B→engine from map; keep industry/company_size in `stated_values` for fidelity. |
+| `packages/llm/.../assume.py` | `apply_assumed_defaults` | Covenant↔target mirror sets `field_sources` (`assumed` when unstated). |
+| `apps/api/.../generate.py` | `_pack_summary` | Adds `field_summary` from the map. |
+| `apps/web/.../fieldSummary.ts` + RunDetail / PDF / ArtifactViewer | display | Run summary renders every map row under that row’s label only. |
+| `tests/test_generic_field_map.py` | property tests | Random per-field / swap / mutate / unstated cases (no fixed example values). |
+
 ## G. Removals (finish)
 
 | File | Function / symbol | Change |

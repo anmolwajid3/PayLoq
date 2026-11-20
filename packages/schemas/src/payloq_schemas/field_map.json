@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "description": "Single config table: every section-B extraction schema field → input.json location, Run summary label, fidelity rule. No per-test or per-description branches.",
+  "fields": [
+    {
+      "input_name": "revenue_monthly_eur",
+      "output_location": "parameters_from_language_model.monthly_revenue_start_eur",
+      "display_label": {
+        "en": "Monthly revenue",
+        "fi": "Kuukausiliikevaihto"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "eur",
+      "engine_keys": ["monthly_revenue_start_eur", "revenue_monthly_eur"]
+    },
+    {
+      "input_name": "revenue_annual_eur",
+      "output_location": "parameters_from_language_model.revenue_annual_eur",
+      "display_label": {
+        "en": "Annual revenue",
+        "fi": "Vuosiliikevaihto"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "eur",
+      "engine_keys": ["revenue_annual_eur"]
+    },
+    {
+      "input_name": "growth_per_month_fraction",
+      "output_location": "parameters_from_language_model.monthly_revenue_growth",
+      "display_label": {
+        "en": "Growth per month",
+        "fi": "Kasvu / kk"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "fraction",
+      "engine_keys": ["monthly_revenue_growth", "growth_per_month_fraction"]
+    },
+    {
+      "input_name": "starting_cash_eur",
+      "output_location": "parameters_from_language_model.starting_cash_eur",
+      "display_label": {
+        "en": "Starting cash",
+        "fi": "Alkukassa"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "eur",
+      "engine_keys": ["starting_cash_eur"]
+    },
+    {
+      "input_name": "covenant_min_cash_eur",
+      "output_location": "parameters_from_language_model.covenant_min_cash_eur",
+      "display_label": {
+        "en": "Covenant (bank minimum cash)",
+        "fi": "Kovenantti (pankin minimikassa)"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "eur",
+      "engine_keys": ["covenant_min_cash_eur", "target_cash_at_end_eur"]
+    },
+    {
+      "input_name": "dso_days",
+      "output_location": "parameters_from_language_model.days_sales_outstanding",
+      "display_label": {
+        "en": "DSO",
+        "fi": "DSO"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "days",
+      "engine_keys": ["days_sales_outstanding", "dso_days"]
+    },
+    {
+      "input_name": "dpo_days",
+      "output_location": "parameters_from_language_model.days_payables_outstanding",
+      "display_label": {
+        "en": "DPO",
+        "fi": "DPO"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "days",
+      "engine_keys": ["days_payables_outstanding", "dpo_days"]
+    },
+    {
+      "input_name": "one_off_events",
+      "output_location": "parameters_from_language_model.one_off_events",
+      "display_label": {
+        "en": "One-off events",
+        "fi": "Kertaluonteiset tapahtumat"
+      },
+      "fidelity_rule": "one_off_events",
+      "format": "one_off_events",
+      "components": ["amount_eur", "month_index", "direction"],
+      "engine_keys": ["one_off_events", "special_investment_eur", "special_investment_month"]
+    },
+    {
+      "input_name": "industry",
+      "output_location": "options.industry",
+      "display_label": {
+        "en": "Industry",
+        "fi": "Toimiala"
+      },
+      "fidelity_rule": "exact_string",
+      "format": "text",
+      "engine_keys": ["industry"]
+    },
+    {
+      "input_name": "company_size",
+      "output_location": "options.company_size",
+      "display_label": {
+        "en": "Company size",
+        "fi": "Yrityksen koko"
+      },
+      "fidelity_rule": "exact_string",
+      "format": "text",
+      "engine_keys": ["company_size"]
+    }
+  ]
+}

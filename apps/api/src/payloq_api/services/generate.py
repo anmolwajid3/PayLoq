@@ -19,6 +19,7 @@ from payloq_llm.adapters import (
 )
 from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
 from payloq_llm.nl_quality import assess_nl_params
+from payloq_schemas.field_map import build_field_summary_rows
 from payloq_schemas.models import GeneratorInput, ScenarioPack
 
 
@@ -32,6 +33,9 @@ def _pack_summary(
     last = months[-1] if months else None
     projection = cash.projection_from_open_invoices
     params = pack.input.parameters_from_language_model
+    options = pack.input.options.model_dump()
+    lang = getattr(pack.input.options, "language", None) or "fi"
+    params_dict = params.model_dump()
     return {
         "scenario": pack.input.options.scenario_id or pack.input.meta.scenario,
         "months": len(months),
@@ -54,9 +58,13 @@ def _pack_summary(
             for w in projection
         ],
         "description": pack.input.scenario_description.model_dump(),
-        "language": getattr(pack.input.options, "language", None) or "fi",
-        "options": pack.input.options.model_dump(),
-        "parameters": params.model_dump(),
+        "language": lang,
+        "options": options,
+        "parameters": params_dict,
+        # Driven solely by packages/schemas/.../field_map.json (generic display).
+        "field_summary": build_field_summary_rows(
+            params=params_dict, options=options, lang=str(lang)
+        ),
         "nl_soft_warnings": nl_soft_warnings or [],
     }
 
