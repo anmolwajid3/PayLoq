@@ -71,7 +71,7 @@ def drop_incomplete_one_off_events(
         if event_type in {"capex", "capital_expenditure", "investment"} and (
             direction is None or direction == ""
         ):
-            direction = "out"
+            direction = "outflow"
             event_type = "capex"
         missing = [
             name
@@ -123,9 +123,9 @@ def drop_incomplete_one_off_events(
             continue
         direction_s = str(direction).strip().lower()
         if direction_s in {"inflow", "in"}:
-            direction_s = "in"
+            direction_s = "inflow"
         elif direction_s in {"outflow", "out"}:
-            direction_s = "out"
+            direction_s = "outflow"
         else:
             changes.append(
                 {
@@ -139,7 +139,7 @@ def drop_incomplete_one_off_events(
             continue
         if event_type in {"capex", "capital_expenditure", "investment"}:
             event_type = "capex"
-            direction_s = "out"
+            direction_s = "outflow"
         cleaned.append(
             {
                 "type": event_type,
@@ -201,7 +201,7 @@ def apply_assumed_defaults(
         sources.setdefault("one_off_events", "stated")
         if out.get("special_investment_eur") in (None, "", 0, 0.0):
             for ev in cleaned_events:
-                direction = str(ev.get("direction") or "out").lower()
+                direction = str(ev.get("direction") or "outflow").lower()
                 if direction in {"out", "outflow"} and ev.get("amount_eur"):
                     out["special_investment_eur"] = float(ev["amount_eur"])
                     out["special_investment_month"] = int(ev.get("month_index") or 2)

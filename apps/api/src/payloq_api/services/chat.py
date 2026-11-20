@@ -18,7 +18,6 @@ from payloq_llm.defaults import DEFAULT_OLLAMA_HOST, DEFAULT_OLLAMA_MODEL
 from payloq_schemas.models import (
     CashAndInvoices,
     GeneratorInput,
-    JournalEntries,
     MonthlyReports,
     ScenarioPack,
 )
@@ -65,15 +64,6 @@ def load_pack_from_run(run: GenerationRun) -> ScenarioPack:
             (root / "cash_and_invoices.json").read_text(encoding="utf-8")
         ),
     )
-    journal_path = root / "journal_entries.json"
-    if journal_path.is_file():
-        pack = pack.model_copy(
-            update={
-                "journal_entries": JournalEntries.model_validate_json(
-                    journal_path.read_text(encoding="utf-8")
-                )
-            }
-        )
     return pack
 
 
@@ -131,26 +121,19 @@ def suggestions_for_run(
 
 
 def result_to_dict(result: ChatDemoResult, *, llm_model: str | None = None) -> dict[str, Any]:
+    adapter = result.llm_adapter or ""
+    # Labelling: stub answers never carry a model name.
+    if adapter == "stub" or adapter.endswith("->stub") or adapter.startswith("stub"):
+        adapter = "stub"
+        llm_model = None
     return {
         "question": result.question,
         "answer": result.answer,
         "figures": result.figures,
         "preset": result.preset,
-        "llm_adapter": result.llm_adapter,
+        "llm_adapter": adapter,
         "llm_model": llm_model,
         "fallback_note": result.fallback_note,
         "metrics": result.metrics,
     }
 
-
-def ensure_journal_artifact(run: GenerationRun) -> Path:
-    """Build journal_entries.json for an existing run if missing."""
-    from payloq_generator.journal import build_journal_entries
-
-    pack = load_pack_from_run(run)
-    if pack.journal_entries is None:
-        pack = pack.model_copy(update={"journal_entries": build_journal_entries(pack)})
-    assert run.artifact_dir
-    path = Path(run.artifact_dir) / "journal_entries.json"
-    path.write_text(pack.journal_entries.model_dump_json(indent=2) + "\n", encoding="utf-8")
-    return path

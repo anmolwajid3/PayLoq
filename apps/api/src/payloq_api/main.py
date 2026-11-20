@@ -28,7 +28,7 @@ app = FastAPI(
     title="PayLoq API",
     description=(
         "Research PoC — browse scenarios, generate packs, chat demo over figures, "
-        "optional journal entries."
+        "synthetic financial packs."
     ),
     version="0.1.0",
     lifespan=lifespan,

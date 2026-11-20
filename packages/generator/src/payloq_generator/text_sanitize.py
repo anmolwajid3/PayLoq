@@ -23,7 +23,7 @@ def _fix(text: str, fallback: str) -> str:
 
 
 def sanitize_invoice_texts_for_pack(texts: InvoiceDescriptiveTexts) -> InvoiceDescriptiveTexts:
-    """Strip digits from LLM/stub invoice texts; replace bad entries with FI stubs."""
+    """Strip digits from LLM/default invoice texts; replace bad entries with FI defaults."""
     sales_cp_fb = list(SALES_COUNTERPARTIES_FI)
     purch_cp_fb = list(PURCHASE_COUNTERPARTIES_FI)
     sales_desc_fb = list(SALES_DESCRIPTIONS_FI)

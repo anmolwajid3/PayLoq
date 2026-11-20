@@ -344,7 +344,9 @@ def check_one_off_events(
                 )
             )
         direction = str(ev.get("direction") or "").strip().lower()
-        if direction not in {"inflow", "outflow", "in", "out"}:
+        if direction in {"in", "out"}:
+            direction = "inflow" if direction == "in" else "outflow"
+        if direction not in {"inflow", "outflow"}:
             issues.append(
                 StatedIssue(
                     field=f"one_off_events[{i}].direction",
@@ -399,9 +401,9 @@ def map_b_parameters_to_engine(parameters: dict[str, Any]) -> dict[str, Any]:
                 continue
             direction = str(ev.get("direction") or "outflow").strip().lower()
             if direction in {"out", "outflow"}:
-                direction = "out"
+                direction = "outflow"
             elif direction in {"in", "inflow"}:
-                direction = "in"
+                direction = "inflow"
             mapped.append(
                 {
                     "type": ev.get("type") or "other",
@@ -414,7 +416,7 @@ def map_b_parameters_to_engine(parameters: dict[str, Any]) -> dict[str, Any]:
         out["one_off_events"] = mapped
         # Mirror first outflow into special_investment_* for the engine.
         for ev in mapped:
-            if ev.get("direction") == "out" and ev.get("amount_eur"):
+            if ev.get("direction") == "outflow" and ev.get("amount_eur"):
                 out["special_investment_eur"] = float(ev["amount_eur"])
                 out["special_investment_month"] = int(ev.get("month_index") or 2)
                 break

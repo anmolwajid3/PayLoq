@@ -43,7 +43,7 @@ RUN22_RAW_OMITTED = {
             "type": "capex",
             "amount_eur": 80_000,
             "month_index": 3,
-            "direction": "out",
+            "direction": "outflow",
         }
     ],
     "notes": "run22 ollama omit starting_cash",

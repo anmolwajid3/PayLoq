@@ -34,7 +34,6 @@ def run_generation(
     seed: int = 42,
     max_seed_attempts: int = 3,
     write_xlsx: bool = True,
-    write_journal: bool = False,
     raw_llm_output: str | None = None,
     llm_name: str | None = None,
     clamp: bool = True,
@@ -49,12 +48,11 @@ def run_generation(
     Special case: ``invoices_out_of_balance`` is deliberately broken (TEST_ONLY_BROKEN):
     validation MUST fail VR-05; files are still written and labelled.
 
-    Pilot fix: no keyword NL repair; no journal; fidelity is blocking with consistency.
+    Pilot fix: no keyword NL repair; fidelity is blocking with consistency.
     """
     out_dir = Path(out_dir)
     working = inp.model_copy(deep=True)
     clips: list[dict[str, Any]] = []
-    # Keyword NL repair removed from pipeline (pilot fix §G).
     if clamp:
         clamped, clamp_clips = clamp_parameters(working.parameters_from_language_model)
         working.parameters_from_language_model = clamped
@@ -104,7 +102,6 @@ def run_generation(
                     pack,
                     out_dir,
                     write_xlsx=write_xlsx,
-                    write_journal=write_journal,
                     seed=seed_used,
                     raw_llm_output=raw_llm_output,
                     llm_name=llm_name,
@@ -134,7 +131,6 @@ def run_generation(
                 pack,
                 out_dir,
                 write_xlsx=write_xlsx,
-                write_journal=write_journal,
                 seed=seed_used,
                 raw_llm_output=raw_llm_output,
                 llm_name=llm_name,
@@ -161,7 +157,6 @@ def run_generation(
             last_pack,
             out_dir,
             write_xlsx=False,
-            write_journal=False,
             seed=seed_used,
             raw_llm_output=raw_llm_output,
             llm_name=llm_name,

@@ -54,7 +54,7 @@ RUN25_WEAK_LLM = {
     "special_investment_eur": 180_000,  # wrong: stole revenue as CAPEX
     "special_investment_month": 1,
     "one_off_events": [
-        {"type": "capex", "amount_eur": 180_000, "month_index": 1, "direction": "out"}
+        {"type": "capex", "amount_eur": 180_000, "month_index": 1, "direction": "outflow"}
     ],
     "notes": "weak ollama invent",
     "partly_fixed_costs": None,
@@ -74,7 +74,7 @@ def test_extract_stated_params_run25_en() -> None:
     assert stated["special_investment_month"] == 3
     assert stated["one_off_events"][0]["amount_eur"] == pytest.approx(80_000)
     assert stated["one_off_events"][0]["month_index"] == 3
-    assert stated["one_off_events"][0]["direction"] == "out"
+    assert stated["one_off_events"][0]["direction"] == "outflow"
     assert stated["field_sources"]["starting_cash_eur"] == "stated"
     assert stated["field_sources"]["special_investment_eur"] == "stated"
 

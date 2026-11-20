@@ -105,8 +105,7 @@ def test_h1_vague_ok_cash_negative_around_week3(tmp_path: Path):
         tmp_path / "h1",
         seed=42,
         write_xlsx=False,
-        write_journal=False,
-        llm_name="ollama",
+                llm_name="ollama",
         raw_llm_output=adapter.last_raw_output,
     )
     params = inp.parameters_from_language_model.model_dump()
@@ -146,7 +145,7 @@ def test_h2_fully_stated_exact_fields(tmp_path: Path):
     sources = params.get("field_sources") or {}
     assert sources.get("starting_cash_eur") == "stated"
     outcome = run_generation(
-        inp, tmp_path / "h2", seed=42, write_xlsx=False, write_journal=False
+        inp, tmp_path / "h2", seed=42, write_xlsx=False
     )
     assert outcome.ok, outcome.validation.as_dict()
 
@@ -165,7 +164,7 @@ def test_h3_run23_revenue_not_confused_with_cash(tmp_path: Path):
     assert params["starting_cash_eur"] == pytest.approx(45_000, rel=0, abs=1)
     assert params["covenant_min_cash_eur"] == pytest.approx(40_000, rel=0, abs=1)
     outcome = run_generation(
-        inp, tmp_path / "h3", seed=42, write_xlsx=False, write_journal=False
+        inp, tmp_path / "h3", seed=42, write_xlsx=False
     )
     assert outcome.ok, outcome.validation.as_dict()
 
@@ -204,7 +203,7 @@ def test_h4_run27_partial_stated_rest_assumed(tmp_path: Path):
         assert model_params.get("starting_cash_eur") in (None, )
         assert model_params.get("covenant_min_cash_eur") in (None, )
     outcome = run_generation(
-        inp, tmp_path / "h4", seed=42, write_xlsx=False, write_journal=False
+        inp, tmp_path / "h4", seed=42, write_xlsx=False
     )
     assert outcome.ok, outcome.validation.as_dict()
 

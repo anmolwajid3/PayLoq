@@ -128,7 +128,7 @@ def test_generate_from_text_stub(client: TestClient):
     assert body["llm_adapter"] == "stub"
     assert body["seed"] == 42
     assert body.get("llm_model") in (None, "")
-    assert "journal_entries.json" in body["artifacts"]
+    assert "journal_entries.json" not in body.get("artifacts", [])
     soft = (body.get("pack_summary") or {}).get("nl_soft_warnings") or []
     assert isinstance(soft, list)
     # Stub heuristics + critical NL should surface at least the stub soft-hint.

@@ -272,7 +272,7 @@ def extract_stated_params_from_nl(text: str) -> dict[str, Any]:
                 "type": "capex",
                 "amount_eur": float(amt),
                 "month_index": int(month),
-                "direction": "out",
+                "direction": "outflow",
                 "label": label,
             }
         ]

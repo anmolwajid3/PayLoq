@@ -38,7 +38,7 @@ RUN19_RAW = {
             "type": "capex",
             "amount_eur": None,
             "month_index": None,
-            "direction": "out",
+            "direction": "outflow",
         }
     ],
     "notes": "run19 extract with nulls",
@@ -147,7 +147,7 @@ def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
 def test_complete_capex_event_promoted_before_assume() -> None:
     raw = dict(RUN19_RAW)
     raw["one_off_events"] = [
-        {"type": "capex", "amount_eur": 80_000, "month_index": 3, "direction": "out"}
+        {"type": "capex", "amount_eur": 80_000, "month_index": 3, "direction": "outflow"}
     ]
     params, _changes, grounding = finalize_extracted_parameters(
         raw,
@@ -192,7 +192,7 @@ def test_stub_run19_invest_80000_month_3() -> None:
     assert events, "expected CAPEX one-off event"
     assert events[0]["amount_eur"] == pytest.approx(80_000)
     assert events[0]["month_index"] == 3
-    assert events[0]["direction"] in {"out", "outflow"}
+    assert events[0]["direction"] == "outflow"
     assert out["monthly_revenue_start_eur"] == pytest.approx(180_000)
     # Starting cash €45,000 is stated in NL (not covenant €40k).
     assert out["starting_cash_eur"] == pytest.approx(45_000)

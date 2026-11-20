@@ -125,21 +125,21 @@ def test_param_clamp_logs_change() -> None:
 
 
 def test_empty_description_message() -> None:
+    from payloq_llm.adapters import OllamaAdapter
+
     with pytest.raises(ValueError, match="Description is missing"):
-        input_from_text(text="   ")
+        input_from_text(text="   ", adapter=OllamaAdapter())
 
 
-def test_finnish_from_text_stub(tmp_path: Path) -> None:
+def test_finnish_from_text_rejects_stub() -> None:
     from payloq_llm.adapters import StubLlmAdapter
 
-    inp = input_from_text(
-        text="Kone on pieni, käteinen rahavirta on tiukka ja kriittinen kolmen viikon päästä.",
-        adapter=StubLlmAdapter(),
-        language="fi",
-    )
-    outcome = run_generation(inp, tmp_path / "fi", seed=42, llm_name="stub", raw_llm_output="{}")
-    assert outcome.ok, outcome.validation.issues
-    assert (outcome.out_dir / "raw_llm_output.txt").exists()
+    with pytest.raises(ValueError, match="stub"):
+        input_from_text(
+            text="Kone on pieni, käteinen rahavirta on tiukka ja kriittinen kolmen viikon päästä.",
+            adapter=StubLlmAdapter(),
+            language="fi",
+        )
 
 
 def test_money_two_decimals() -> None:

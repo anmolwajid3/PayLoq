@@ -142,7 +142,7 @@ def size_band(canonical: str) -> SizeBand:
 
 def scale_defaults_for_size(canonical: str) -> dict[str, Any]:
     """
-    Sensible stub/repair defaults for revenue and cash/invest multipliers.
+    Sensible repair defaults for revenue and cash/invest multipliers.
 
     Returns ``band``, ``monthly_revenue_start_eur``, ``cash_mult``, ``invest_mult``.
     """

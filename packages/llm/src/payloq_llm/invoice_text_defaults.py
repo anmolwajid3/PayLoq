@@ -105,7 +105,7 @@ PURCHASE_DESCRIPTIONS_EN = [
 ]
 
 
-def stub_invoice_texts(*, language: str = "fi") -> InvoiceDescriptiveTexts:
+def default_invoice_texts(*, language: str = "fi") -> InvoiceDescriptiveTexts:
     if language == "en":
         return InvoiceDescriptiveTexts(
             sales_counterparties=list(SALES_COUNTERPARTIES_EN),

@@ -40,7 +40,7 @@ def strip_numbers_from_descriptive_text(text: str | None) -> str:
 
     Does not touch invoice id fields — callers must only pass counterparty /
     description (and LLM invoice text lists). Empty/whitespace-only results
-    become "" so callers can fall back to stubs.
+    become "" so callers can fall back to defaults.
     """
     if not text:
         return ""

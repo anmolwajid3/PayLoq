@@ -120,8 +120,6 @@ const dict = {
   showFigures: { fi: "Näytä luvut (koodi)", en: "Show figures (code)" },
   hideFigures: { fi: "Piilota luvut", en: "Hide figures" },
   answer: { fi: "Vastaus", en: "Answer" },
-  ensureJournal: { fi: "Luo päiväkirja", en: "Build journal" },
-  journalReady: { fi: "Päiväkirja valmis", en: "Journal ready" },
   tabView: { fi: "Näkymä", en: "View" },
   tabJson: { fi: "Raaka JSON", en: "Raw JSON" },
   visualView: {
@@ -170,7 +168,6 @@ const dict = {
   options: { fi: "Asetukset", en: "Options" },
   costShares: { fi: "Kustannusosuudet", en: "Cost shares" },
   paramNotes: { fi: "Parametrimuistiinpanot", en: "Parameter notes" },
-  journalEntries: { fi: "Päiväkirjaviennit", en: "Journal entries" },
   totalDebit: { fi: "Debet yhteensä", en: "Total debit" },
   date: { fi: "Päivä", en: "Date" },
   source: { fi: "Lähde", en: "Source" },

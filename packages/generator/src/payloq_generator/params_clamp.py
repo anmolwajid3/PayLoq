@@ -243,15 +243,17 @@ def clamp_parameters(
                 raise ValueError(f"invalid one_off_event amount/month: {ev!r}")
             direction = str(ev.get("direction") or "").lower()
             if direction in {"inflow", "in"}:
-                direction = "in"
+                direction = "inflow"
             elif direction in {"outflow", "out"}:
-                direction = "out"
+                direction = "outflow"
             else:
-                raise ValueError(f"one_off_event direction must be in/out: {ev!r}")
+                raise ValueError(
+                    f"one_off_event direction must be inflow or outflow: {ev!r}"
+                )
             event_type = str(ev.get("type") or ev.get("label") or "other").lower()
             if event_type in {"capex", "capital_expenditure", "investment", "special_investment"}:
                 event_type = "capex"
-                direction = "out"
+                direction = "outflow"
             cleaned.append(
                 {
                     "type": event_type,

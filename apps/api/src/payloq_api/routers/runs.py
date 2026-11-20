@@ -99,7 +99,6 @@ def generate_preset(
         scenario=scenario,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
-        write_journal=body.write_journal,
     )
     return _run_out(run)
 
@@ -122,10 +121,8 @@ def generate_from_text(
         months=body.months,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
-        write_journal=body.write_journal,
         ollama_model=body.ollama_model,
         ollama_host=body.ollama_host,
-        no_fallback_stub=body.no_fallback_stub,
         save_as_slug=body.save_as_slug,
     )
     return _run_out(run)
@@ -136,7 +133,7 @@ def llm_models(
     _: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> OllamaModelsResponse:
-    """List local Ollama models (``/api/tags``). Web Generate uses this — no stub option."""
+    """List local Ollama models (``/api/tags``). Web Generate uses this for Ollama tags."""
     payload = list_ollama_models(settings.ollama_host)
     return OllamaModelsResponse(
         available=bool(payload.get("available")),
@@ -221,20 +218,6 @@ def chat_run(
         raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
     return ChatResponse(**result_to_dict(result, llm_model=resolved_model))
 
-
-@router.post("/runs/{run_id}/journal", response_model=RunOut)
-def ensure_journal(
-    run_id: int,
-    _: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_session)],
-) -> RunOut:
-    """Journal entries removed from Task A (work order §4 optional — not in scope)."""
-    _ = run_id
-    _ = session
-    raise HTTPException(
-        status_code=410,
-        detail="journal_entries.json removed from the generator (Task A).",
-    )
 
 
 @router.get("/runs/{run_id}/artifacts/{filename}")

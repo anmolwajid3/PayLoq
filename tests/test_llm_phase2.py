@@ -40,7 +40,7 @@ def test_stub_extract_cash_critical_keywords() -> None:
     assert validated.partly_fixed_costs is True
 
 
-def test_stub_invoice_texts_fi() -> None:
+def test_default_invoice_texts_fi() -> None:
     texts = StubLlmAdapter().generate_invoice_texts(
         description_fi=CASH_CRITICAL_FI,
         description_en="cash critical",

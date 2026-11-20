@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from payloq_llm.stub_texts import stub_invoice_texts
+from payloq_llm.invoice_text_defaults import default_invoice_texts
 from payloq_schemas.models import InvoiceDescriptiveTexts
 from payloq_schemas.text_rules import (
     descriptive_text_has_numbers,
@@ -46,7 +46,7 @@ def _clean_one(
         return fallback
     max_len = _MAX_COUNTERPARTY_LEN if is_counterparty else _MAX_DESC_LEN
     if len(raw) > max_len:
-        # Prefer stub over truncated garbage that still carries NL numbers.
+        # Prefer defaults over truncated garbage that still carries NL numbers.
         if descriptive_text_has_numbers(raw):
             return fallback
         raw = raw[:max_len].rsplit(" ", 1)[0].strip() or fallback
@@ -90,33 +90,33 @@ def sanitize_invoice_texts(
 ) -> InvoiceDescriptiveTexts:
     """
     Ensure counterparties / line descriptions have no digits and are not the
-    raw from_text NL description. Falls back to built-in stubs per field.
+    raw from_text NL description. Falls back to built-in defaults per field.
     """
     language = texts.language if texts.language in ("fi", "en") else "fi"
-    stubs = stub_invoice_texts(language=language)
+    defaults = default_invoice_texts(language=language)
     nl_blobs = (description_fi or "", description_en or "")
 
     sales_cp = _clean_list(
         list(texts.sales_counterparties),
-        list(stubs.sales_counterparties),
+        list(defaults.sales_counterparties),
         nl_blobs=nl_blobs,
         is_counterparty=True,
     )
     purch_cp = _clean_list(
         list(texts.purchase_counterparties),
-        list(stubs.purchase_counterparties),
+        list(defaults.purchase_counterparties),
         nl_blobs=nl_blobs,
         is_counterparty=True,
     )
     sales_desc = _clean_list(
         list(texts.sales_descriptions),
-        list(stubs.sales_descriptions),
+        list(defaults.sales_descriptions),
         nl_blobs=nl_blobs,
         is_counterparty=False,
     )
     purch_desc = _clean_list(
         list(texts.purchase_descriptions),
-        list(stubs.purchase_descriptions),
+        list(defaults.purchase_descriptions),
         nl_blobs=nl_blobs,
         is_counterparty=False,
     )

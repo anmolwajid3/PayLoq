@@ -12,8 +12,6 @@ from payloq_schemas.models import ScenarioPack
 def write_scenario_xlsx(
     pack: ScenarioPack,
     path: Path | str,
-    *,
-    include_journal: bool = False,
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -27,8 +25,6 @@ def write_scenario_xlsx(
     _invoices_sheet(wb.create_sheet("Open invoices"), pack)
     _projection_sheet(wb.create_sheet("Projection"), pack)
     _assumptions_sheet(wb.create_sheet("Assumptions"), pack)
-    # Pilot fix §G: journal sheet removed (work order §4 optional only).
-    _ = include_journal
 
     wb.save(path)
     return path
@@ -245,39 +241,3 @@ def _assumptions_sheet(ws, pack: ScenarioPack) -> None:
         assumed_rows += 1
     if assumed_rows == 0:
         ws.append(["(none)", "", "stated"])
-
-
-def _journal_sheet(ws, pack: ScenarioPack) -> None:
-    ws.append(
-        [
-            "Tosite / Entry id",
-            "Päivä / Date",
-            "Kuvaus FI / Description FI",
-            "Kuvaus EN / Description EN",
-            "Lähde / Source",
-            "Tili / Account",
-            "Tilinimi FI / Account FI",
-            "Tilinimi EN / Account EN",
-            "Debet / Debit",
-            "Kredit / Credit",
-        ]
-    )
-    journal = pack.journal_entries
-    if journal is None:
-        return
-    for entry in journal.entries:
-        for line in entry.lines:
-            ws.append(
-                [
-                    entry.id,
-                    entry.date,
-                    entry.description_fi,
-                    entry.description_en,
-                    entry.source,
-                    line.account,
-                    line.account_name_fi,
-                    line.account_name_en,
-                    line.debit,
-                    line.credit,
-                ]
-            )

@@ -268,7 +268,13 @@ export function ChatDemo({ runId, lang, llmAdapter, llmModel }: Props) {
     sessionStorage.removeItem(historyKey(runId));
   }
 
-  const modelLabel = llmModel ? `${llmAdapter} · ${llmModel}` : llmAdapter;
+  // Labelling: when stub is active, header shows "stub" — never a model name.
+  const modelLabel =
+    llmAdapter === "stub" || llmAdapter.includes("stub")
+      ? "stub"
+      : llmModel
+        ? `${llmAdapter} · ${llmModel}`
+        : llmAdapter;
 
   return (
     <aside className="run-chat-sidebar" aria-label={t("chatTitle", lang)}>

@@ -69,22 +69,30 @@ class OneOffCashEvent(BaseModel):
         le=24,
         description="1-based index into the generated monthly_reports series",
     )
-    direction: Literal["in", "out", "inflow", "outflow"] = "out"
+    direction: Literal["inflow", "outflow"] = "outflow"
     label: str | None = None
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def _normalize_direction_in(cls, value: object) -> object:
+        if value is None:
+            return value
+        direction = str(value).strip().lower()
+        if direction in {"in", "inflow"}:
+            return "inflow"
+        if direction in {"out", "outflow"}:
+            return "outflow"
+        return direction
 
     @model_validator(mode="after")
     def _capex_and_direction(self) -> OneOffCashEvent:
         direction = self.direction
-        if direction == "inflow":
-            direction = "in"
-        elif direction == "outflow":
-            direction = "out"
         event_type = (self.type or "other").strip().lower() or "other"
         if event_type in {"capex", "capital_expenditure", "investment"}:
             event_type = "capex"
-            direction = "out"
-        if direction not in {"in", "out"}:
-            raise ValueError("one_off_events.direction must be in/out (or inflow/outflow)")
+            direction = "outflow"
+        if direction not in {"inflow", "outflow"}:
+            raise ValueError("one_off_events.direction must be inflow or outflow")
         if self.month_index is None:
             raise ValueError("one_off_events.month_index is required")
         object.__setattr__(self, "type", event_type)
@@ -103,8 +111,20 @@ class ExtractedOneOffCashEvent(BaseModel):
     type: str | None = "other"
     amount_eur: float | None = None
     month_index: int | None = None
-    direction: Literal["in", "out", "inflow", "outflow"] | None = None
+    direction: Literal["inflow", "outflow"] | None = None
     label: str | None = None
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def _normalize_direction_in(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        direction = str(value).strip().lower()
+        if direction in {"in", "inflow"}:
+            return "inflow"
+        if direction in {"out", "outflow"}:
+            return "outflow"
+        return direction
 
 
 class ParametersFromLanguageModel(BaseModel):
@@ -229,7 +249,7 @@ class ExtractedParameters(BaseModel):
 
 
 class InvoiceDescriptiveTexts(BaseModel):
-    """LLM-authored (or stub) FI/EN invoice labels. Amounts stay in the generator."""
+    """LLM-authored FI/EN invoice labels. Amounts stay in the generator."""
 
     sales_counterparties: list[str] = Field(min_length=1)
     purchase_counterparties: list[str] = Field(min_length=1)
@@ -244,7 +264,7 @@ class GeneratorInput(BaseModel):
     scenario_description: ScenarioDescription
     options: Options
     parameters_from_language_model: ParametersFromLanguageModel
-    # Optional; when set, generator uses these instead of built-in FI stub lists.
+    # Optional; when set, generator uses these instead of built-in FI default lists.
     invoice_texts: InvoiceDescriptiveTexts | None = None
 
 
@@ -334,53 +354,9 @@ class CashAndInvoices(BaseModel):
         return v
 
 
-class JournalLine(BaseModel):
-    """One debit/credit line on a simplified FI chart of accounts."""
-
-    account: str
-    account_name_fi: str
-    account_name_en: str
-    debit: float = 0.0
-    credit: float = 0.0
-
-
-class JournalEntry(BaseModel):
-    """One synthetic journal voucher (kirjaus)."""
-
-    id: str
-    date: str  # YYYY-MM-DD
-    description_fi: str
-    description_en: str
-    source: Literal["monthly_pl", "open_invoice", "investment"] = "monthly_pl"
-    lines: list[JournalLine] = Field(min_length=2)
-
-    @field_validator("lines")
-    @classmethod
-    def _balanced(cls, v: list[JournalLine]) -> list[JournalLine]:
-        debit = round(sum(line.debit for line in v), 2)
-        credit = round(sum(line.credit for line in v), 2)
-        if abs(debit - credit) > 0.02:
-            raise ValueError(f"journal entry not balanced: debit={debit} credit={credit}")
-        return v
-
-
-class JournalEntries(BaseModel):
-    """Optional §4 accounting-entries dataset (code-generated, synthetic)."""
-
-    meta: ScenarioMeta
-    chart_note_fi: str = (
-        "Yksinkertaistettu synteettinen tilikartta — ei virallinen suomalainen tilikartta."
-    )
-    chart_note_en: str = (
-        "Simplified synthetic chart of accounts — not an official Finnish CoA."
-    )
-    entries: list[JournalEntry]
-
-
 class ScenarioPack(BaseModel):
     """Full generated pack (in-memory)."""
 
     input: GeneratorInput
     monthly_reports: MonthlyReports
     cash_and_invoices: CashAndInvoices
-    journal_entries: JournalEntries | None = None

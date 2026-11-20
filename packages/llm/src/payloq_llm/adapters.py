@@ -48,7 +48,7 @@ from payloq_llm.nl_param_hints import (
     suggest_revenue_start_eur,
 )
 from payloq_llm.params_coerce import coerce_parameters_dict
-from payloq_llm.stub_texts import stub_invoice_texts
+from payloq_llm.invoice_text_defaults import default_invoice_texts
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
 
@@ -292,7 +292,7 @@ class StubLlmAdapter(LlmAdapter):
                     "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
-                    "direction": "out",
+                    "direction": "outflow",
                     "label": label,
                 }
             )
@@ -305,7 +305,7 @@ class StubLlmAdapter(LlmAdapter):
                     "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
-                    "direction": "out",
+                    "direction": "outflow",
                     "label": "roof_repair",
                 }
             )
@@ -400,7 +400,7 @@ class StubLlmAdapter(LlmAdapter):
     ) -> InvoiceDescriptiveTexts:
         t0 = time.perf_counter()
         _ = (description_fi, description_en, industry)
-        texts = stub_invoice_texts(language=language)  # type: ignore[arg-type]
+        texts = default_invoice_texts(language=language)  # type: ignore[arg-type]
         texts = sanitize_invoice_texts(
             texts, description_fi=description_fi, description_en=description_en
         )
@@ -1148,10 +1148,10 @@ def input_from_text(
                 description_en=description_en,
             )
         except Exception:
-            # Descriptive texts may fall back to built-in FI stubs (texts only).
-            from payloq_llm.stub_texts import stub_invoice_texts
+            # Descriptive texts may fall back to built-in FI defaults (texts only).
+            from payloq_llm.invoice_text_defaults import default_invoice_texts
 
-            invoice_texts = stub_invoice_texts(
+            invoice_texts = default_invoice_texts(
                 language=str(opts.get("language", language)),
             )
 

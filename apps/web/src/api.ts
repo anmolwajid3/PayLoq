@@ -126,8 +126,7 @@ export async function generatePreset(scenario_slug: string) {
       scenario_slug,
       seed: 42,
       write_xlsx: true,
-      write_journal: false,
-    }),
+          }),
   });
 }
 
@@ -143,7 +142,7 @@ export async function generateFromText(body: {
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
-    body: JSON.stringify({ ...body, write_xlsx: true, write_journal: false }),
+    body: JSON.stringify({ ...body, write_xlsx: true }),
   });
 }
 

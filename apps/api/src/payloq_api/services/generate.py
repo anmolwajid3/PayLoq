@@ -74,7 +74,6 @@ def run_preset(
     scenario: Scenario,
     seed: int = 42,
     write_xlsx: bool = True,
-    write_journal: bool = False,
 ) -> GenerationRun:
     run = GenerationRun(
         scenario_id=scenario.id,
@@ -97,7 +96,6 @@ def run_preset(
             out_dir,
             seed=seed,
             write_xlsx=write_xlsx,
-            write_journal=False,
         )
         pack = outcome.pack
         validation = outcome.validation.as_dict()
@@ -138,10 +136,8 @@ def run_from_text(
     months: int = 12,
     seed: int = 42,
     write_xlsx: bool = True,
-    write_journal: bool = False,
     ollama_model: str | None = None,
     ollama_host: str | None = None,
-    no_fallback_stub: bool = False,
     save_as_slug: str | None = None,
 ) -> GenerationRun:
     resolved_model = (
@@ -163,13 +159,12 @@ def run_from_text(
 
     out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
     try:
-        if llm == "stub":
+        if llm != "ollama":
             raise ValueError(
-                "Keyword stub is not allowed for from-text generation. Use Ollama."
+                "From-text generation requires Ollama (local model)."
             )
         adapter = get_adapter(
             "ollama",
-            fallback_stub=False,
             model=resolved_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
             timeout_s=settings.ollama_timeout,
@@ -188,7 +183,6 @@ def run_from_text(
             with_invoice_texts=True,
         )
         llm_name = "ollama"
-        params_from_stub = False
         run.llm_adapter = "ollama"
         if resolved_model:
             run.llm_model = resolved_model
@@ -198,7 +192,6 @@ def run_from_text(
             out_dir,
             seed=seed,
             write_xlsx=write_xlsx,
-            write_journal=False,
             raw_llm_output=getattr(adapter, "last_raw_output", None),
             llm_name=llm_name,
         )
@@ -207,7 +200,6 @@ def run_from_text(
             text,
             (pack.input.parameters_from_language_model.model_dump() if pack else {}),
             language=language,
-            params_from_stub=params_from_stub,
         )
         run.artifact_dir = str(out_dir.resolve())
         run.validation_ok = outcome.ok
