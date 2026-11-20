@@ -212,6 +212,100 @@ def suggest_revenue_start_eur(
     return None
 
 
+_REVENUE_CONTEXT: tuple[str, ...] = (
+    "revenue",
+    "liikevaihto",
+    "turnover",
+    "myynti",
+    "sales",
+    "monthly revenue",
+    "kuukausiliikevaihto",
+)
+
+# Strong one-off markers — prefer these over weak tokens like "line" / "invest".
+_STRONG_INVEST: tuple[str, ...] = (
+    "capex",
+    "one-off",
+    "one off",
+    "kertaluonteinen",
+    "oven",
+    "uuni",
+    "uunikorj",
+    "roof",
+    "katto",
+    "kattoremont",
+    "hvac",
+    "production line",
+    "tuotantolinja",
+)
+
+_CASHISH_CONTEXT: tuple[str, ...] = (
+    "covenant",
+    "kovenantti",
+    "winter cash",
+    "talvikassa",
+    "target cash",
+    "tavoitekassa",
+    "trough",
+    "talvipohja",
+    "kassapohja",
+    "starting cash",
+    "alkukassa",
+    "minimum cash",
+    "cash ~",
+    "cash trough",
+)
+
+# Short tokens that appear inside unrelated words (oven⊂covenant, line⊂airline).
+_WHOLE_WORD_INVEST: frozenset[str] = frozenset(
+    {"oven", "uuni", "line", "press", "machine", "invest", "repair"}
+)
+
+
+def _keyword_positions(window: str, keywords: tuple[str, ...]) -> list[tuple[str, int]]:
+    """Return (keyword, start_index) hits; short ambiguous tokens need word boundaries."""
+    hits: list[tuple[str, int]] = []
+    for k in keywords:
+        if k in _WHOLE_WORD_INVEST:
+            for m in re.finditer(rf"(?<![a-zäöå]){re.escape(k)}(?![a-zäöå])", window):
+                hits.append((k, m.start()))
+            continue
+        start = 0
+        while True:
+            found = window.find(k, start)
+            if found < 0:
+                break
+            hits.append((k, found))
+            start = found + 1
+    return hits
+
+
+def _nearest_keyword_distance(window: str, amt_pos: int, keywords: tuple[str, ...]) -> int | None:
+    """Distance from amount position to the nearest keyword occurrence in window."""
+    best: int | None = None
+    for _k, found in _keyword_positions(window, keywords):
+        dist = abs(found - amt_pos)
+        if best is None or dist < best:
+            best = dist
+    return best
+
+
+def _nearest_left_distance(window: str, amt_pos: int, keywords: tuple[str, ...]) -> int | None:
+    """Distance to the nearest keyword that starts at or before the amount."""
+    best: int | None = None
+    for _k, found in _keyword_positions(window, keywords):
+        if found > amt_pos:
+            continue
+        dist = amt_pos - found
+        if best is None or dist < best:
+            best = dist
+    return best
+
+
+def _window_has_invest(window: str) -> bool:
+    return bool(_keyword_positions(window, _INVEST_CONTEXT))
+
+
 def extract_special_investment(text: str) -> tuple[float, int] | None:
     """
     Parse one-off capex/repair amount + 1-based month from NL.
@@ -221,41 +315,54 @@ def extract_special_investment(text: str) -> tuple[float, int] | None:
       'Capex: €95,000 roof repair in month 2' → (95000, 2)
       'Uunikorjaus 42 000 € kuukaudessa 3' → (42000, 3)
       'One-off CAPEX €2.8M in month 4' → (2800000, 4)
+
+    Prefer the amount nearest to CAPEX/one-off wording. Do not treat monthly
+    revenue (e.g. €180k) as investment when a real CAPEX (e.g. €80k month 3)
+    is stated — including when FI+EN copies are concatenated (Run #19).
     """
     blob = text or ""
     low = blob.lower()
-    best: tuple[float, int, float] | None = None  # amount, month, score
+    # amount, month, score, left_proximity (lower better)
+    best: tuple[float, int, float, int] | None = None
 
     for amt, idx in extract_euro_amounts(text):
         if amt < 5_000 or amt > _INV_HI:
             continue
-        window = low[max(0, idx - 56) : idx + 72]
-        if not any(k in window for k in _INVEST_CONTEXT):
+        left = max(0, idx - 56)
+        window = low[left : idx + 72]
+        amt_pos = idx - left
+        if not _window_has_invest(window):
             continue
-        # Skip thin cash / covenant figures even if "repair" is far away
-        cashish = (
-            "covenant",
-            "kovenantti",
-            "winter cash",
-            "talvikassa",
-            "target cash",
-            "tavoitekassa",
-            "trough",
-            "talvipohja",
-            "kassapohja",
-        )
-        if any(c in window for c in cashish) and amt <= 40_000:
-            # Prefer investment label proximity
-            invest_pos = max((window.rfind(k) for k in _INVEST_CONTEXT if k in window), default=-1)
-            cash_pos = max((window.rfind(k) for k in cashish if k in window), default=-1)
-            amt_pos = min(56, len(window) - 1)
-            if cash_pos >= 0 and abs(amt_pos - cash_pos) < abs(amt_pos - invest_pos):
-                continue
+
+        strong_left = _nearest_left_distance(window, amt_pos, _STRONG_INVEST)
+        strong_dist = _nearest_keyword_distance(window, amt_pos, _STRONG_INVEST)
+        invest_dist = _nearest_keyword_distance(window, amt_pos, _INVEST_CONTEXT)
+        rev_left = _nearest_left_distance(window, amt_pos, _REVENUE_CONTEXT)
+        cash_left = _nearest_left_distance(window, amt_pos, _CASHISH_CONTEXT)
+
+        # Skip revenue / turnover figures (left-context) even when a CAPEX phrase
+        # from the next sentence falls inside the right side of the window.
+        if rev_left is not None and (strong_left is None or rev_left < strong_left):
+            continue
+
+        # Skip covenant / winter-cash figures: cash wording immediately before the
+        # amount beats a following CAPEX phrase ("…€8k. Oven repair €42k…").
+        if cash_left is not None and cash_left <= 28 and (
+            strong_left is None or cash_left <= strong_left
+        ):
+            continue
+
+        # Require a strong one-off marker to the left of the amount (same phrase).
+        # Weak tokens alone ("invest", "line") are too noisy next to covenants.
+        if strong_left is None or strong_left > 40:
+            continue
 
         month = 2
         month_found = False
+        # Prefer a month pattern near the amount / after the invest keyword.
+        month_window = window[max(0, amt_pos - 10) : amt_pos + 72]
         for pat in _MONTH_PATTERNS:
-            m = re.search(pat, window, flags=re.IGNORECASE)
+            m = re.search(pat, month_window, flags=re.IGNORECASE)
             if m:
                 try:
                     month = int(m.group("m"))
@@ -263,30 +370,44 @@ def extract_special_investment(text: str) -> tuple[float, int] | None:
                     break
                 except (TypeError, ValueError, IndexError):
                     continue
+        if not month_found:
+            for pat in _MONTH_PATTERNS:
+                m = re.search(pat, window, flags=re.IGNORECASE)
+                if m:
+                    try:
+                        month = int(m.group("m"))
+                        month_found = True
+                        break
+                    except (TypeError, ValueError, IndexError):
+                        continue
         if not (1 <= month <= 24):
             month = 2
-        # Score: prefer amounts with explicit month + stronger invest words
-        score = 1.0
+
+        # Score: left-side strong invest proximity + explicit month.
+        score = 3.0
+        proximity = strong_left
         if month_found:
             score += 2.0
-        if any(
-            k in window
-            for k in (
-                "oven",
-                "uuni",
-                "roof",
-                "katto",
-                "hvac",
-                "capex",
-                "production line",
-                "tuotantolinja",
-            )
-        ):
-            score += 1.5
+        if strong_left <= 24:
+            score += 2.0
+        if strong_dist is not None and strong_dist <= 12:
+            score += 0.5
+        if invest_dist is not None and invest_dist <= 16:
+            score += 0.25
         if amt >= 1_000_000:
             score += 0.5
-        if best is None or score > best[2] or (score == best[2] and amt > best[0]):
-            best = (amt, month, score)
+
+        candidate = (amt, month, score, proximity)
+        if best is None:
+            best = candidate
+            continue
+        if score > best[2]:
+            best = candidate
+        elif score == best[2]:
+            if proximity < best[3]:
+                best = candidate
+            elif proximity == best[3] and amt < best[0]:
+                best = candidate
 
     if best is None:
         return None
@@ -348,12 +469,14 @@ def repair_investment_and_revenue_from_nl(
         # Keep one_off_events aligned when present / empty
         events = list(data.get("one_off_events") or [])
         label = "special_investment"
-        if looks_bakery(blob, industry) or any(k in blob.lower() for k in ("oven", "uuni")):
+        low_blob = blob.lower()
+        # Word-boundary match: bare "oven" must not hit "covenant".
+        if looks_bakery(blob, industry) or re.search(r"(?<![a-z])(oven|uuni)\b", low_blob):
             label = "oven_repair"
-        elif any(k in blob.lower() for k in ("roof", "katto", "hvac")):
+        elif any(k in low_blob for k in ("roof", "katto", "hvac")):
             label = "roof_repair"
         elif any(
-            k in blob.lower()
+            k in low_blob
             for k in ("production line", "tuotantolinja", "capex", "steel", "teräs")
         ):
             label = "capex_line"

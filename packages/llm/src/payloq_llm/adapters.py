@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -278,7 +279,9 @@ class StubLlmAdapter(LlmAdapter):
             invest = float(nl_invest[0])
             invest_month = int(nl_invest[1])
             invest_from_nl = True
-            label = "oven_repair" if bakeryish or any(k in text for k in ("oven", "uuni")) else (
+            # Word-boundary: "oven" must not match inside "covenant".
+            ovenish = bakeryish or bool(re.search(r"(?<![a-z])(oven|uuni)\b", text))
+            label = "oven_repair" if ovenish else (
                 "roof_repair" if roof_repair or hotelish else (
                     "capex_line" if steelish else "special_investment"
                 )

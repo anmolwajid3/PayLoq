@@ -47,6 +47,15 @@ class CostShares(BaseModel):
     other: float = Field(ge=0, le=1)
 
 
+class ExtractedCostShares(BaseModel):
+    """LLM extract shape: each cost share may be null when unstated (Run #19)."""
+
+    materials: float | None = Field(default=None, ge=0, le=1)
+    services: float | None = Field(default=None, ge=0, le=1)
+    personnel: float | None = Field(default=None, ge=0, le=1)
+    other: float | None = Field(default=None, ge=0, le=1)
+
+
 class OneOffCashEvent(BaseModel):
     """Structured one-off cash event (capex, roof repair, grant, etc.)."""
 
@@ -81,6 +90,21 @@ class OneOffCashEvent(BaseModel):
         object.__setattr__(self, "type", event_type)
         object.__setattr__(self, "direction", direction)
         return self
+
+
+class ExtractedOneOffCashEvent(BaseModel):
+    """
+    LLM extract shape for one-offs: incomplete rows may carry null amount/month/direction.
+
+    Incomplete events are dropped after extract (work order B); only complete rows
+    become ``OneOffCashEvent``.
+    """
+
+    type: str | None = "other"
+    amount_eur: float | None = None
+    month_index: int | None = None
+    direction: Literal["in", "out", "inflow", "outflow"] | None = None
+    label: str | None = None
 
 
 class ParametersFromLanguageModel(BaseModel):
@@ -166,11 +190,15 @@ class ExtractedParameters(BaseModel):
     """
     LLM extraction shape (work order A): only stated values; unstated fields are null.
     The LLM must never invent defaults. Code assumes missing optional fields later.
+
+    Nested cost shares and one-off event numerics are also nullable so Ollama can
+    return null for unstated sub-fields without Pydantic rejecting the whole payload
+    (Run #19 regression).
     """
 
     monthly_revenue_start_eur: float | None = None
     monthly_revenue_growth: float | None = None
-    cost_shares_of_revenue: CostShares | None = None
+    cost_shares_of_revenue: ExtractedCostShares | None = None
     days_sales_outstanding: float | None = None
     days_payables_outstanding: float | None = None
     target_cash_at_end_eur: float | None = None
@@ -179,7 +207,7 @@ class ExtractedParameters(BaseModel):
     special_investment_eur: float | None = None
     special_investment_month: int | None = None
     monthly_revenue_factors: list[float] | None = None
-    one_off_events: list[OneOffCashEvent] | None = None
+    one_off_events: list[ExtractedOneOffCashEvent] | None = None
     notes: str | None = None
     partly_fixed_costs: bool | None = None
 

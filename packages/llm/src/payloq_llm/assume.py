@@ -33,6 +33,132 @@ _ASSUMABLE_SCALARS: tuple[str, ...] = (
 )
 
 
+def drop_incomplete_one_off_events(
+    events: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Keep only one-off events that have amount, month_index, and direction.
+
+    Incomplete rows (null amount / month / direction) are dropped — work order B
+    rejects missing month or direction; Run #19 Ollama often emits partial CAPEX
+    stubs with null numerics.
+    """
+    changes: list[dict[str, Any]] = []
+    if events is None:
+        return [], changes
+    if not isinstance(events, list):
+        return [], [
+            {
+                "field": "one_off_events",
+                "original": events,
+                "clipped": [],
+                "message": "dropped non-list one_off_events",
+                "source": "assume",
+            }
+        ]
+
+    cleaned: list[dict[str, Any]] = []
+    for i, raw in enumerate(events):
+        if not isinstance(raw, dict):
+            changes.append(
+                {
+                    "field": f"one_off_events[{i}]",
+                    "original": raw,
+                    "clipped": None,
+                    "message": "dropped non-object one_off event",
+                    "source": "assume",
+                }
+            )
+            continue
+        amount = raw.get("amount_eur")
+        month = raw.get("month_index")
+        direction = raw.get("direction")
+        event_type = str(raw.get("type") or "other").strip().lower() or "other"
+        # CAPEX is always an outflow — fill missing direction before completeness check.
+        if event_type in {"capex", "capital_expenditure", "investment"} and (
+            direction is None or direction == ""
+        ):
+            direction = "out"
+            event_type = "capex"
+        missing = [
+            name
+            for name, val in (
+                ("amount_eur", amount),
+                ("month_index", month),
+                ("direction", direction),
+            )
+            if val is None or val == ""
+        ]
+        if missing:
+            changes.append(
+                {
+                    "field": f"one_off_events[{i}]",
+                    "original": raw,
+                    "clipped": None,
+                    "message": (
+                        "dropped incomplete one_off event "
+                        f"(missing {', '.join(missing)})"
+                    ),
+                    "source": "assume",
+                }
+            )
+            continue
+        try:
+            amt_f = float(amount)
+            month_i = int(month)
+        except (TypeError, ValueError):
+            changes.append(
+                {
+                    "field": f"one_off_events[{i}]",
+                    "original": raw,
+                    "clipped": None,
+                    "message": "dropped one_off event with non-numeric amount/month",
+                    "source": "assume",
+                }
+            )
+            continue
+        if amt_f <= 0 or not (1 <= month_i <= 24):
+            changes.append(
+                {
+                    "field": f"one_off_events[{i}]",
+                    "original": raw,
+                    "clipped": None,
+                    "message": "dropped one_off event with invalid amount/month range",
+                    "source": "assume",
+                }
+            )
+            continue
+        direction_s = str(direction).strip().lower()
+        if direction_s in {"inflow", "in"}:
+            direction_s = "in"
+        elif direction_s in {"outflow", "out"}:
+            direction_s = "out"
+        else:
+            changes.append(
+                {
+                    "field": f"one_off_events[{i}]",
+                    "original": raw,
+                    "clipped": None,
+                    "message": f"dropped one_off event with invalid direction={direction!r}",
+                    "source": "assume",
+                }
+            )
+            continue
+        if event_type in {"capex", "capital_expenditure", "investment"}:
+            event_type = "capex"
+            direction_s = "out"
+        cleaned.append(
+            {
+                "type": event_type,
+                "amount_eur": amt_f,
+                "month_index": month_i,
+                "direction": direction_s,
+                "label": raw.get("label"),
+            }
+        )
+    return cleaned, changes
+
+
 def apply_assumed_defaults(
     extracted: dict[str, Any],
     *,
@@ -73,6 +199,25 @@ def apply_assumed_defaults(
         description=description,
     )
 
+    # Work order B / Run #19: drop incomplete one-offs before assuming scalars so a
+    # complete CAPEX event can populate special_investment_* as stated.
+    cleaned_events, drop_changes = drop_incomplete_one_off_events(out.get("one_off_events"))
+    out["one_off_events"] = cleaned_events
+    changes.extend(drop_changes)
+    if not cleaned_events:
+        sources.setdefault("one_off_events", "assumed")
+    else:
+        sources.setdefault("one_off_events", "stated")
+        if out.get("special_investment_eur") in (None, "", 0, 0.0):
+            for ev in cleaned_events:
+                direction = str(ev.get("direction") or "out").lower()
+                if direction in {"out", "outflow"} and ev.get("amount_eur"):
+                    out["special_investment_eur"] = float(ev["amount_eur"])
+                    out["special_investment_month"] = int(ev.get("month_index") or 2)
+                    sources["special_investment_eur"] = "stated"
+                    sources["special_investment_month"] = "stated"
+                    break
+
     for key in _ASSUMABLE_SCALARS:
         if out.get(key) is None or out.get(key) == "":
             fill = drawn.get(key)
@@ -109,14 +254,22 @@ def apply_assumed_defaults(
     elif out.get("starting_cash_eur") is not None:
         sources.setdefault("starting_cash_eur", "stated")
 
-    shares = out.get("cost_shares_of_revenue")
+    shares_raw = out.get("cost_shares_of_revenue")
+    shares = shares_raw
+    # Treat all-null share objects as missing (Ollama often returns keys with nulls).
+    if isinstance(shares, dict) and shares and all(
+        shares.get(sk) is None for sk in ("materials", "services", "personnel", "other")
+    ):
+        shares = None
     if not isinstance(shares, dict) or not shares:
         out["cost_shares_of_revenue"] = drawn["cost_shares_of_revenue"]
         sources["cost_shares_of_revenue"] = "assumed"
+        for sk in ("materials", "services", "personnel", "other"):
+            sources[f"cost_shares_of_revenue.{sk}"] = "assumed"
         changes.append(
             {
                 "field": "cost_shares_of_revenue",
-                "original": shares,
+                "original": shares_raw,
                 "clipped": drawn["cost_shares_of_revenue"],
                 "message": "assumed cost_shares_of_revenue from industry×size range table",
                 "source": "assume",
@@ -149,9 +302,6 @@ def apply_assumed_defaults(
         else:
             sources.setdefault("cost_shares_of_revenue", "stated")
 
-    if out.get("one_off_events") is None:
-        out["one_off_events"] = []
-        sources.setdefault("one_off_events", "assumed")
     if out.get("partly_fixed_costs") is None:
         out["partly_fixed_costs"] = False
         sources["partly_fixed_costs"] = "assumed"
