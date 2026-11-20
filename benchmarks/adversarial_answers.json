@@ -1,0 +1,117 @@
+{
+  "description": "Deliberately wrong interpretation / reading answers that must score well below 1.0. Used by tests/test_grader_adversarial.py.",
+  "pack_summary": {
+    "cash_end": 330000.0,
+    "revenue_last": 210000.0,
+    "mom_revenue_change": 1600.0,
+    "mom_cash_change": -5000.0,
+    "balance_history_change": -12000.0,
+    "first_negative_projection_week": null,
+    "currency": "EUR"
+  },
+  "interpretation_cases": [
+    {
+      "id": "invented_causes_fraud",
+      "answer": "Kassasaldo kauden lopussa on 330000 euroa. Cash crashed because of customer fraud and a bank freeze after embezzlement.",
+      "expect_max_overall": 0.8,
+      "expect_per_field": {
+        "no_invented_causes": 0.0
+      },
+      "why": "Invented causal tropes (fraud / bank freeze / embezzlement) not supported by pack figures."
+    },
+    {
+      "id": "invented_causes_konkurssissa",
+      "answer": "Kassasaldo on 330000 euroa mutta yritys on konkurssissa veropetoksen vuoksi eikä ennusteesta ole hyötyä.",
+      "expect_max_overall": 0.8,
+      "expect_per_field": {
+        "no_invented_causes": 0.0
+      },
+      "why": "Finnish stems konkurssissa / veropetos must match invented-cause patterns."
+    },
+    {
+      "id": "wrong_figures",
+      "answer": "Kassasaldo kauden lopussa on 999999 euroa ja liikevaihto 888888 euroa. Ennuste näyttää hyvältä annetuilla luvuilla.",
+      "expect_max_overall": 0.6,
+      "expect_per_field": {
+        "factual": 0.0,
+        "grounded": 0.0
+      },
+      "why": "Invented € amounts that do not appear in the pack."
+    },
+    {
+      "id": "contradictory_cash_already_negative",
+      "answer": "Kassasaldo kauden lopussa on 330000 euroa mutta kassa on jo negatiivinen joka viikko annetuilla luvuilla.",
+      "expect_max_overall": 0.8,
+      "expect_per_field": {
+        "no_contradiction": 0.0
+      },
+      "why": "Claims cash is already/always negative while pack cash_end is positive and first_negative_projection_week is null."
+    },
+    {
+      "id": "contradictory_negative_week",
+      "answer": "Annettujen lukujen mukaan ennuste menee negatiiviseksi viikolla 2. Kassasaldo kauden lopussa on 330000 euroa.",
+      "expect_max_overall": 0.8,
+      "expect_per_field": {
+        "no_contradiction": 0.0
+      },
+      "why": "Claims a negative projection week when the pack has none."
+    },
+    {
+      "id": "keyword_fluff_no_figures",
+      "answer": "Kassa ja liikevaihto muuttuvat koska avoimet laskut ja ennuste vaikuttavat yrityksen tilanteeseen merkittävästi.",
+      "expect_max_overall": 0.6,
+      "expect_per_field": {
+        "factual": 0.0,
+        "grounded": 0.0
+      },
+      "why": "Long FI keyword fluff without citing any pack figure — must not claim perfect understanding."
+    }
+  ],
+  "wrong_probe_answers": {
+    "cash_end": "{\"value\": 1}",
+    "revenue_last": "{\"value\": 999999}",
+    "mom_revenue_change": "{\"value\": -99999}",
+    "first_negative_projection_week": "{\"value\": 7}"
+  },
+  "field_by_field_demo": {
+    "title": "Anmol field-by-field wrong-answer check (graders must bite)",
+    "pack_summary_note": "Uses the pack_summary above (cash_end=330000, revenue_last=210000, mom=1600, first_negative_projection_week=null).",
+    "steps": [
+      {
+        "field": "reading.cash_end",
+        "wrong_answer": "{\"value\": 1}",
+        "expect": "grade_probes per_field cash_end << 1.0 (near 0)"
+      },
+      {
+        "field": "reading.revenue_last",
+        "wrong_answer": "{\"value\": 999999}",
+        "expect": "grade_probes per_field revenue_last << 1.0"
+      },
+      {
+        "field": "reading.mom_revenue_change",
+        "wrong_answer": "{\"value\": -99999}",
+        "expect": "grade_probes per_field mom_revenue_change << 1.0"
+      },
+      {
+        "field": "reading.first_negative_projection_week",
+        "wrong_answer": "{\"value\": 7}",
+        "expect": "grade_probes per_field first_negative_projection_week == 0.0 (pack is null)"
+      },
+      {
+        "field": "interpretation.no_invented_causes",
+        "wrong_answer": "… because of customer fraud and a bank freeze …",
+        "expect": "per_field no_invented_causes == 0.0; overall < 1.0"
+      },
+      {
+        "field": "interpretation.grounded / factual",
+        "wrong_answer": "Kassasaldo … 999999 … liikevaihto 888888 …",
+        "expect": "factual == 0.0 and grounded == 0.0; overall well below 1.0"
+      },
+      {
+        "field": "interpretation.no_contradiction",
+        "wrong_answer": "kassa on jo negatiivinen joka viikko (while citing 330000)",
+        "expect": "no_contradiction == 0.0; overall < 1.0"
+      }
+    ]
+  }
+}

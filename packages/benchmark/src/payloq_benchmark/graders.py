@@ -19,22 +19,65 @@ PARAM_NUMERIC_KEYS = [
 COST_SHARE_KEYS = ["materials", "services", "personnel", "other"]
 
 # Heuristic phrases that suggest invented causes (not supported by figures alone).
+# Use stems so Finnish inflections (konkurssissa, petoksen, …) still match.
 INVENTED_CAUSE_PATTERNS = [
     r"\bfraud\b",
+    r"\bpetok",  # petos / petoksen / …
     r"\bpetos\b",
     r"\bbankruptcy\b",
-    r"\bkonkurssi\b",
-    r"\bcustomer(?:s)? (?:left|lefting|churn)\b",
-    r"\basiakkaat? (?:lähti|lähtivät|kadonneet)\b",
+    r"\bkonkurss",  # konkurssi / konkurssissa
+    r"\bcustomer(?:s)? (?:left|leaving|churn)\b",
+    r"\basiakka(?:at|iden|ita)?\s+(?:lähti|lähtivät|kadon)",
     r"\bbank (?:froze|freeze|blocked)\b",
-    r"\bpankki (?:jäädytti|sulki)\b",
+    r"\bpankki (?:jäädytti|sulki|jäädyt)",
     r"\bembezzl",
     r"\bveropetos\b",
     r"\bunion strike\b",
     r"\blakko\b",
     r"\bcovid\b",
     r"\bpandemic\b",
+    r"\bhack(?:ed|er|ing)?\b",
+    r"\bhakker",
+    r"\binsurance\s+payout\b",
+    r"\bvakuutuskorvaus\b",
 ]
+
+# Claims that cash / projection is already (or always) negative.
+_CASH_ALREADY_NEGATIVE = re.compile(
+    r"(?:"
+    r"kassa\s+(?:on\s+)?(?:jo\s+)?negatiiv|"
+    r"kassa\s+menee\s+negatiiviseksi\s+joka|"
+    r"negatiivinen\s+joka\s+viikko|"
+    r"cash\s+(?:is\s+)?(?:already\s+)?negativ|"
+    r"cash\s+(?:goes|went)\s+negative\s+(?:every|each|all)|"
+    r"always\s+negative"
+    r")",
+    re.I,
+)
+_CASH_NEVER_NEGATIVE = re.compile(
+    r"(?:"
+    r"ei\s+mene\s+negatiiv|"
+    r"ei\s+negatiiv|"
+    r"stays?\s+non[- ]?negative|"
+    r"does\s+not\s+go\s+negative|"
+    r"never\s+goes\s+negative|"
+    r"projection\s+stays\s+non[- ]?negative"
+    r")",
+    re.I,
+)
+_PROJECTION_WEEK_CLAIM = re.compile(
+    r"(?:viikolla|viikko|week)\s*(\d{1,2})",
+    re.I,
+)
+
+# Money-like literals in free text must match pack figures (grounding).
+_MONEY_NUMBER_RE = re.compile(
+    r"(-?\d{1,3}(?:[ \u00a0]\d{3})+(?:[.,]\d+)?|-?\d+[.,]\d+|-?\d{3,})"
+)
+
+# Stub reading/interpretation can score 1.0 by echoing pack_summary — that only
+# proves harness wiring, not model understanding (see docs/evaluation.md).
+STUB_PERFECT_SCORE_MEANS_WIRING_ONLY = True
 
 
 @dataclass
@@ -169,6 +212,14 @@ def grade_parameters_binary(
     )
 
 
+def _parse_number_token(raw: str) -> float | None:
+    cleaned = raw.replace("\u00a0", " ").replace(" ", "").replace(",", ".")
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
 def extract_first_number(text: str) -> float | None:
     """Pull the first numeric literal from free text (handles FI/EN decimals)."""
     if not text:
@@ -176,15 +227,160 @@ def extract_first_number(text: str) -> float | None:
     # Prefer JSON-ish "value": 123.4
     m = re.search(r'"value"\s*:\s*(-?\d+(?:[.,]\d+)?)', text, re.I)
     if m:
-        return float(m.group(1).replace(",", "."))
+        return _parse_number_token(m.group(1))
     m = re.search(r"(-?\d{1,3}(?:[ \u00a0]\d{3})+(?:[.,]\d+)?|-?\d+[.,]\d+|-?\d+)", text)
     if not m:
         return None
-    raw = m.group(1).replace("\u00a0", " ").replace(" ", "").replace(",", ".")
-    try:
-        return float(raw)
-    except ValueError:
-        return None
+    return _parse_number_token(m.group(1))
+
+
+def extract_money_like_numbers(text: str) -> list[float]:
+    """
+    Money-scale literals (≥100 abs, or thousand-grouped / decimal) from free text.
+
+    Used to catch invented € amounts that are not present in the pack summary.
+    Small week indices (1–52) are ignored here — they are checked separately.
+    """
+    if not text:
+        return []
+    found: list[float] = []
+    for m in _MONEY_NUMBER_RE.finditer(text):
+        val = _parse_number_token(m.group(1))
+        if val is None:
+            continue
+        if abs(val) < 100:
+            continue
+        found.append(val)
+    return found
+
+
+def _pack_numeric_values(pack_summary: dict[str, Any]) -> list[float]:
+    """Flatten numeric scalars (and drop deltas) from the figure pack."""
+    numbers: list[float] = []
+    for _k, v in pack_summary.items():
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            numbers.append(float(v))
+        elif isinstance(v, list):
+            for item in v:
+                if isinstance(item, dict):
+                    for _ik, iv in item.items():
+                        if isinstance(iv, (int, float)) and not isinstance(iv, bool):
+                            numbers.append(float(iv))
+                elif isinstance(item, (int, float)) and not isinstance(item, bool):
+                    numbers.append(float(item))
+    return numbers
+
+
+def _number_in_pack(n: float, pack_numbers: list[float], *, rel_tol: float = 0.05) -> bool:
+    for p in pack_numbers:
+        if abs(p) < 1e-9:
+            if abs(n) < 1e-6:
+                return True
+            continue
+        if abs(n - p) / max(abs(p), 1.0) <= rel_tol:
+            return True
+        # Absolute band for small indices (week numbers).
+        if abs(p) <= 52 and abs(n - p) <= 0.15:
+            return True
+    return False
+
+
+def _cites_pack_figure(text: str, pack_summary: dict[str, Any]) -> bool:
+    """True when the answer mentions ≥1 figure present in pack_summary."""
+    numbers_in_pack = _pack_numeric_values(pack_summary)
+    for n in numbers_in_pack:
+        variants = {str(n), f"{n:.0f}", f"{n:.2f}", f"{int(n):,}".replace(",", " ")}
+        if any(v and v in text.replace(",", ".") for v in variants):
+            return True
+    extracted = extract_first_number(text)
+    if extracted is not None:
+        for n in numbers_in_pack:
+            if abs(n) < 1e-9:
+                continue
+            if abs(extracted - n) / max(abs(n), 1.0) < 0.05:
+                return True
+    week = pack_summary.get("first_negative_projection_week")
+    if week is not None:
+        if re.search(rf"\b(?:viikko|week)\s*{week}\b", text, re.I) or str(week) in text:
+            return True
+    return False
+
+
+def _grounding_score(text: str, pack_summary: dict[str, Any]) -> tuple[float, list[float]]:
+    """
+    Score how well money-like numbers in the answer are grounded in the pack.
+
+    Returns (score 0..1, list of ungrounded amounts). Keyword fluff that only
+    drops one lucky pack figure still fails if it invents other € amounts.
+    """
+    pack_numbers = _pack_numeric_values(pack_summary)
+    money = extract_money_like_numbers(text)
+    if not money:
+        # No money literals: not grounded in figures (unless pack itself has none).
+        if not any(abs(n) >= 100 for n in pack_numbers):
+            return 1.0, []
+        return 0.0, []
+    ungrounded = [n for n in money if not _number_in_pack(n, pack_numbers)]
+    if not ungrounded:
+        return 1.0, []
+    # Partial credit only when a majority of money literals still match the pack.
+    matched = len(money) - len(ungrounded)
+    return max(0.0, matched / len(money)), ungrounded
+
+
+def _contradiction_score(text: str, pack_summary: dict[str, Any]) -> tuple[float, str]:
+    """
+    Detect cash / projection claims that contradict the pack figures.
+
+    Returns (1.0 if consistent, 0.0 if contradictory, note).
+    """
+    cash_end = pack_summary.get("cash_end")
+    neg_week = pack_summary.get("first_negative_projection_week")
+    has_neg_key = "first_negative_projection_week" in pack_summary
+    pack_shows_negative = neg_week is not None or (
+        isinstance(cash_end, (int, float)) and float(cash_end) < 0
+    )
+    pack_shows_non_negative = has_neg_key and neg_week is None and (
+        cash_end is None or (isinstance(cash_end, (int, float)) and float(cash_end) >= 0)
+    )
+
+    if pack_shows_non_negative and _CASH_ALREADY_NEGATIVE.search(text):
+        return 0.0, "claims cash already/always negative while pack is non-negative"
+
+    if pack_shows_negative and _CASH_NEVER_NEGATIVE.search(text):
+        return 0.0, "claims cash/projection never negative while pack shows a negative"
+
+    if has_neg_key and neg_week is None:
+        # "viikolla N" / "week N" as a first-negative claim contradicts null week.
+        for m in _PROJECTION_WEEK_CLAIM.finditer(text):
+            claimed = int(m.group(1))
+            # Ignore year-like / large values; weeks are 1–52.
+            if 1 <= claimed <= 52 and _CASH_ALREADY_NEGATIVE.search(text) is None:
+                # Only flag when the surrounding claim implies a negative crossing.
+                window = text[max(0, m.start() - 40) : m.end() + 40].lower()
+                if any(
+                    tok in window
+                    for tok in (
+                        "negatiiv",
+                        "negative",
+                        "menee",
+                        "goes",
+                        "turns",
+                        "ennuste",
+                        "projection",
+                    )
+                ):
+                    return 0.0, f"claims negative in week {claimed} but pack has none"
+
+    if neg_week is not None:
+        for m in _PROJECTION_WEEK_CLAIM.finditer(text):
+            claimed = int(m.group(1))
+            if 1 <= claimed <= 52 and claimed != int(neg_week):
+                window = text[max(0, m.start() - 40) : m.end() + 40].lower()
+                if any(tok in window for tok in ("negatiiv", "negative", "menee", "goes", "turns")):
+                    return 0.0, f"claims negative week {claimed} vs pack week {neg_week}"
+
+    return 1.0, ""
 
 
 def grade_numeric_reading(
@@ -384,10 +580,17 @@ def grade_interpretation(
     language: str = "fi",
 ) -> GradeDetail:
     """
-    Rubric (code heuristics):
-    - factual: mentions ≥1 number present in pack_summary
-    - understandable: non-trivial length, not empty
-    - no invented causes: avoids unsupported causal tropes
+    Rubric (code heuristics) — five fields, mean overall:
+
+    - understandable: non-trivial length
+    - factual: cites ≥1 number present in pack_summary
+    - grounded: money-like literals in the answer match pack figures (no invented €)
+    - no_invented_causes: avoids unsupported causal tropes (stem-matched)
+    - no_contradiction: cash / projection claims agree with pack signs & weeks
+
+    Keyword stubs that echo pack_summary can still score 1.0 by construction;
+    that only proves pipeline wiring (``STUB_PERFECT_SCORE_MEANS_WIRING_ONLY``).
+    Deliberately wrong / invented / contradictory answers must score well below 1.0.
 
     Finnish quality is scored separately via ``grade_fi_quality`` (not folded in).
     """
@@ -405,33 +608,12 @@ def grade_interpretation(
     per_field["understandable"] = understand
 
     # Factual: cite at least one figure from the summary
-    numbers_in_pack: list[float] = []
-    for k, v in pack_summary.items():
-        if isinstance(v, (int, float)) and not isinstance(v, bool):
-            numbers_in_pack.append(float(v))
-    cited = 0
-    for n in numbers_in_pack:
-        # Allow integer formatting / rounding
-        variants = {str(n), f"{n:.0f}", f"{n:.2f}", f"{int(n):,}".replace(",", " ")}
-        if any(v and v in text.replace(",", ".") for v in variants):
-            cited += 1
-            break
-        # Fuzzy: extracted numbers close to pack values
-    extracted = extract_first_number(text)
-    if cited == 0 and extracted is not None:
-        for n in numbers_in_pack:
-            if abs(n) < 1e-9:
-                continue
-            if abs(extracted - n) / max(abs(n), 1.0) < 0.05:
-                cited = 1
-                break
-    # Also credit explicit mention of week index / projection language when relevant
-    if cited == 0 and pack_summary.get("first_negative_projection_week") is not None:
-        week = pack_summary["first_negative_projection_week"]
-        if re.search(rf"\b(?:viikko|week)\s*{week}\b", text, re.I) or str(week) in text:
-            cited = 1
-    factual = 1.0 if cited else 0.0
+    factual = 1.0 if _cites_pack_figure(text, pack_summary) else 0.0
     per_field["factual"] = factual
+
+    # Grounded: money-like amounts must appear in the pack (catches wrong figures)
+    grounded, ungrounded = _grounding_score(text, pack_summary)
+    per_field["grounded"] = round(grounded, 4)
 
     # No invented causes
     low = text.lower()
@@ -439,14 +621,23 @@ def grade_interpretation(
     no_invent = 0.0 if invented_hits else 1.0
     per_field["no_invented_causes"] = no_invent
 
+    # No contradictory cash / projection claims
+    no_contra, contra_note = _contradiction_score(text, pack_summary)
+    per_field["no_contradiction"] = no_contra
+
     # Attach FI band detail for callers (does not affect main score)
     fi_g = grade_fi_quality(text, expected_language=language)
     per_field["fi_quality"] = fi_g.score
 
-    overall = (understand + factual + no_invent) / 3.0
+    dims = (understand, factual, grounded, no_invent, no_contra)
+    overall = sum(dims) / len(dims)
     notes = "ok"
     if invented_hits:
         notes = f"invented-cause patterns: {invented_hits[:3]}"
+    elif no_contra < 1.0 and contra_note:
+        notes = contra_note
+    elif grounded < 1.0 and ungrounded:
+        notes = f"ungrounded amounts: {ungrounded[:5]}"
     elif factual < 1.0:
         notes = "did not cite pack figures"
     return GradeDetail(score=round(overall, 4), notes=notes, per_field=per_field)
