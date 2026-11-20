@@ -28,6 +28,11 @@ from payloq_llm.defaults import (
     resolve_ollama_timeout_s,
 )
 from payloq_llm.nl_quality import assess_nl_params
+from payloq_llm.nl_stated import (
+    build_hybrid_params_from_nl,
+    extract_stated_params_from_nl,
+    merge_llm_with_code_stated,
+)
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
 __all__ = [
@@ -44,11 +49,14 @@ __all__ = [
     "StubLlmAdapter",
     "assess_nl_params",
     "build_chat_figures",
+    "build_hybrid_params_from_nl",
+    "extract_stated_params_from_nl",
     "get_adapter",
     "input_from_descriptions",
     "input_from_text",
     "list_demo_presets",
     "list_ollama_models",
+    "merge_llm_with_code_stated",
     "recommended_ollama_tags",
     "resolve_ollama_timeout_s",
     "run_chat_demo",

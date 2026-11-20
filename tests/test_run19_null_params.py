@@ -106,7 +106,12 @@ def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
     assert params["starting_cash_eur"] == pytest.approx(45_000)
     assert params["target_cash_at_end_eur"] == pytest.approx(40_000)
     assert params["field_sources"].get("cost_shares_of_revenue") == "assumed"
-    assert params["one_off_events"] == []
+    # Code-first NL fills stated CAPEX €80k month 3 even when LLM one-off was incomplete.
+    assert params["special_investment_eur"] == pytest.approx(80_000)
+    assert params["special_investment_month"] == 3
+    assert params["one_off_events"]
+    assert params["one_off_events"][0]["amount_eur"] == pytest.approx(80_000)
+    assert params["one_off_events"][0]["month_index"] == 3
     assert any("assumed" in (c.get("message") or "") for c in changes)
 
 
