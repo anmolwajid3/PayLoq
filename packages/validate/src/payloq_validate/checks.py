@@ -214,14 +214,22 @@ def _check_monthly(monthly: MonthlyReports, result: ValidationResult) -> None:
                 },
             )
 
+        # VR-04 equity roll-forward (blocking): equity_t = equity_{t-1} + net_result_t
+        # (− dividends/drawings when modeled). Soft warning previously hid cash_* breaks.
         if prev_equity is not None:
             expected_eq = prev_equity + is_.net_result
             if not _near(e.equity, expected_eq, tol=2.0):
                 result.add(
                     "equity_continuity",
                     f"{m.month}: equity {e.equity} != prev+net {expected_eq}",
-                    severity="warning",
                     rule_id="VR-04",
+                    numbers={
+                        "month": m.month,
+                        "equity": e.equity,
+                        "expected": expected_eq,
+                        "prev_equity": prev_equity,
+                        "net_result": is_.net_result,
+                    },
                 )
         prev_equity = e.equity
 

@@ -32,7 +32,7 @@ Local models are mandatory for the primary evaluation path because financial dat
 | **Must** | Natural-language → structured parameters (revenue, margins/cost shares, growth, DSO/DPO, cash target, investments, etc.) | §2 Task A step 1 |
 | **Must** | Deterministic generator: monthly P&L + balance sheet (12–24 months) | §2 Datasets |
 | **Must** | Balance history (weekly) + open sales/purchase invoices + short cash projection from open invoices | §2 Datasets; examples |
-| **Must** | Validators: BS balances; month-to-month continuity; cash vs history; receivables/payables vs open invoice sums | §2 Task A step 3; README |
+| **Must** | Validators: BS balances; month-to-month equity continuity (`equity_t = prev + net`, blocking VR-04); cash vs history; receivables/payables vs open invoice sums | §2 Task A step 3; README |
 | **Must** | Export JSON (system-agnostic) + Excel tabs (Scenario, Income statement, Balance sheet, Balance history, Open invoices, Projection) | §2 Output formats; example xlsx |
 | **Must** | 3–5 ready-made scenario packs (examples already: good, weak, cash_critical; WO also mentions invoices out of balance) | §2 Ready-made scenarios |
 | **Must** | Benchmark harness: same prompts/data across multiple local model sizes; parameter grading + interpretation grading | §3 |

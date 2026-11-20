@@ -49,10 +49,11 @@ Amounts, dates, VAT, and IDs remain generator-owned.
 1. Each month: `total_assets == total_equity_and_liabilities`
 2. Asset / liability line sums match totals
 3. P&L lines reconcile (operating profit → net result)
-4. Last month `cash` == last `balance_history.balance`
-5. Σ open sales invoices == receivables; Σ open purchases == payables
-6. Projection arithmetic: `balance += sales_inflow - purchase_outflow`
-7. Behavioural (warnings): good stays solvent; weak loses money; cash_critical goes negative ~week 3
+4. Equity roll-forward (VR-04, **blocking**): `equity_t = equity_{t-1} + net_result_t` (− dividends/drawings if modeled)
+5. Last month `cash` == last `balance_history.balance`
+6. Σ open sales invoices == receivables; Σ open purchases == payables
+7. Projection arithmetic: `balance += sales_inflow - purchase_outflow`
+8. Behavioural (warnings): good stays solvent; weak loses money; cash_critical goes negative ~week 3
 
 ## Journal entries (§4 optional)
 
