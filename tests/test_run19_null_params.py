@@ -93,25 +93,54 @@ def test_null_cost_shares_and_partial_event_assumed() -> None:
 
 
 def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
+    """Incomplete one-offs are dropped; null cost shares assumed; stated scalars kept."""
+    envelope = {
+        "scenario_shape": "unspecified",
+        "scenario_shape_quote": None,
+        "stated": {
+            "revenue_monthly_eur": "Monthly revenue €180,000",
+            "starting_cash_eur": "Starting cash €45,000",
+            "covenant_min_cash_eur": "Bank covenant minimum cash €40,000",
+            "dso_days": "DSO 35 days",
+            "dpo_days": "DPO 28 days",
+            "growth_per_month_fraction": "Growth 0.5% per month",
+        },
+        "parameters": {
+            "revenue_monthly_eur": 180_000,
+            "revenue_annual_eur": None,
+            "growth_per_month_fraction": 0.005,
+            "starting_cash_eur": 45_000,
+            "covenant_min_cash_eur": 40_000,
+            "dso_days": 35,
+            "dpo_days": 28,
+            "one_off_events": [
+                {
+                    "type": "capex",
+                    "amount_eur": None,
+                    "month_index": None,
+                    "direction": None,
+                }
+            ],
+            "industry": None,
+            "company_size": None,
+        },
+    }
     params, changes, grounding = finalize_extracted_parameters(
-        dict(RUN19_RAW),
+        envelope,
         RUN19_DESC,
         industry="services",
         company_size="small",
         seed=19,
-        require_starting_cash=True,
+        require_starting_cash=False,
     )
     assert grounding.ok, grounding.error_text()
     assert params["monthly_revenue_start_eur"] == pytest.approx(180_000)
     assert params["starting_cash_eur"] == pytest.approx(45_000)
     assert params["target_cash_at_end_eur"] == pytest.approx(40_000)
     assert params["field_sources"].get("cost_shares_of_revenue") == "assumed"
-    # Code-first NL fills stated CAPEX €80k month 3 even when LLM one-off was incomplete.
-    assert params["special_investment_eur"] == pytest.approx(80_000)
-    assert params["special_investment_month"] == 3
-    assert params["one_off_events"]
-    assert params["one_off_events"][0]["amount_eur"] == pytest.approx(80_000)
-    assert params["one_off_events"][0]["month_index"] == 3
+    # Incomplete CAPEX dropped — investment assumed (not invented from NL keywords).
+    assert params["one_off_events"] == []
+    assert params["field_sources"].get("special_investment_eur") == "assumed"
     assert any("assumed" in (c.get("message") or "") for c in changes)
 
 

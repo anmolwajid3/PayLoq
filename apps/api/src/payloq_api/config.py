@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
 
     ollama_host: str = "http://127.0.0.1:11434"
-    ollama_model: str = "llama3.2:1b"
+    ollama_model: str = "qwen2.5:7b"
     # Seconds for Ollama /api/chat (Mac Docker CPU often needs 300–600).
     # Env: PAYLOQ_OLLAMA_TIMEOUT (compose sets 600 for the api service).
     ollama_timeout: float = float(DEFAULT_TIMEOUT_S)

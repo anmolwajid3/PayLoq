@@ -6,43 +6,34 @@ import json
 from typing import Any
 
 PARAM_SCHEMA_HINT = """
-Return ONLY a JSON object with these keys (no markdown, no commentary).
-Use null for any value NOT explicitly stated in the description. NEVER invent defaults.
+Return ONLY a JSON object matching this schema (no markdown, no commentary).
+null if the description does not state the value. NEVER use 0 for an unstated value.
+Never put one number in two fields. Do not calculate. Do not convert annual to monthly.
 {
-  "monthly_revenue_start_eur": <positive number or null>,
-  "monthly_revenue_growth": <MoM fraction e.g. 0.003 for 0.3%/month, or null>,
-  "cost_shares_of_revenue": {
-    "materials": <0-1 or null>,
-    "services": <0-1 or null>,
-    "personnel": <0-1 or null>,
-    "other": <0-1 or null>
-  } | null,
-  "days_sales_outstanding": <days or null>,
-  "days_payables_outstanding": <days or null>,
-  "starting_cash_eur": <positive number — REQUIRED when stated; null if unstated>,
-  "target_cash_at_end_eur": <number or null>,
-  "covenant_min_cash_eur": <number or null>,
-  "special_investment_eur": <number or null>,
-  "special_investment_month": <1-based month index or null>,
-  "monthly_revenue_factors": [<12 floats Jan..Dec>] | null,
-  "one_off_events": [
-    {"type": "capex"|"other", "amount_eur": <positive>, "month_index": <1-based>,
-     "direction": "in"|"out", "label": "<optional>"}
-  ] | null,
-  "notes": "<short note or null>",
-  "partly_fixed_costs": <true|false|null>
+  "scenario_shape": "healthy" | "weak" | "cash_tight" | "cash_critical" | "unspecified",
+  "scenario_shape_quote": "exact words from the description, or null",
+  "stated": { "<field name>": "exact quote from the description" },
+  "parameters": {
+    "revenue_monthly_eur": number | null,
+    "revenue_annual_eur": number | null,
+    "growth_per_month_fraction": number | null,
+    "starting_cash_eur": number | null,
+    "covenant_min_cash_eur": number | null,
+    "dso_days": number | null,
+    "dpo_days": number | null,
+    "one_off_events": [
+      {"type": string, "amount_eur": number, "month_index": integer,
+       "direction": "inflow" | "outflow"}
+    ],
+    "industry": string | null,
+    "company_size": string | null
+  }
 }
-Aliases accepted: revenue_monthly_start_eur / revenue_monthly_eur,
-growth_per_month_fraction, dso_days, dpo_days.
 HARD RULES:
-- Extract ONLY numbers that appear in the description (after k/M/%/€ parsing).
-- HARD: When the description mentions Starting cash / opening cash / alkukassa
-  (also aloituskassa, avauskassa, initial cash), you MUST set starting_cash_eur
-  to that euro amount. Never leave it null when those words appear with a figure.
-- If starting_cash_eur is not stated in the description, return null (do not invent).
-- Cost shares when present should sum to about 0.9–1.0.
-- monthly_revenue_factors: twelve MULTIPLIERS Jan–Dec (~0.1–2.0), never euro totals.
-- CAPEX one-offs are always direction "out".
+- Only list a field in "stated" if the description states it; give the exact quote.
+- Extract ONLY numbers that appear in the description (after k/M/million/%/€ parsing).
+- If starting_cash_eur is not stated, return null (code will assume it).
+- CAPEX / investment one-offs use direction "outflow".
 - Do not invent absolute P&L or balance-sheet figures — code computes those.
 """.strip()
 
@@ -74,7 +65,8 @@ def parameter_extraction_prompt(
         "You map a short company situation into structured generator parameters for PayLoq.\n"
         "Finnish support is required: read both FI and EN descriptions.\n"
         "Code calculates all financial figures; you only extract stated parameters.\n"
-        "Return null for unstated fields. Never invent SME defaults or company-specific guesses.\n\n"
+        "Return null for unstated fields. Never invent defaults or company-specific guesses.\n"
+        "Never use 0 for an unstated value.\n\n"
         f"Description (FI):\n{description_fi}\n\n"
         f"Description (EN):\n{description_en}\n\n"
         f"Options JSON:\n{json.dumps(options, ensure_ascii=False)}\n\n"
@@ -84,24 +76,23 @@ def parameter_extraction_prompt(
 
 def parameter_repair_prompt(previous: str, error: str) -> str:
     return (
-        "Your previous JSON failed PayLoq parameter checks (schema and/or grounding).\n"
+        "Your previous JSON failed PayLoq parameter checks (schema and/or stated-quote).\n"
         f"Error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
-        "Return corrected JSON only. Use null for unstated fields. "
-        "Every stated number MUST appear in the description after parsing units (k, M, %, €). "
-        "If the description states Starting cash / opening cash / alkukassa, "
-        "starting_cash_eur is REQUIRED (copy that euro amount; do not leave null). "
+        "Return corrected JSON only (section B schema). Use null for unstated fields. "
+        "Every field in stated must have an exact quote from the description, and the "
+        "value must appear in that quote after parsing units (k, M, million, %, €). "
         "Do not invent defaults. Do not retry with the same wrong numbers.\n"
     )
 
 
 def parameter_grounding_repair_prompt(previous: str, grounding_error: str) -> str:
     return (
-        "Grounding check failed: stated numbers must match the description.\n"
+        "Stated-quote check failed: quotes must appear in the description and values "
+        "must appear in those quotes.\n"
         f"{grounding_error}\n\n"
         f"Previous response:\n{previous}\n\n"
-        "Return corrected JSON only. Fix the named fields so values appear in the "
-        "description (e.g. €4.2M → 4200000, not 420000). Use null when unstated.\n"
+        "Return corrected JSON only. Fix the named fields. Use null when unstated.\n"
     )
 
 

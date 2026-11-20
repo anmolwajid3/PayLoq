@@ -32,11 +32,9 @@ def test_journal_entries_balanced_and_written(tmp_path: Path):
 
     out = tmp_path / "pack"
     write_pack(pack, out, write_xlsx=True, write_journal=True)
-    assert (out / "journal_entries.json").is_file()
-    data = json.loads((out / "journal_entries.json").read_text(encoding="utf-8"))
-    assert data["entries"]
-    # Phase 1 validators still green
-    reloaded_ok = validate_pack(generate_pack(inp, seed=42))
+    # Pilot fix G: journal is never written by the generator pipeline.
+    assert not (out / "journal_entries.json").exists()
+    reloaded_ok = validate_pack(generate_pack(inp, seed=42), check_fidelity=False)
     assert reloaded_ok.ok
 
 

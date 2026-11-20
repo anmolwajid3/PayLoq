@@ -49,14 +49,14 @@ def generate(
         help="Read NL description from a UTF-8 text file (same as --from-text).",
     ),
     llm: str = typer.Option(
-        "stub",
+        "ollama",
         "--llm",
-        help="LLM adapter for --from-text: stub | ollama. Presets (--scenario) ignore this.",
+        help="LLM adapter for --from-text: ollama only (stub removed from generator).",
     ),
     ollama_model: Optional[str] = typer.Option(
         None,
         "--ollama-model",
-        help="Ollama model tag (default: llama3.2:1b).",
+        help="Ollama model tag (default: qwen2.5:7b).",
     ),
     ollama_host: Optional[str] = typer.Option(
         None,
@@ -64,9 +64,9 @@ def generate(
         help="Ollama base URL (default: http://127.0.0.1:11434).",
     ),
     no_fallback_stub: bool = typer.Option(
-        False,
-        "--no-fallback-stub",
-        help="With --llm ollama, fail instead of falling back to the stub adapter.",
+        True,
+        "--no-fallback-stub/--fallback-stub",
+        help="Stub fallback disabled by default (pilot fix). --fallback-stub is rejected for generate.",
     ),
     language: str = typer.Option(
         "fi",
@@ -91,9 +91,9 @@ def generate(
     seed: int = typer.Option(42, "--seed", help="Deterministic seed."),
     xlsx: bool = typer.Option(True, "--xlsx/--no-xlsx", help="Also write Excel workbook."),
     journal: bool = typer.Option(
-        True,
+        False,
         "--journal/--no-journal",
-        help="Also write optional journal_entries.json (§4 stretch).",
+        help="Journal entries removed from Task A (always off).",
     ),
 ) -> None:
     """Generate a consistent JSON (+ Excel) pack from parameters or NL text."""
@@ -153,9 +153,12 @@ def generate(
             typer.echo(str(exc), err=True)
             raise typer.Exit(2) from exc
 
+        if llm == "stub":
+            typer.echo("Keyword stub is not allowed for --from-text. Use --llm ollama.", err=True)
+            raise typer.Exit(2)
         adapter = get_adapter(
-            llm,
-            fallback_stub=not no_fallback_stub,
+            "ollama",
+            fallback_stub=False,
             model=ollama_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or DEFAULT_OLLAMA_HOST,
         )
@@ -201,7 +204,7 @@ def generate(
         out,
         seed=seed,
         write_xlsx=xlsx,
-        write_journal=journal,
+        write_journal=False,
         raw_llm_output=raw_llm,
         llm_name=llm_name,
     )

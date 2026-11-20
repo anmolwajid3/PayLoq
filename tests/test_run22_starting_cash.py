@@ -1,24 +1,15 @@
-"""Run #22: map NL Starting cash / alkukassa → starting_cash_eur (stated).
-
-Ollama omitted starting_cash_eur despite 'Starting cash €45,000' and fell to stub
-after Missing required parameter retries. CAPEX €80k was already correct on stub.
-"""
+"""Run #22: starting_cash may be stated or assumed — never a hard fail (pilot fix §D/G)."""
 
 from __future__ import annotations
 
 import pytest
 
-from payloq_llm.adapters import StubLlmAdapter
-from payloq_llm.assume import MissingRequiredParameterError, apply_assumed_defaults
+from payloq_llm.assume import apply_assumed_defaults
 from payloq_llm.extract_pipeline import finalize_extracted_parameters
-from payloq_llm.nl_param_hints import (
-    extract_starting_cash_eur,
-    repair_starting_cash_from_nl,
-)
-from payloq_llm.prompts import PARAM_SCHEMA_HINT, parameter_repair_prompt
+from payloq_llm.nl_param_hints import extract_starting_cash_eur, repair_starting_cash_from_nl
+from payloq_llm.prompts import PARAM_SCHEMA_HINT
 from payloq_schemas.models import ExtractedParameters
 
-# Same manufacturing-style NL as Run #19 / Run #22 (EN).
 RUN22_DESC = (
     "Monthly revenue €180,000. Growth 0.5% per month. Starting cash €45,000. "
     "Bank covenant minimum cash €40,000. DSO 35 days. DPO 28 days. "
@@ -31,7 +22,6 @@ RUN22_DESC_FI = (
     "Kertaluonteinen CAPEX 80 000 € ulosmaksu kuukaudessa 3."
 )
 
-# Ollama-shaped payload: starting_cash omitted/null despite NL (Run #22 failure).
 RUN22_RAW_OMITTED = {
     "monthly_revenue_start_eur": 180_000,
     "monthly_revenue_growth": 0.005,
@@ -61,13 +51,9 @@ RUN22_RAW_OMITTED = {
 }
 
 
-def test_prompt_requires_starting_cash_when_nl_labels_it() -> None:
-    assert "Starting cash" in PARAM_SCHEMA_HINT or "starting cash" in PARAM_SCHEMA_HINT.lower()
-    assert "alkukassa" in PARAM_SCHEMA_HINT.lower()
-    assert "opening cash" in PARAM_SCHEMA_HINT.lower()
-    repair = parameter_repair_prompt("{}", "Missing required parameter: starting_cash_eur")
-    assert "starting_cash_eur" in repair
-    assert "alkukassa" in repair.lower() or "Starting cash" in repair
+def test_prompt_documents_null_when_unstated_starting_cash() -> None:
+    assert "starting_cash_eur" in PARAM_SCHEMA_HINT
+    assert "null" in PARAM_SCHEMA_HINT.lower()
 
 
 def test_extract_starting_cash_eur_en() -> None:
@@ -87,9 +73,7 @@ def test_extract_starting_cash_does_not_invent_when_absent() -> None:
 
 
 def test_extract_starting_cash_ignores_covenant_and_capex() -> None:
-    """Covenant €40k and CAPEX €80k must not become starting cash."""
     assert extract_starting_cash_eur(RUN22_DESC) == pytest.approx(45_000)
-    # Without the Starting cash clause — still no invent from covenant/CAPEX.
     no_start = RUN22_DESC.replace("Starting cash €45,000. ", "")
     assert extract_starting_cash_eur(no_start) is None
 
@@ -102,20 +86,8 @@ def test_repair_fills_null_from_nl_as_stated() -> None:
     assert any(c.get("field") == "starting_cash_eur" for c in changes)
 
 
-def test_repair_does_not_invent_when_nl_has_no_figure() -> None:
-    raw = dict(RUN22_RAW_OMITTED)
-    desc = (
-        "Monthly revenue €180,000. Growth 0.5% per month. "
-        "Bank covenant minimum cash €40,000. DSO 35 days. DPO 28 days. "
-        "One-off CAPEX €80,000 outflow in month 3."
-    )
-    fixed, changes = repair_starting_cash_from_nl(desc, raw)
-    assert fixed.get("starting_cash_eur") in (None, "")
-    assert changes == []
-
-
-def test_assume_repairs_before_required_check() -> None:
-    """Null starting_cash + NL figure → stated 45000; no MissingRequiredParameterError."""
+def test_assume_fills_when_starting_cash_null() -> None:
+    """Pilot fix: null starting_cash is assumed — never MissingRequired."""
     extracted = ExtractedParameters.model_validate(RUN22_RAW_OMITTED).model_dump()
     filled, changes = apply_assumed_defaults(
         extracted,
@@ -123,83 +95,52 @@ def test_assume_repairs_before_required_check() -> None:
         company_size="small",
         seed=22,
         description=RUN22_DESC,
-        require_starting_cash=True,
+        require_starting_cash=False,
     )
-    assert filled["starting_cash_eur"] == pytest.approx(45_000)
-    assert filled["field_sources"].get("starting_cash_eur") == "stated"
-    assert any(
-        c.get("field") == "starting_cash_eur" and "NL" in (c.get("message") or "")
-        for c in changes
-    )
+    assert filled["starting_cash_eur"] is not None
+    assert filled["field_sources"].get("starting_cash_eur") == "assumed"
+    assert any(c.get("field") == "starting_cash_eur" for c in changes)
 
 
-def test_assume_errors_when_starting_cash_omitted_from_nl() -> None:
-    """Truly absent from description → Missing required parameter: starting_cash_eur."""
-    extracted = ExtractedParameters.model_validate(RUN22_RAW_OMITTED).model_dump()
-    desc = (
-        "Monthly revenue €180,000. Growth 0.5% per month. "
-        "Bank covenant minimum cash €40,000. DSO 35 days. DPO 28 days. "
-        "One-off CAPEX €80,000 outflow in month 3."
-    )
-    with pytest.raises(MissingRequiredParameterError, match="starting_cash_eur") as exc:
-        apply_assumed_defaults(
-            extracted,
-            industry="manufacturing",
-            company_size="small",
-            seed=22,
-            description=desc,
-            require_starting_cash=True,
-        )
-    assert exc.value.field == "starting_cash_eur"
-
-
-def test_finalize_run22_omitted_starting_cash_stated_45000() -> None:
-    params, changes, grounding = finalize_extracted_parameters(
-        dict(RUN22_RAW_OMITTED),
+def test_finalize_b_envelope_states_starting_cash() -> None:
+    envelope = {
+        "scenario_shape": "unspecified",
+        "scenario_shape_quote": None,
+        "stated": {
+            "revenue_monthly_eur": "Monthly revenue €180,000",
+            "starting_cash_eur": "Starting cash €45,000",
+            "covenant_min_cash_eur": "Bank covenant minimum cash €40,000",
+            "one_off_events": "One-off CAPEX €80,000 outflow in month 3",
+        },
+        "parameters": {
+            "revenue_monthly_eur": 180_000,
+            "revenue_annual_eur": None,
+            "growth_per_month_fraction": 0.005,
+            "starting_cash_eur": 45_000,
+            "covenant_min_cash_eur": 40_000,
+            "dso_days": 35,
+            "dpo_days": 28,
+            "one_off_events": [
+                {
+                    "type": "capex",
+                    "amount_eur": 80_000,
+                    "month_index": 3,
+                    "direction": "outflow",
+                }
+            ],
+            "industry": None,
+            "company_size": None,
+        },
+    }
+    params, _changes, check = finalize_extracted_parameters(
+        envelope,
         RUN22_DESC,
         industry="manufacturing",
         company_size="small",
         seed=22,
-        require_starting_cash=True,
+        require_starting_cash=False,
     )
-    assert grounding.ok, grounding.error_text()
+    assert check.ok, check.error_text()
     assert params["starting_cash_eur"] == pytest.approx(45_000)
     assert params["field_sources"].get("starting_cash_eur") == "stated"
     assert params["special_investment_eur"] == pytest.approx(80_000)
-    assert params["field_sources"].get("special_investment_eur") == "stated"
-    assert any(c.get("field") == "starting_cash_eur" for c in changes)
-
-
-def test_finalize_fails_when_starting_cash_omitted_from_nl() -> None:
-    desc = (
-        "Monthly revenue €180,000. Growth 0.5% per month. "
-        "Bank covenant minimum cash €40,000. DSO 35 days. DPO 28 days. "
-        "One-off CAPEX €80,000 outflow in month 3."
-    )
-    with pytest.raises(MissingRequiredParameterError, match="starting_cash_eur"):
-        finalize_extracted_parameters(
-            dict(RUN22_RAW_OMITTED),
-            desc,
-            industry="manufacturing",
-            company_size="small",
-            seed=22,
-            require_starting_cash=True,
-        )
-
-
-def test_stub_run22_starting_cash_45000_and_capex_80000() -> None:
-    stub = StubLlmAdapter()
-    out = stub.extract_parameters(
-        RUN22_DESC,
-        RUN22_DESC,
-        {
-            "industry": "manufacturing",
-            "company_size": "small",
-            "scenario_id": "custom",
-            "language": "en",
-        },
-    )
-    assert out["starting_cash_eur"] == pytest.approx(45_000)
-    assert out["field_sources"].get("starting_cash_eur") == "stated"
-    assert out["special_investment_eur"] == pytest.approx(80_000)
-    assert out["special_investment_month"] == 3

@@ -85,8 +85,10 @@ def validate_pack(
     pack: ScenarioPack,
     *,
     answer_key: dict[str, Any] | None = None,
+    check_fidelity: bool = True,
 ) -> ValidationResult:
     result = ValidationResult(ok=True)
+    # F.1 Consistency (blocking)
     _check_monthly(pack.monthly_reports, result)
     _check_cash(pack.cash_and_invoices, pack.monthly_reports, result)
     _check_invoices(pack.cash_and_invoices, result)
@@ -94,6 +96,31 @@ def validate_pack(
     _check_behaviour(pack, result)
     if answer_key is not None:
         _check_answer_key(pack, answer_key, result)
+    # F.2 Fidelity (blocking): stated values must match output params
+    if check_fidelity:
+        try:
+            from payloq_validate.fidelity import check_fidelity as _fidelity
+
+            fid = _fidelity(pack)
+            for issue in fid.issues:
+                result.add(
+                    "fidelity",
+                    issue.message,
+                    severity="error",
+                    rule_id="FIDELITY",
+                    numbers={
+                        "field": issue.field,
+                        "expected": issue.expected,
+                        "actual": issue.actual,
+                    },
+                )
+        except Exception as exc:  # noqa: BLE001
+            result.add(
+                "fidelity",
+                f"fidelity check failed to run: {exc}",
+                severity="error",
+                rule_id="FIDELITY",
+            )
     return result
 
 

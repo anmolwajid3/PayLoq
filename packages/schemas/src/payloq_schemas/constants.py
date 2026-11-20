@@ -45,12 +45,12 @@ REVENUE_NOISE_BAND_FRACTION: float = 0.02
 GROUNDING_RELATIVE_TOLERANCE: float = 0.05
 GROUNDING_ABSOLUTE_TOLERANCE_EUR: float = 1.0
 
-# Fields the LLM must state (null → hard error). Others may be assumed from range tables.
-REQUIRED_STATED_FIELDS: frozenset[str] = frozenset(
-    {
-        "starting_cash_eur",
-    }
-)
+# No fields are hard-required from the LLM; nulls are assumed in code (pilot fix §D).
+REQUIRED_STATED_FIELDS: frozenset[str] = frozenset()
+
+# Growth bounds for section-C extract checks.
+GROWTH_FRACTION_MIN: float = -0.2
+GROWTH_FRACTION_MAX: float = 0.2
 
 # Canonical WO unit-in-name ↔ legacy serialization aliases.
 PARAM_FIELD_ALIASES: dict[str, tuple[str, ...]] = {

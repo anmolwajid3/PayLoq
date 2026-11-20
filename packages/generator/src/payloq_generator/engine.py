@@ -88,31 +88,25 @@ def _infer_profile(inp: GeneratorInput) -> str:
     sid = (inp.options.scenario_id or inp.meta.scenario or "").strip().lower()
     if sid in _PRESET_IDS:
         return "invoices_out_of_balance" if sid == "test_only_broken" else sid
+    # Prefer model scenario_shape (pilot fix §D) — no keyword stub heuristics.
+    shape = (getattr(inp.parameters_from_language_model, "scenario_shape", None) or "").strip().lower()
+    if shape:
+        try:
+            from payloq_schemas.scenario_shape_ranges import profile_for_shape
+
+            mapped = profile_for_shape(shape)
+            if mapped in _PRESET_IDS or mapped in {"good", "weak", "cash_critical", "custom"}:
+                if mapped == "custom":
+                    pass
+                else:
+                    return mapped
+        except ImportError:  # pragma: no cover
+            pass
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
-    text = f"{inp.scenario_description.fi} {inp.scenario_description.en}"
-    text_l = text.lower()
     if g < -0.005:
         return "weak"
-    try:
-        from payloq_llm.nl_cash_intent import looks_cash_critical
-    except ImportError:  # pragma: no cover — optional in minimal installs
-        looks_cash_critical = None  # type: ignore[assignment]
-    if cash <= 60_000 or (
-        looks_cash_critical is not None and looks_cash_critical(text)
-    ) or any(
-        k in text_l
-        for k in (
-            "kriittinen",
-            "critical",
-            "cash tight",
-            "negatiiv",
-            "covenant",
-            "kovenantti",
-            "winter cash",
-            "ohut kassa",
-        )
-    ):
+    if cash <= 60_000:
         return "cash_critical"
     return "good"
 
@@ -1028,7 +1022,7 @@ def write_pack(
     out_dir: Path,
     *,
     write_xlsx: bool = True,
-    write_journal: bool = True,
+    write_journal: bool = False,
     seed: int = 42,
     software_version: str | None = None,
     raw_llm_output: str | None = None,
@@ -1040,7 +1034,7 @@ def write_pack(
     test_only_broken: bool = False,
     write_data_files: bool = True,
 ) -> Path:
-    """Write SRS §6.6 folder (JSON + scenario.xlsx + answer_key + run_log)."""
+    """Write SRS §6.6 folder (JSON + scenario.xlsx + answer_key + run_log). No journal."""
     import json
     from datetime import datetime, timezone
 
@@ -1050,10 +1044,10 @@ def write_pack(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if write_journal and pack.journal_entries is None and write_data_files:
-        from payloq_generator.journal import build_journal_entries
-
-        pack = pack.model_copy(update={"journal_entries": build_journal_entries(pack)})
+    # Pilot fix §G: never write journal_entries.json (work order §4 optional only).
+    _ = write_journal
+    if pack.journal_entries is not None:
+        pack = pack.model_copy(update={"journal_entries": None})
 
     answer_key = build_answer_key(pack) if write_data_files else None
     ver = software_version or SOFTWARE_VERSION
@@ -1112,26 +1106,19 @@ def write_pack(
             json.dumps(answer_key, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
-    if pack.journal_entries is not None:
-        (out_dir / "journal_entries.json").write_text(
-            pack.journal_entries.model_dump_json(indent=2) + "\n", encoding="utf-8"
-        )
-
     if write_xlsx:
         from payloq_export_xlsx.writer import write_scenario_xlsx
 
         scenario = pack.input.options.scenario_id or pack.input.meta.scenario or "scenario"
-        # SRS §6.6 canonical name
         write_scenario_xlsx(
             pack,
             out_dir / "scenario.xlsx",
-            include_journal=pack.journal_entries is not None,
+            include_journal=False,
         )
-        # Backward-compatible alias for older app/tests
         write_scenario_xlsx(
             pack,
             out_dir / f"scenario_{scenario}.xlsx",
-            include_journal=pack.journal_entries is not None,
+            include_journal=False,
         )
 
     return out_dir

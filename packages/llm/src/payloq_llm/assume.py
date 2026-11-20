@@ -1,27 +1,25 @@
-"""Fill unstated parameters from industry×size range tables (work order B).
+"""Fill unstated parameters from industry×size + scenario_shape ranges (pilot §D).
 
 LLM extract returns nulls for unstated fields; this code draws defaults with a
-fixed seed and marks ``source: assumed``. Never invents company-specific values.
+fixed seed and marks ``source: assumed``. Starting cash is never a fail reason.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from payloq_llm.nl_param_hints import repair_starting_cash_from_nl
-from payloq_schemas.constants import REQUIRED_STATED_FIELDS
 from payloq_schemas.industry_defaults import draw_assumed_defaults
+from payloq_schemas.scenario_shape_ranges import overlay_shape_on_drawn
 
 
 class MissingRequiredParameterError(ValueError):
-    """Raised when a required stated field is null after LLM extraction."""
+    """Deprecated — kept for older tests; no longer raised on the generate path."""
 
     def __init__(self, field: str) -> None:
         self.field = field
         super().__init__(f"Missing required parameter: {field}")
 
 
-# Fields that may be assumed when null (work order B).
 _ASSUMABLE_SCALARS: tuple[str, ...] = (
     "monthly_revenue_start_eur",
     "monthly_revenue_growth",
@@ -29,6 +27,7 @@ _ASSUMABLE_SCALARS: tuple[str, ...] = (
     "days_payables_outstanding",
     "target_cash_at_end_eur",
     "covenant_min_cash_eur",
+    "starting_cash_eur",
     "special_investment_eur",
     "special_investment_month",
 )
@@ -37,13 +36,7 @@ _ASSUMABLE_SCALARS: tuple[str, ...] = (
 def drop_incomplete_one_off_events(
     events: Any,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """
-    Keep only one-off events that have amount, month_index, and direction.
-
-    Incomplete rows (null amount / month / direction) are dropped — work order B
-    rejects missing month or direction; Run #19 Ollama often emits partial CAPEX
-    stubs with null numerics.
-    """
+    """Keep only one-off events that have amount, month_index, and direction."""
     changes: list[dict[str, Any]] = []
     if events is None:
         return [], changes
@@ -75,7 +68,6 @@ def drop_incomplete_one_off_events(
         month = raw.get("month_index")
         direction = raw.get("direction")
         event_type = str(raw.get("type") or "other").strip().lower() or "other"
-        # CAPEX is always an outflow — fill missing direction before completeness check.
         if event_type in {"capex", "capital_expenditure", "investment"} and (
             direction is None or direction == ""
         ):
@@ -167,38 +159,30 @@ def apply_assumed_defaults(
     company_size: str | None,
     seed: int,
     description: str | None = None,
-    require_starting_cash: bool = True,
+    require_starting_cash: bool = False,
+    scenario_shape: str | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """
     Merge stated extraction with assumed draws.
 
     - Stated (non-null) values keep ``source: stated``.
-    - Null assumable fields are filled from the industry×size table.
-    - ``starting_cash_eur`` is required when ``require_starting_cash`` (LLM path).
+    - Null assumable fields are filled from industry×size + scenario_shape tables.
+    - ``starting_cash_eur`` is always assumed when null (never a fail reason).
+    - ``require_starting_cash`` is ignored (kept for call-site compatibility).
     """
+    _ = require_starting_cash  # removed by pilot fix §D / §G
     out = dict(extracted or {})
     changes: list[dict[str, Any]] = []
     sources: dict[str, str] = dict(out.get("field_sources") or {})
+    shape = scenario_shape or out.get("scenario_shape")
 
-    # Normalize covenant ↔ target before required checks
     if out.get("target_cash_at_end_eur") is None and out.get("covenant_min_cash_eur") is not None:
         out["target_cash_at_end_eur"] = out["covenant_min_cash_eur"]
-        sources.setdefault("target_cash_at_end_eur", sources.get("covenant_min_cash_eur", "stated"))
+        sources.setdefault(
+            "target_cash_at_end_eur", sources.get("covenant_min_cash_eur", "stated")
+        )
     if out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
         out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
-
-    # Run #22: if LLM null/omits starting_cash_eur, parse from NL before required-check.
-    # Only invent-free: fill when Starting cash / opening cash / alkukassa is stated.
-    out["field_sources"] = sources
-    out, start_changes = repair_starting_cash_from_nl(description or "", out)
-    changes.extend(start_changes)
-    sources = dict(out.get("field_sources") or sources)
-
-    for key in REQUIRED_STATED_FIELDS:
-        if key == "starting_cash_eur" and not require_starting_cash:
-            continue
-        if out.get(key) is None or out.get(key) == "":
-            raise MissingRequiredParameterError(key)
 
     drawn = draw_assumed_defaults(
         industry=industry,
@@ -206,9 +190,8 @@ def apply_assumed_defaults(
         seed=seed,
         description=description,
     )
+    drawn = overlay_shape_on_drawn(drawn, scenario_shape=shape, seed=seed)
 
-    # Work order B / Run #19: drop incomplete one-offs before assuming scalars so a
-    # complete CAPEX event can populate special_investment_* as stated.
     cleaned_events, drop_changes = drop_incomplete_one_off_events(out.get("one_off_events"))
     out["one_off_events"] = cleaned_events
     changes.extend(drop_changes)
@@ -238,33 +221,18 @@ def apply_assumed_defaults(
                     "field": key,
                     "original": None,
                     "clipped": fill,
-                    "message": f"assumed {key}={fill} from industry×size range table",
+                    "message": (
+                        f"assumed {key}={fill} from industry×size / "
+                        f"scenario_shape={shape or 'unspecified'} range table"
+                    ),
                     "source": "assume",
                 }
             )
         else:
             sources.setdefault(key, "stated")
 
-    # starting_cash: if allowed to assume (hand-authored / tests)
-    if (out.get("starting_cash_eur") is None or out.get("starting_cash_eur") == "") and not require_starting_cash:
-        fill = drawn["starting_cash_eur"]
-        out["starting_cash_eur"] = fill
-        sources["starting_cash_eur"] = "assumed"
-        changes.append(
-            {
-                "field": "starting_cash_eur",
-                "original": None,
-                "clipped": fill,
-                "message": f"assumed starting_cash_eur={fill} from industry×size range table",
-                "source": "assume",
-            }
-        )
-    elif out.get("starting_cash_eur") is not None:
-        sources.setdefault("starting_cash_eur", "stated")
-
     shares_raw = out.get("cost_shares_of_revenue")
     shares = shares_raw
-    # Treat all-null share objects as missing (Ollama often returns keys with nulls).
     if isinstance(shares, dict) and shares and all(
         shares.get(sk) is None for sk in ("materials", "services", "personnel", "other")
     ):
@@ -311,14 +279,14 @@ def apply_assumed_defaults(
             sources.setdefault("cost_shares_of_revenue", "stated")
 
     if out.get("partly_fixed_costs") is None:
-        out["partly_fixed_costs"] = False
+        out["partly_fixed_costs"] = shape in {"weak", "cash_tight", "cash_critical"}
         sources["partly_fixed_costs"] = "assumed"
         changes.append(
             {
                 "field": "partly_fixed_costs",
                 "original": None,
-                "clipped": False,
-                "message": "assumed partly_fixed_costs=false",
+                "clipped": out["partly_fixed_costs"],
+                "message": f"assumed partly_fixed_costs={out['partly_fixed_costs']}",
                 "source": "assume",
             }
         )
@@ -329,10 +297,16 @@ def apply_assumed_defaults(
         out["special_investment_month"] = 2
         sources["special_investment_month"] = "assumed"
 
+    if out.get("special_investment_eur") is None:
+        out["special_investment_eur"] = 0.0
+        sources.setdefault("special_investment_eur", "assumed")
+
+    out["scenario_shape"] = shape or "unspecified"
     out["field_sources"] = sources
     out["_assume_meta"] = {
         "industry_key": drawn.get("industry_key"),
         "size_band": drawn.get("size_band"),
         "seed": seed,
+        "scenario_shape": out["scenario_shape"],
     }
     return out, changes

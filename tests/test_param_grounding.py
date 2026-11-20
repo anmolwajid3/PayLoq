@@ -44,37 +44,47 @@ def test_run17_grounding_rejects_wrong_revenue_scale() -> None:
     assert "420000" in err or "420000.0" in err
 
 
-def test_run17_finalize_locks_code_stated_revenue_scale() -> None:
+def test_run17_finalize_rejects_wrong_revenue_scale() -> None:
     """
-    Code-first NL parse locks €4.2M over raw LLM €420k before grounding.
-
-    Pure grounding still rejects the uncorrected raw payload (test above);
-    finalize must not keep the undercounted revenue.
+    Pilot fix: wrong stated revenue (€420k vs €4.2M in description) must fail
+    stated-quote / grounding checks — never silently keep or invent the scale.
     """
     data = _run17()
     desc = f"{data['description_fi']} {data['description_en']}"
     opts = data["options"]
-    params, changes, grounding = finalize_extracted_parameters(
-        dict(data["raw_llm_parameters"]),
+    # Wrap legacy flat params as section-B envelope with stated quotes.
+    raw_params = dict(data["raw_llm_parameters"])
+    envelope = {
+        "scenario_shape": "unspecified",
+        "scenario_shape_quote": None,
+        "stated": {
+            "revenue_monthly_eur": "€4.2M monthly revenue",
+        },
+        "parameters": {
+            "revenue_monthly_eur": raw_params.get("monthly_revenue_start_eur"),
+            "revenue_annual_eur": None,
+            "growth_per_month_fraction": raw_params.get("monthly_revenue_growth"),
+            "starting_cash_eur": raw_params.get("starting_cash_eur"),
+            "covenant_min_cash_eur": raw_params.get("covenant_min_cash_eur")
+            or raw_params.get("target_cash_at_end_eur"),
+            "dso_days": raw_params.get("days_sales_outstanding"),
+            "dpo_days": raw_params.get("days_payables_outstanding"),
+            "one_off_events": [],
+            "industry": None,
+            "company_size": None,
+        },
+    }
+    _params, _changes, stated_check = finalize_extracted_parameters(
+        envelope,
         desc,
         industry=opts.get("industry"),
         company_size=opts.get("company_size"),
         seed=int(opts.get("seed") or 17),
-        require_starting_cash=True,
+        require_starting_cash=False,
     )
-    assert grounding.ok, grounding.error_text()
-    assert params["monthly_revenue_start_eur"] == pytest.approx(
-        float(data["expected_correct_revenue_eur"])
-    )
-    assert params["monthly_revenue_start_eur"] != pytest.approx(
-        float(data["wrong_revenue_eur"])
-    )
-    assert params["field_sources"].get("monthly_revenue_start_eur") == "stated"
-    assert any(
-        c.get("field") == "monthly_revenue_start_eur"
-        and "nl_stated" in (c.get("source") or "")
-        for c in changes
-    )
+    assert not stated_check.ok, "wrong scale must be rejected"
+    err = stated_check.error_text()
+    assert "revenue" in err.casefold() or "420000" in err or "4.2" in err
 
 
 def test_raw_vs_parsed_detects_revenue_scale_mutation() -> None:

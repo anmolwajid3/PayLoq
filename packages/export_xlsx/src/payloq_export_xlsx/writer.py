@@ -13,7 +13,7 @@ def write_scenario_xlsx(
     pack: ScenarioPack,
     path: Path | str,
     *,
-    include_journal: bool = True,
+    include_journal: bool = False,
 ) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -27,8 +27,8 @@ def write_scenario_xlsx(
     _invoices_sheet(wb.create_sheet("Open invoices"), pack)
     _projection_sheet(wb.create_sheet("Projection"), pack)
     _assumptions_sheet(wb.create_sheet("Assumptions"), pack)
-    if include_journal and pack.journal_entries is not None:
-        _journal_sheet(wb.create_sheet("Journal entries"), pack)
+    # Pilot fix §G: journal sheet removed (work order §4 optional only).
+    _ = include_journal
 
     wb.save(path)
     return path

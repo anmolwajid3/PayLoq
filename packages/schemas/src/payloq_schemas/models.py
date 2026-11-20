@@ -152,6 +152,17 @@ class ParametersFromLanguageModel(BaseModel):
     partly_fixed_costs: bool = False
     # Work order A/B: per-field provenance. Keys use legacy serialization names.
     field_sources: dict[str, ParamSource] = Field(default_factory=dict)
+    # Pilot fix §B/D: exact quotes for stated fields + optional stated numeric snapshot.
+    field_quotes: dict[str, str] = Field(default_factory=dict)
+    stated_values: dict[str, Any] = Field(default_factory=dict)
+    scenario_shape: str | None = None
+    scenario_shape_quote: str | None = None
+    # Optional annual revenue before code conversion to monthly.
+    revenue_annual_eur: float | None = None
+    # Model / extract metadata stamped into input.json
+    llm_model_name: str | None = None
+    extraction_seed: int | None = None
+    conversion_notes: list[dict[str, Any]] = Field(default_factory=list)
 
     @field_validator("monthly_revenue_factors")
     @classmethod

@@ -53,7 +53,7 @@ class GeneratePresetRequest(BaseModel):
     scenario_slug: str
     seed: int = 42
     write_xlsx: bool = True
-    write_journal: bool = True
+    write_journal: bool = False
 
 
 class GenerateFromTextRequest(BaseModel):
@@ -72,7 +72,7 @@ class GenerateFromTextRequest(BaseModel):
     months: int = Field(default=12, ge=12, le=24)
     seed: int = 42
     write_xlsx: bool = True
-    write_journal: bool = True
+    write_journal: bool = False
     ollama_model: Optional[str] = None
     ollama_host: Optional[str] = None
     no_fallback_stub: bool = False

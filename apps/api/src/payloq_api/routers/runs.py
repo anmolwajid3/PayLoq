@@ -27,7 +27,6 @@ from payloq_api.schemas import (
 from payloq_api.services.chat import (
     chat_on_run,
     demo_presets_payload,
-    ensure_journal_artifact,
     resolve_run_chat_llm,
     result_to_dict,
     suggestions_for_run,
@@ -229,15 +228,13 @@ def ensure_journal(
     _: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ) -> RunOut:
-    """Write journal_entries.json for an existing run if missing (§4)."""
-    run = session.get(GenerationRun, run_id)
-    if run is None or not run.artifact_dir:
-        raise HTTPException(status_code=404, detail="Run or artifacts not found")
-    try:
-        ensure_journal_artifact(run)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return _run_out(run)
+    """Journal entries removed from Task A (work order §4 optional — not in scope)."""
+    _ = run_id
+    _ = session
+    raise HTTPException(
+        status_code=410,
+        detail="journal_entries.json removed from the generator (Task A).",
+    )
 
 
 @router.get("/runs/{run_id}/artifacts/{filename}")
