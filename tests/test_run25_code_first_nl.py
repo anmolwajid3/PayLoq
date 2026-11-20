@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter, input_from_text
+from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter
 from payloq_llm.extract_pipeline import finalize_extracted_parameters
 from payloq_llm.nl_stated import (
     build_hybrid_params_from_nl,
@@ -21,7 +21,6 @@ from payloq_llm.nl_stated import (
     extract_stated_revenue_eur,
     merge_llm_with_code_stated,
 )
-from payloq_llm.assume import MissingRequiredParameterError
 
 # Same manufacturing-style NL as Run #19 / #22 / #25.
 RUN25_DESC = (
@@ -54,7 +53,7 @@ RUN25_WEAK_LLM = {
     "special_investment_eur": 180_000,  # wrong: stole revenue as CAPEX
     "special_investment_month": 1,
     "one_off_events": [
-        {"type": "capex", "amount_eur": 180_000, "month_index": 1, "direction": "out"}
+        {"type": "capex", "amount_eur": 180_000, "month_index": 1, "direction": "outflow"}
     ],
     "notes": "weak ollama invent",
     "partly_fixed_costs": None,
@@ -74,7 +73,7 @@ def test_extract_stated_params_run25_en() -> None:
     assert stated["special_investment_month"] == 3
     assert stated["one_off_events"][0]["amount_eur"] == pytest.approx(80_000)
     assert stated["one_off_events"][0]["month_index"] == 3
-    assert stated["one_off_events"][0]["direction"] == "out"
+    assert stated["one_off_events"][0]["direction"] == "outflow"
     assert stated["field_sources"]["starting_cash_eur"] == "stated"
     assert stated["field_sources"]["special_investment_eur"] == "stated"
 
@@ -111,8 +110,12 @@ def test_merge_locks_code_stated_over_weak_llm() -> None:
 
 
 def test_finalize_weak_llm_payload_stated_not_invented() -> None:
+    """Code-stated merge then finalize — locks NL figures over weak LLM invents."""
+    merged, merge_changes = merge_llm_with_code_stated(
+        dict(RUN25_WEAK_LLM), extract_stated_params_from_nl(RUN25_DESC)
+    )
     params, changes, grounding = finalize_extracted_parameters(
-        dict(RUN25_WEAK_LLM),
+        merged,
         RUN25_DESC,
         industry="manufacturing",
         company_size="small",
@@ -129,7 +132,8 @@ def test_finalize_weak_llm_payload_stated_not_invented() -> None:
     assert params["monthly_revenue_growth"] == pytest.approx(0.005)
     assert params["days_sales_outstanding"] == pytest.approx(35)
     assert params["days_payables_outstanding"] == pytest.approx(28)
-    assert any("nl_stated" in (c.get("source") or "") for c in changes)
+    all_changes = merge_changes + changes
+    assert any("nl_stated" in (c.get("source") or "") for c in all_changes)
 
 
 def test_hybrid_from_nl_without_llm_json() -> None:
@@ -154,20 +158,23 @@ def test_hybrid_from_nl_without_llm_json() -> None:
     assert changes
 
 
-def test_hybrid_errors_when_starting_cash_absent_from_nl() -> None:
+def test_hybrid_assumes_starting_cash_when_absent_from_nl() -> None:
+    """Pilot §D/§G: starting_cash_eur is assumed when absent (never a hard fail)."""
     desc = (
         "Monthly revenue €180,000. Growth 0.5% per month. "
         "Bank covenant minimum cash €40,000. DSO 35 days. DPO 28 days. "
         "One-off CAPEX €80,000 outflow in month 3."
     )
-    with pytest.raises(MissingRequiredParameterError, match="starting_cash_eur"):
-        build_hybrid_params_from_nl(
-            desc,
-            industry="manufacturing",
-            company_size="small",
-            seed=25,
-            require_starting_cash=True,
-        )
+    params, _changes = build_hybrid_params_from_nl(
+        desc,
+        industry="manufacturing",
+        company_size="small",
+        seed=25,
+        require_starting_cash=True,
+    )
+    assert params["starting_cash_eur"] is not None
+    assert params["field_sources"].get("starting_cash_eur") == "assumed"
+    assert params["special_investment_eur"] == pytest.approx(80_000)
 
 
 def test_fallback_recovers_via_code_nl_not_stub_invent() -> None:
@@ -211,7 +218,9 @@ def test_fallback_recovers_via_code_nl_not_stub_invent() -> None:
     assert fb.param_extraction_mode == "hybrid_code_nl"
 
 
-def test_input_from_text_labels_hybrid_honestly() -> None:
+def test_fallback_extract_labels_hybrid_honestly() -> None:
+    """input_from_text unwraps FallbackAdapter; exercise hybrid via extract_parameters."""
+
     class Boom(StubLlmAdapter):
         name = "ollama"
 
@@ -219,23 +228,21 @@ def test_input_from_text_labels_hybrid_honestly() -> None:
             raise RuntimeError("ollama json fail")
 
     fb = FallbackAdapter(Boom(), StubLlmAdapter())
-    inp = input_from_text(
-        text=RUN25_DESC,
-        adapter=fb,
-        language="en",
-        options={
+    params = fb.extract_parameters(
+        RUN25_DESC,
+        RUN25_DESC,
+        {
             "industry": "manufacturing",
             "company_size": "small",
             "months": 12,
             "language": "en",
             "seed": 25,
         },
-        with_invoice_texts=False,
     )
-    assert "hybrid/code-nl" in (inp.meta.note or "")
-    params = inp.parameters_from_language_model
-    assert params.starting_cash_eur == pytest.approx(45_000)
-    assert params.special_investment_eur == pytest.approx(80_000)
+    assert fb.param_extraction_mode == "hybrid_code_nl"
+    assert "hybrid/code-nl" in (fb.param_extraction_fallback_reason or "")
+    assert params["starting_cash_eur"] == pytest.approx(45_000)
+    assert params["special_investment_eur"] == pytest.approx(80_000)
 
 
 def test_code_locks_revenue_scale_against_llm_undercount() -> None:
@@ -258,8 +265,9 @@ def test_code_locks_revenue_scale_against_llm_undercount() -> None:
         "one_off_events": None,
         "partly_fixed_costs": None,
     }
+    merged, _ = merge_llm_with_code_stated(llm, extract_stated_params_from_nl(desc))
     params, _changes, grounding = finalize_extracted_parameters(
-        llm,
+        merged,
         desc,
         industry="manufacturing",
         company_size="large",
@@ -273,11 +281,12 @@ def test_code_locks_revenue_scale_against_llm_undercount() -> None:
 
 
 def test_weak_llm_raw_string_still_finalizes_via_code() -> None:
-    """Simulate parseable-but-weak JSON then finalize (Ollama path when JSON parses)."""
+    """Simulate parseable-but-weak JSON → code-stated merge → finalize."""
     raw = json.dumps(RUN25_WEAK_LLM)
     data = json.loads(raw)
+    merged, _ = merge_llm_with_code_stated(data, extract_stated_params_from_nl(RUN25_DESC))
     params, _c, grounding = finalize_extracted_parameters(
-        data,
+        merged,
         RUN25_DESC,
         industry="manufacturing",
         company_size="small",

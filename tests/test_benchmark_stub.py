@@ -198,12 +198,16 @@ def test_run_benchmark_full_stub_matrix(tmp_path: Path) -> None:
 
     scorecard = json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
     assert "fi_band_legend" in scorecard
-    assert scorecard["by_model"]
+    # Stub baseline is labelled and excluded from model comparisons.
+    assert scorecard["by_model"] == []
+    assert result.summary["stub_baseline"]["label"] == "stub, not a model"
+    assert result.summary["stub_baseline"]["excluded_from_comparisons"] is True
+    assert all("stub, not a model" in (r.notes or "") for r in result.runs if r.adapter == "stub")
 
     with (out / "scorecard.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
-    assert rows and "avg_fi_quality" in rows[0]
-    assert "fi_band" in rows[0]
+    # Scorecard CSV has headers only when stub is the sole cell (excluded).
+    assert rows == [] or "avg_fi_quality" in (rows[0] if rows else {})
 
     scenario_runs = [r for r in result.runs if not str(r.scenario_id).startswith("task1_extra")]
     assert len(scenario_runs) == 3
@@ -240,6 +244,10 @@ def test_skip_ollama_when_unavailable(tmp_path: Path) -> None:
     # stub: 1 scenario + 2 Task-1 extras; ollama skipped
     assert result.summary["n_runs"] == 3
     assert all(r.model == "stub" for r in result.runs)
+    assert all(r.adapter == "stub" for r in result.runs)
+    scenario_runs = [r for r in result.runs if not str(r.scenario_id).startswith("task1_extra")]
+    assert scenario_runs
+    assert all("stub, not a model" in (r.notes or "") for r in scenario_runs)
     skipped = result.summary["skipped_models"]
     assert len(skipped) == 1
     assert skipped[0]["model"] == "ollama:llama3.2:1b"

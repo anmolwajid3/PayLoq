@@ -13,7 +13,6 @@ from payloq_api.models import GenerationRun, Scenario
 from payloq_generator.engine import load_input
 from payloq_generator.pipeline import run_generation
 from payloq_llm.adapters import (
-    FallbackAdapter,
     default_options_from_text,
     get_adapter,
     input_from_text,
@@ -75,7 +74,6 @@ def run_preset(
     scenario: Scenario,
     seed: int = 42,
     write_xlsx: bool = True,
-    write_journal: bool = True,
 ) -> GenerationRun:
     run = GenerationRun(
         scenario_id=scenario.id,
@@ -98,7 +96,6 @@ def run_preset(
             out_dir,
             seed=seed,
             write_xlsx=write_xlsx,
-            write_journal=write_journal,
         )
         pack = outcome.pack
         validation = outcome.validation.as_dict()
@@ -139,10 +136,8 @@ def run_from_text(
     months: int = 12,
     seed: int = 42,
     write_xlsx: bool = True,
-    write_journal: bool = True,
     ollama_model: str | None = None,
     ollama_host: str | None = None,
-    no_fallback_stub: bool = False,
     save_as_slug: str | None = None,
 ) -> GenerationRun:
     resolved_model = (
@@ -164,9 +159,12 @@ def run_from_text(
 
     out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
     try:
+        if llm != "ollama":
+            raise ValueError(
+                "From-text generation requires Ollama (local model)."
+            )
         adapter = get_adapter(
-            llm,
-            fallback_stub=not no_fallback_stub,
+            "ollama",
             model=resolved_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
             timeout_s=settings.ollama_timeout,
@@ -184,30 +182,9 @@ def run_from_text(
             options=opts,
             with_invoice_texts=True,
         )
-        llm_name = llm
-        extract_mode = (
-            getattr(adapter, "param_extraction_mode", None)
-            if isinstance(adapter, FallbackAdapter)
-            else None
-        )
-        params_from_stub = llm == "stub" or (
-            isinstance(adapter, FallbackAdapter)
-            and (adapter.param_extraction_used_fallback or adapter.used_fallback)
-            and extract_mode != "hybrid_code_nl"
-        )
-        if isinstance(adapter, FallbackAdapter) and (
-            adapter.param_extraction_used_fallback or adapter.used_fallback
-        ):
-            run.llm_fallback_note = (
-                adapter.param_extraction_fallback_reason or adapter.last_fallback_reason
-            )
-            if extract_mode == "hybrid_code_nl":
-                run.llm_adapter = f"{llm}->code-nl"
-            else:
-                run.llm_adapter = f"{llm}->stub"
-            llm_name = run.llm_adapter
-        # Persist the concrete Ollama tag even after stub fallback so chat can reuse it.
-        if llm == "ollama" and resolved_model:
+        llm_name = "ollama"
+        run.llm_adapter = "ollama"
+        if resolved_model:
             run.llm_model = resolved_model
 
         outcome = run_generation(
@@ -215,7 +192,6 @@ def run_from_text(
             out_dir,
             seed=seed,
             write_xlsx=write_xlsx,
-            write_journal=write_journal,
             raw_llm_output=getattr(adapter, "last_raw_output", None),
             llm_name=llm_name,
         )
@@ -224,7 +200,6 @@ def run_from_text(
             text,
             (pack.input.parameters_from_language_model.model_dump() if pack else {}),
             language=language,
-            params_from_stub=params_from_stub,
         )
         run.artifact_dir = str(out_dir.resolve())
         run.validation_ok = outcome.ok

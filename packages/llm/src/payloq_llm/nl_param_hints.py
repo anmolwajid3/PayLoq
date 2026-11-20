@@ -617,7 +617,7 @@ def repair_investment_and_revenue_from_nl(
             }:
                 ev["amount_eur"] = amt
                 ev["month_index"] = month
-                ev["direction"] = "out"
+                ev["direction"] = "outflow"
                 ev["label"] = label
                 matched = True
                 break
@@ -626,7 +626,7 @@ def repair_investment_and_revenue_from_nl(
                 {
                     "amount_eur": amt,
                     "month_index": month,
-                    "direction": "out",
+                    "direction": "outflow",
                     "label": label,
                 }
             )

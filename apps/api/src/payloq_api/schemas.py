@@ -53,13 +53,11 @@ class GeneratePresetRequest(BaseModel):
     scenario_slug: str
     seed: int = 42
     write_xlsx: bool = True
-    write_journal: bool = True
 
 
 class GenerateFromTextRequest(BaseModel):
     text: str = Field(min_length=3)
-    # stub kept for CI/CLI only — web UI never sends it.
-    llm: Literal["stub", "ollama"] = "ollama"
+    llm: Literal["ollama"] = "ollama"
     language: Literal["fi", "en"] = "fi"
     industry: str = "metal workshop (machine shop)"
     company_size: str = Field(
@@ -72,10 +70,8 @@ class GenerateFromTextRequest(BaseModel):
     months: int = Field(default=12, ge=12, le=24)
     seed: int = 42
     write_xlsx: bool = True
-    write_journal: bool = True
     ollama_model: Optional[str] = None
     ollama_host: Optional[str] = None
-    no_fallback_stub: bool = False
     save_as_slug: Optional[str] = Field(
         default=None,
         description="If set, also persist a Scenario row from the generated input.",

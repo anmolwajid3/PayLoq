@@ -40,7 +40,7 @@ def test_stub_extract_cash_critical_keywords() -> None:
     assert validated.partly_fixed_costs is True
 
 
-def test_stub_invoice_texts_fi() -> None:
+def test_default_invoice_texts_fi() -> None:
     texts = StubLlmAdapter().generate_invoice_texts(
         description_fi=CASH_CRITICAL_FI,
         description_en="cash critical",
@@ -53,24 +53,11 @@ def test_stub_invoice_texts_fi() -> None:
     assert all("Oy" in c or "oy" in c.lower() for c in texts.sales_counterparties[:3])
 
 
-def test_from_text_stub_generates_valid_cash_critical_pack(tmp_path: Path) -> None:
+def test_from_text_rejects_stub_adapter() -> None:
+    """Pilot fix G: keyword stub must not extract parameters for from-text."""
     adapter = get_adapter("stub")
-    inp = input_from_text(text=CASH_CRITICAL_FI, adapter=adapter, language="fi")
-    assert inp.invoice_texts is not None
-    pack = generate_pack(inp, seed=42)
-    result = validate_pack(pack)
-    errors = [i for i in result.issues if i.severity == "error"]
-    assert not errors, errors
-
-    proj = pack.cash_and_invoices.projection_from_open_invoices
-    neg = [w.week for w in proj if w.projected_balance < 0]
-    assert neg, "expected near-term negative cash from cash-critical NL"
-    assert min(neg) <= 4
-
-    write_pack(pack, tmp_path / "nl", write_xlsx=False)
-    saved = json.loads((tmp_path / "nl" / "input.json").read_text(encoding="utf-8"))
-    assert saved.get("invoice_texts")
-    assert saved["parameters_from_language_model"]["target_cash_at_end_eur"] <= 60_000
+    with pytest.raises(ValueError, match="stub"):
+        input_from_text(text=CASH_CRITICAL_FI, adapter=adapter, language="fi")
 
 
 def test_scenario_presets_still_work_without_llm() -> None:

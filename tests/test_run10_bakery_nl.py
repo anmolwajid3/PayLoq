@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from payloq_generator.pipeline import run_generation
-from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter, input_from_text
+from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter
 from payloq_llm.nl_cash_intent import looks_cash_critical, suggested_target_cash_eur
 from payloq_llm.nl_param_hints import (
     extract_special_investment,
@@ -16,6 +16,8 @@ from payloq_llm.params_coerce import coerce_parameters_dict, normalize_monthly_r
 from payloq_llm.parse import validate_model
 from payloq_schemas.models import ParametersFromLanguageModel
 from payloq_validate.checks import _behaviour_sid
+
+from helpers_stub_input import generator_input_via_stub_extract
 
 BAKERY_NL = (
     "Small Helsinki bakery. Bank covenant €10k. Winter cash ~€8k. "
@@ -140,9 +142,8 @@ def test_stub_bakery_not_200k_or_80k_invest() -> None:
 
 
 def test_bakery_pack_passes_with_month3_oven(tmp_path: Path) -> None:
-    inp = input_from_text(
+    inp = generator_input_via_stub_extract(
         text=BAKERY_NL,
-        adapter=StubLlmAdapter(),
         language="en",
         options={
             "industry": "bakery",

@@ -266,6 +266,11 @@ def _run_one(
     detail["model_quantisation"] = spec.model  # Ollama tag often encodes quant; else null
     detail["model_version"] = spec.model or spec.id
 
+    if spec.adapter == "stub" or spec.id == "stub":
+        notes_parts.insert(0, "stub, not a model")
+        detail["excluded_from_comparisons"] = True
+        detail["label"] = "stub, not a model"
+
     return ModelRunMetrics(
         model=spec.id,
         scenario_id=sid,
@@ -452,6 +457,12 @@ def run_benchmark(
                         ),
                     },
                 )
+                extra_notes = notes or config.hardware_note
+                if spec.adapter == "stub" or spec.id == "stub":
+                    label = "stub, not a model"
+                    extra_notes = f"{label}; {extra_notes}" if extra_notes else label
+                    detail["excluded_from_comparisons"] = True
+                    detail["label"] = label
                 runs.append(
                     ModelRunMetrics(
                         model=spec.id,
@@ -461,7 +472,7 @@ def run_benchmark(
                         latency_ms=round(latency, 3),
                         hardware=hardware.short(),
                         parameter_score=binary.score,
-                        notes=notes or config.hardware_note,
+                        notes=extra_notes,
                         detail=detail,
                     )
                 )
@@ -489,18 +500,30 @@ def run_benchmark(
             detail=r.detail,
         )
 
-    by_model = store.summary_by_model(batch_id)
+    by_model_all = store.summary_by_model(batch_id)
+    # Labelling: stub baseline is recorded but excluded from model comparisons.
+    stub_runs = [r for r in runs if r.adapter == "stub" or r.model == "stub"]
+    by_model = [
+        row
+        for row in by_model_all
+        if str(row.get("model") or "") != "stub"
+    ]
     summary = {
         "batch_id": batch_id,
         "n_runs": len(runs),
         "models": [m.id for m in config.models],
-        "models_run": sorted({r.model for r in runs}),
+        "models_run": sorted({r.model for r in runs if r.adapter != "stub"}),
         "scenarios": config.scenario_ids,
         "status": "phase7",
         "skip_unavailable": config.skip_unavailable,
         "skipped_models": skipped_models,
         "hardware": hardware.as_dict(),
         "by_model": by_model,
+        "stub_baseline": {
+            "label": "stub, not a model",
+            "excluded_from_comparisons": True,
+            "n_runs": len(stub_runs),
+        },
         "sqlite": str(out_dir / "metrics.sqlite"),
         "scorecard_json": str(out_dir / "scorecard.json"),
         "scorecard_csv": str(out_dir / "scorecard.csv"),
@@ -518,7 +541,10 @@ def run_benchmark(
         batch_id=batch_id,
         by_model=by_model,
         skipped_models=skipped_models,
-        notes={"fi_band": summary["fi_band_notes"]},
+        notes={
+            "fi_band": summary["fi_band_notes"],
+            "stub_baseline": "stub, not a model — excluded from comparisons",
+        },
     )
     write_scorecard_csv(out_dir / "scorecard.csv", batch_id=batch_id, by_model=by_model)
     write_runs_csv(

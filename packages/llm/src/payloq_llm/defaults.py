@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 from typing import Any
 
-# Small CPU-friendly default; override with --ollama-model.
-# Pull: `ollama pull llama3.2:1b`
-DEFAULT_OLLAMA_MODEL = "llama3.2:1b"
+# Default from config / pilot work-order fix (override with --ollama-model / PAYLOQ_OLLAMA_MODEL).
+# Pull: `ollama pull qwen2.5:7b`
+DEFAULT_OLLAMA_MODEL = "qwen2.5:7b"
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 # CPU-first param extraction (esp. Mac Docker) often needs >120s for tiny models.
 # Override with PAYLOQ_OLLAMA_TIMEOUT / OLLAMA_TIMEOUT; Compose ollama profile uses 600.

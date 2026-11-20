@@ -49,8 +49,8 @@ class GenerationRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     scenario_id: Optional[int] = Field(default=None, foreign_key="scenarios.id", index=True)
     source: str = Field(max_length=32)  # preset | from_text | custom_input
-    llm_adapter: str = Field(default="none", max_length=32)  # none | stub | ollama
-    # Ollama tag used for from-text / chat (e.g. llama3.2:1b). Null for presets / stub.
+    llm_adapter: str = Field(default="none", max_length=32)  # none | ollama | stub(chat)
+    # Ollama tag used for from-text / chat. Null for presets.
     llm_model: Optional[str] = Field(default=None, max_length=128)
     llm_fallback_note: Optional[str] = Field(default=None, sa_column=Column(Text))
     seed: int = 42

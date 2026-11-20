@@ -126,8 +126,7 @@ export async function generatePreset(scenario_slug: string) {
       scenario_slug,
       seed: 42,
       write_xlsx: true,
-      write_journal: true,
-    }),
+          }),
   });
 }
 
@@ -143,7 +142,7 @@ export async function generateFromText(body: {
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
-    body: JSON.stringify({ ...body, write_xlsx: true, write_journal: true }),
+    body: JSON.stringify({ ...body, write_xlsx: true }),
   });
 }
 
@@ -213,9 +212,6 @@ export async function chatOnRun(
   });
 }
 
-export async function ensureJournal(runId: number) {
-  return request<Run>(`/api/runs/${runId}/journal`, { method: "POST" });
-}
 
 export function artifactUrl(runId: number, filename: string) {
   return `${API_BASE}/api/runs/${runId}/artifacts/${encodeURIComponent(filename)}`;

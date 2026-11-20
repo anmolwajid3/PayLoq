@@ -88,31 +88,25 @@ def _infer_profile(inp: GeneratorInput) -> str:
     sid = (inp.options.scenario_id or inp.meta.scenario or "").strip().lower()
     if sid in _PRESET_IDS:
         return "invoices_out_of_balance" if sid == "test_only_broken" else sid
+    # Prefer model scenario_shape (pilot fix §D).
+    shape = (getattr(inp.parameters_from_language_model, "scenario_shape", None) or "").strip().lower()
+    if shape:
+        try:
+            from payloq_schemas.scenario_shape_ranges import profile_for_shape
+
+            mapped = profile_for_shape(shape)
+            if mapped in _PRESET_IDS or mapped in {"good", "weak", "cash_critical", "custom"}:
+                if mapped == "custom":
+                    pass
+                else:
+                    return mapped
+        except ImportError:  # pragma: no cover
+            pass
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
-    text = f"{inp.scenario_description.fi} {inp.scenario_description.en}"
-    text_l = text.lower()
     if g < -0.005:
         return "weak"
-    try:
-        from payloq_llm.nl_cash_intent import looks_cash_critical
-    except ImportError:  # pragma: no cover — optional in minimal installs
-        looks_cash_critical = None  # type: ignore[assignment]
-    if cash <= 60_000 or (
-        looks_cash_critical is not None and looks_cash_critical(text)
-    ) or any(
-        k in text_l
-        for k in (
-            "kriittinen",
-            "critical",
-            "cash tight",
-            "negatiiv",
-            "covenant",
-            "kovenantti",
-            "winter cash",
-            "ohut kassa",
-        )
-    ):
+    if cash <= 60_000:
         return "cash_critical"
     return "good"
 
@@ -156,7 +150,7 @@ def _collect_one_off_events(params) -> list[OneOffCashEvent]:
     if invest > 0:
         month_i = int(getattr(params, "special_investment_month", None) or 2)
         already = any(
-            e.direction == "out"
+            e.direction == "outflow"
             and abs(e.amount_eur - invest) < 0.02
             and e.month_index == month_i
             for e in events
@@ -167,7 +161,7 @@ def _collect_one_off_events(params) -> list[OneOffCashEvent]:
                     type="capex",
                     amount_eur=invest,
                     month_index=month_i,
-                    direction="out",
+                    direction="outflow",
                     label="special_investment",
                 )
             )
@@ -291,14 +285,14 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
 
     invoice_texts = inp.invoice_texts
     if invoice_texts is None:
-        # Built-in FI stubs when no LLM / --from-text path supplied texts.
+        # Built-in FI invoice texts when no LLM / --from-text path supplied texts.
         invoice_texts = InvoiceDescriptiveTexts(
             sales_counterparties=list(SALES_COUNTERPARTIES_FI),
             purchase_counterparties=list(PURCHASE_COUNTERPARTIES_FI),
             sales_descriptions=list(SALES_DESCRIPTIONS_FI),
             purchase_descriptions=list(PURCHASE_DESCRIPTIONS_FI),
             language=inp.options.language,
-            notes="built-in stub texts",
+            notes="built-in invoice texts",
         )
     # VR-13 / FR-A-32: never emit digits in free-text invoice fields (ids stay numeric).
     invoice_texts = sanitize_invoice_texts_for_pack(invoice_texts)
@@ -527,9 +521,9 @@ def _generate_months(
         # Fixed assets path + one-off capex (out events increase FA)
         month_events = _events_for_month(events, month_index_1based)
         for ev in month_events:
-            signed = ev.amount_eur if ev.direction == "in" else -ev.amount_eur
+            signed = ev.amount_eur if ev.direction == "inflow" else -ev.amount_eur
             past_event_scars.append((i, signed))
-            if ev.direction == "out":
+            if ev.direction == "outflow":
                 fa_boost += ev.amount_eur
             gen_meta["one_off_events_applied"].append(
                 {
@@ -693,7 +687,7 @@ def _generate_balance_history(
         for ev in one_off_events:
             event_month = _add_months(first_month, ev.month_index - 1)
             event_day = _month_end(event_month)
-            signed = ev.amount_eur if ev.direction == "in" else -ev.amount_eur
+            signed = ev.amount_eur if ev.direction == "inflow" else -ev.amount_eur
             if event_day < hist_start:
                 # Still show the outflow: place near the start of the history window
                 w = 2
@@ -1028,7 +1022,6 @@ def write_pack(
     out_dir: Path,
     *,
     write_xlsx: bool = True,
-    write_journal: bool = True,
     seed: int = 42,
     software_version: str | None = None,
     raw_llm_output: str | None = None,
@@ -1049,11 +1042,6 @@ def write_pack(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    if write_journal and pack.journal_entries is None and write_data_files:
-        from payloq_generator.journal import build_journal_entries
-
-        pack = pack.model_copy(update={"journal_entries": build_journal_entries(pack)})
 
     answer_key = build_answer_key(pack) if write_data_files else None
     ver = software_version or SOFTWARE_VERSION
@@ -1112,27 +1100,12 @@ def write_pack(
             json.dumps(answer_key, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
-    if pack.journal_entries is not None:
-        (out_dir / "journal_entries.json").write_text(
-            pack.journal_entries.model_dump_json(indent=2) + "\n", encoding="utf-8"
-        )
-
     if write_xlsx:
         from payloq_export_xlsx.writer import write_scenario_xlsx
 
         scenario = pack.input.options.scenario_id or pack.input.meta.scenario or "scenario"
-        # SRS §6.6 canonical name
-        write_scenario_xlsx(
-            pack,
-            out_dir / "scenario.xlsx",
-            include_journal=pack.journal_entries is not None,
-        )
-        # Backward-compatible alias for older app/tests
-        write_scenario_xlsx(
-            pack,
-            out_dir / f"scenario_{scenario}.xlsx",
-            include_journal=pack.journal_entries is not None,
-        )
+        write_scenario_xlsx(pack, out_dir / "scenario.xlsx")
+        write_scenario_xlsx(pack, out_dir / f"scenario_{scenario}.xlsx")
 
     return out_dir
 

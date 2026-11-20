@@ -41,7 +41,7 @@ def generate(
     from_text: Optional[str] = typer.Option(
         None,
         "--from-text",
-        help="Natural-language company situation → parameters via LLM (stub or Ollama).",
+        help="Natural-language company situation → parameters via Ollama.",
     ),
     from_text_file: Optional[Path] = typer.Option(
         None,
@@ -49,24 +49,19 @@ def generate(
         help="Read NL description from a UTF-8 text file (same as --from-text).",
     ),
     llm: str = typer.Option(
-        "stub",
+        "ollama",
         "--llm",
-        help="LLM adapter for --from-text: stub | ollama. Presets (--scenario) ignore this.",
+        help="LLM adapter for --from-text: ollama only.",
     ),
     ollama_model: Optional[str] = typer.Option(
         None,
         "--ollama-model",
-        help="Ollama model tag (default: llama3.2:1b).",
+        help="Ollama model tag (default: qwen2.5:7b).",
     ),
     ollama_host: Optional[str] = typer.Option(
         None,
         "--ollama-host",
         help="Ollama base URL (default: http://127.0.0.1:11434).",
-    ),
-    no_fallback_stub: bool = typer.Option(
-        False,
-        "--no-fallback-stub",
-        help="With --llm ollama, fail instead of falling back to the stub adapter.",
     ),
     language: str = typer.Option(
         "fi",
@@ -90,17 +85,11 @@ def generate(
     out: Path = typer.Option(Path("out"), "--out", "-o", help="Output directory."),
     seed: int = typer.Option(42, "--seed", help="Deterministic seed."),
     xlsx: bool = typer.Option(True, "--xlsx/--no-xlsx", help="Also write Excel workbook."),
-    journal: bool = typer.Option(
-        True,
-        "--journal/--no-journal",
-        help="Also write optional journal_entries.json (§4 stretch).",
-    ),
 ) -> None:
     """Generate a consistent JSON (+ Excel) pack from parameters or NL text."""
     from payloq_generator.engine import load_input
     from payloq_generator.pipeline import run_generation
     from payloq_llm.adapters import (
-        FallbackAdapter,
         default_options_from_text,
         get_adapter,
         input_from_text,
@@ -115,7 +104,6 @@ def generate(
         )
         raise typer.Exit(2)
 
-    fallback_note: str | None = None
     raw_llm: str | None = None
     llm_name: str | None = None
 
@@ -153,9 +141,11 @@ def generate(
             typer.echo(str(exc), err=True)
             raise typer.Exit(2) from exc
 
+        if llm != "ollama":
+            typer.echo("From-text generation requires --llm ollama.", err=True)
+            raise typer.Exit(2)
         adapter = get_adapter(
-            llm,
-            fallback_stub=not no_fallback_stub,
+            "ollama",
             model=ollama_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or DEFAULT_OLLAMA_HOST,
         )
@@ -178,30 +168,13 @@ def generate(
             raise typer.Exit(1) from exc
 
         raw_llm = getattr(adapter, "last_raw_output", None)
-        llm_name = getattr(adapter, "name", llm)
-        if isinstance(adapter, FallbackAdapter) and (
-            adapter.param_extraction_used_fallback or adapter.used_fallback
-        ):
-            fallback_note = (
-                adapter.param_extraction_fallback_reason or adapter.last_fallback_reason
-            )
-            mode = getattr(adapter, "param_extraction_mode", None)
-            if mode == "hybrid_code_nl":
-                llm_name = f"code-nl (fallback from {llm})"
-                typer.echo(
-                    f"Warning: Ollama failed; recovered via hybrid/code-nl ({fallback_note})",
-                    err=True,
-                )
-            else:
-                llm_name = f"stub (fallback from {llm})"
-                typer.echo(f"Warning: fell back to stub LLM ({fallback_note})", err=True)
+        llm_name = "ollama"
 
     outcome = run_generation(
         inp,
         out,
         seed=seed,
         write_xlsx=xlsx,
-        write_journal=journal,
         raw_llm_output=raw_llm,
         llm_name=llm_name,
     )
@@ -226,9 +199,7 @@ def generate(
 
     warnings = [i for i in outcome.validation.issues if i.severity == "warning"]
     typer.echo(f"Wrote pack to {out.resolve()} (seed={outcome.seed_used})")
-    if fallback_note:
-        typer.echo(f"LLM: stub fallback ({fallback_note})")
-    elif from_text or from_text_file:
+    if from_text or from_text_file:
         typer.echo(f"LLM: {llm}")
     if warnings:
         typer.echo(f"{len(warnings)} warning(s):")

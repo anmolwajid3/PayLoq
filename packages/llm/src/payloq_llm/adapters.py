@@ -48,7 +48,7 @@ from payloq_llm.nl_param_hints import (
     suggest_revenue_start_eur,
 )
 from payloq_llm.params_coerce import coerce_parameters_dict
-from payloq_llm.stub_texts import stub_invoice_texts
+from payloq_llm.invoice_text_defaults import default_invoice_texts
 from payloq_llm.text_sanitize import sanitize_invoice_texts
 
 
@@ -292,7 +292,7 @@ class StubLlmAdapter(LlmAdapter):
                     "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
-                    "direction": "out",
+                    "direction": "outflow",
                     "label": label,
                 }
             )
@@ -305,7 +305,7 @@ class StubLlmAdapter(LlmAdapter):
                     "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
-                    "direction": "out",
+                    "direction": "outflow",
                     "label": "roof_repair",
                 }
             )
@@ -400,7 +400,7 @@ class StubLlmAdapter(LlmAdapter):
     ) -> InvoiceDescriptiveTexts:
         t0 = time.perf_counter()
         _ = (description_fi, description_en, industry)
-        texts = stub_invoice_texts(language=language)  # type: ignore[arg-type]
+        texts = default_invoice_texts(language=language)  # type: ignore[arg-type]
         texts = sanitize_invoice_texts(
             texts, description_fi=description_fi, description_en=description_en
         )
@@ -640,54 +640,54 @@ class OllamaAdapter(LlmAdapter):
         self, description_fi: str, description_en: str, options: dict[str, Any]
     ) -> dict[str, Any]:
         from payloq_generator.consistency import require_consistent
-        from payloq_llm.assume import MissingRequiredParameterError
         from payloq_llm.extract_pipeline import finalize_extracted_parameters
+        from payloq_llm.extraction_schema import extraction_format_schema
 
         prompt = parameter_extraction_prompt(description_fi, description_en, options)
-        raw = self._chat(prompt, json_mode=True)
+        seed = int(options.get("seed") or 42)
+        format_schema = extraction_format_schema()
+        raw = self._chat(
+            prompt,
+            json_mode=True,
+            format_schema=format_schema,
+            seed=seed,
+        )
         self.last_raw_output = raw
         last_err: Exception | None = None
         combined = f"{description_fi} {description_en}"
         industry = str(options.get("industry") or "")
         company_size = str(options.get("company_size") or "")
-        seed = int(options.get("seed") or 42)
-        # Work order A: ground stated numbers; retry once on grounding failure (new seed not used).
-        max_attempts = max(self.max_retries, 2) + 1
-        grounding_retried = False
+        months = int(options.get("months") or 12)
+        # Pilot fix A/C: 1 initial + 2 retries (= 3 model calls) then error — never stub.
+        max_attempts = 3
         for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
-                out, _changes, grounding = finalize_extracted_parameters(
+                out, _changes, stated_check = finalize_extracted_parameters(
                     data,
                     combined,
                     industry=industry,
                     company_size=company_size,
                     seed=seed,
-                    require_starting_cash=True,
+                    months=months,
+                    require_starting_cash=False,
+                    llm_model_name=self.model,
                 )
-                if not grounding.ok:
-                    raise ValueError(grounding.error_text())
+                if not stated_check.ok:
+                    raise ValueError(stated_check.error_text())
                 require_consistent(out)
                 self.last_raw_output = raw
                 return out
-            except MissingRequiredParameterError as exc:
-                last_err = exc
-                if attempt >= max_attempts - 1:
-                    break
-                raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
-                self.last_raw_output = raw
             except (ValueError, json.JSONDecodeError) as exc:
                 last_err = exc
-                msg = str(exc)
                 if attempt >= max_attempts - 1:
                     break
-                if (not grounding_retried) and msg.startswith("Grounding rejected"):
-                    grounding_retried = True
-                    raw = self._chat(
-                        parameter_grounding_repair_prompt(raw, msg), json_mode=True
-                    )
-                else:
-                    raw = self._chat(parameter_repair_prompt(raw, msg), json_mode=True)
+                raw = self._chat(
+                    parameter_repair_prompt(raw, str(exc)),
+                    json_mode=True,
+                    format_schema=format_schema,
+                    seed=seed,
+                )
                 self.last_raw_output = raw
         raise RuntimeError(
             f"Ollama returned invalid parameters JSON after retries: {last_err}"
@@ -742,20 +742,31 @@ class OllamaAdapter(LlmAdapter):
         return self._chat(prompt, json_mode=True)
 
     def _chat(
-        self, content: str, *, json_mode: bool = True, system: str | None = None
+        self,
+        content: str,
+        *,
+        json_mode: bool = True,
+        system: str | None = None,
+        format_schema: dict[str, Any] | None = None,
+        seed: int | None = None,
     ) -> str:
         t0 = time.perf_counter()
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": content})
+        options: dict[str, Any] = {"temperature": 0}
+        if seed is not None:
+            options["seed"] = int(seed)
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": 0},
+            "options": options,
         }
-        if json_mode:
+        if format_schema is not None:
+            payload["format"] = format_schema
+        elif json_mode:
             payload["format"] = "json"
         body = json.dumps(payload).encode("utf-8")
         attempts = 1 + self.http_timeout_retries
@@ -805,7 +816,8 @@ class OllamaAdapter(LlmAdapter):
                 }
                 raise RuntimeError(
                     f"Ollama unavailable at {self.host} (model={self.model}). "
-                    f"Install/start Ollama or use --llm stub. Underlying error: {exc}"
+                    f"Install/start Ollama and pull the configured model. "
+                    f"Underlying error: {exc}"
                 ) from exc
             else:
                 tokens_in = data.get("prompt_eval_count")
@@ -1011,9 +1023,9 @@ def list_ollama_models(host: str | None = None) -> dict[str, Any]:
 
 
 def get_adapter(
-    name: str = "stub",
+    name: str = "ollama",
     *,
-    fallback_stub: bool = True,
+    fallback_stub: bool = False,
     model: str | None = None,
     host: str | None = None,
     **kwargs: Any,
@@ -1021,8 +1033,8 @@ def get_adapter(
     """
     Resolve an adapter by name.
 
-    - stub: always available
-    - ollama: local HTTP; when fallback_stub=True, wraps with FallbackAdapter
+    - ollama: local HTTP only for Task A generate (no stub fallback by default)
+    - stub: Task B / fixtures only — not used by the generator pipeline
 
     Ollama-only kwargs (``timeout_s``, ``max_retries``, ``http_timeout_retries``)
     are ignored for the stub so API/chat can pass a shared options bag.
@@ -1030,7 +1042,6 @@ def get_adapter(
     ollama_only = {"timeout_s", "max_retries", "http_timeout_retries"}
     if name == "stub":
         stub_kwargs = {k: v for k, v in kwargs.items() if k not in ollama_only}
-        # ``preset`` is the only StubLlmAdapter constructor arg today.
         if "preset" in stub_kwargs:
             return StubLlmAdapter(preset=stub_kwargs["preset"])
         return StubLlmAdapter()
@@ -1041,6 +1052,7 @@ def get_adapter(
         if host is not None:
             ollama_kwargs["host"] = host
         primary = OllamaAdapter(**ollama_kwargs)
+        # Pilot fix A/G: never wrap generate path with stub fallback.
         if fallback_stub:
             return FallbackAdapter(primary, StubLlmAdapter())
         return primary
@@ -1084,7 +1096,20 @@ def input_from_text(
     Single-language `--from-text` is accepted: FI text is primary when language=fi;
     EN mirror is filled with the same string unless description_en is provided.
     """
-    adapter = adapter or StubLlmAdapter()
+    if adapter is None:
+        raise ValueError(
+            "Ollama adapter required for from-text generation "
+            "(stub keyword extraction removed from the pipeline)."
+        )
+    # Reject the stub keyword / exact StubLlmAdapter only. Test fakes that subclass
+    # StubLlmAdapter but advertise a non-stub name (e.g. digits_leak) may still be used.
+    if getattr(adapter, "name", None) == "stub" or type(adapter) is StubLlmAdapter:
+        raise ValueError(
+            "Keyword stub is not allowed for parameter extraction. Use Ollama."
+        )
+    if isinstance(adapter, FallbackAdapter):
+        # Unwrap: Task A must not succeed via stub.
+        adapter = adapter.primary
     text = text.strip()
     if not text:
         raise ValueError(
@@ -1096,52 +1121,47 @@ def input_from_text(
         description_en = (description_en or text).strip()
     else:
         description_en = text
-        # Mirror into FI until a dedicated --from-text-fi flag exists.
         description_fi = text
 
-    opts = options or default_options_from_text(language=language)
+    opts = dict(options or default_options_from_text(language=language))
+    if "seed" not in opts:
+        opts["seed"] = 42
     params = adapter.extract_parameters(description_fi, description_en, opts)
-    # Repair absurd targets / wrong scale after live/stub extraction.
-    combined = f"{description_fi} {description_en}"
-    repaired, _ = repair_params_from_nl(combined, params)
-    repaired, _ = repair_investment_and_revenue_from_nl(
-        combined,
-        repaired,
-        industry=str(opts.get("industry") or ""),
-        company_size=str(opts.get("company_size") or ""),
-    )
-    validated = validate_model(ParametersFromLanguageModel, repaired)
+    validated = validate_model(ParametersFromLanguageModel, params)
+
+    # Stamp scenario_id from scenario_shape so engine uses shape, not keywords.
+    shape = getattr(validated, "scenario_shape", None) or params.get("scenario_shape")
+    if shape and not opts.get("scenario_id"):
+        from payloq_llm.extract_pipeline import scenario_id_from_shape
+
+        opts["scenario_id"] = scenario_id_from_shape(str(shape))
 
     invoice_texts: InvoiceDescriptiveTexts | None = None
     if with_invoice_texts:
-        invoice_texts = sanitize_invoice_texts(
-            adapter.generate_invoice_texts(
+        try:
+            invoice_texts = sanitize_invoice_texts(
+                adapter.generate_invoice_texts(
+                    description_fi=description_fi,
+                    description_en=description_en,
+                    industry=str(opts.get("industry", "SME")),
+                    language=str(opts.get("language", language)),
+                ),
                 description_fi=description_fi,
                 description_en=description_en,
-                industry=str(opts.get("industry", "SME")),
-                language=str(opts.get("language", language)),
-            ),
-            description_fi=description_fi,
-            description_en=description_en,
-        )
+            )
+        except Exception:
+            # Descriptive texts may fall back to built-in FI defaults (texts only).
+            from payloq_llm.invoice_text_defaults import default_invoice_texts
 
-    note = f"parameters via {adapter.name} adapter"
-    if isinstance(adapter, FallbackAdapter) and (
-        adapter.param_extraction_used_fallback or adapter.used_fallback
-    ):
-        reason = (
-            adapter.param_extraction_fallback_reason
-            or adapter.last_fallback_reason
-            or "primary adapter failed"
-        )
-        mode = getattr(adapter, "param_extraction_mode", None)
-        if mode == "hybrid_code_nl":
-            note = f"parameters via hybrid/code-nl; {reason}"
-        else:
-            note = f"{note}; {reason}"
+            invoice_texts = default_invoice_texts(
+                language=str(opts.get("language", language)),
+            )
+
+    model_name = getattr(adapter, "model", None) or getattr(adapter, "name", "ollama")
+    note = f"parameters via ollama ({model_name})"
 
     return GeneratorInput(
-        meta=ScenarioMeta(fictional=True, note=note),
+        meta=ScenarioMeta(fictional=True, note=note, seed=int(opts.get("seed") or 42)),
         scenario_description=ScenarioDescription(fi=description_fi, en=description_en),
         options=opts,  # type: ignore[arg-type]
         parameters_from_language_model=validated,
@@ -1158,7 +1178,10 @@ def input_from_descriptions(
     adapter: LlmAdapter | None = None,
     with_invoice_texts: bool = True,
 ) -> GeneratorInput:
-    adapter = adapter or StubLlmAdapter()
+    if adapter is None:
+        raise ValueError("Ollama adapter required for from-text generation.")
+    if getattr(adapter, "name", None) == "stub" or type(adapter) is StubLlmAdapter:
+        raise ValueError("Keyword stub is not allowed for parameter extraction.")
     params = adapter.extract_parameters(description_fi, description_en, options)
     validated = validate_model(ParametersFromLanguageModel, params)
     invoice_texts = None

@@ -27,7 +27,6 @@ from payloq_api.schemas import (
 from payloq_api.services.chat import (
     chat_on_run,
     demo_presets_payload,
-    ensure_journal_artifact,
     resolve_run_chat_llm,
     result_to_dict,
     suggestions_for_run,
@@ -100,7 +99,6 @@ def generate_preset(
         scenario=scenario,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
-        write_journal=body.write_journal,
     )
     return _run_out(run)
 
@@ -123,10 +121,8 @@ def generate_from_text(
         months=body.months,
         seed=body.seed,
         write_xlsx=body.write_xlsx,
-        write_journal=body.write_journal,
         ollama_model=body.ollama_model,
         ollama_host=body.ollama_host,
-        no_fallback_stub=body.no_fallback_stub,
         save_as_slug=body.save_as_slug,
     )
     return _run_out(run)
@@ -137,7 +133,7 @@ def llm_models(
     _: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> OllamaModelsResponse:
-    """List local Ollama models (``/api/tags``). Web Generate uses this — no stub option."""
+    """List local Ollama models (``/api/tags``). Web Generate uses this for Ollama tags."""
     payload = list_ollama_models(settings.ollama_host)
     return OllamaModelsResponse(
         available=bool(payload.get("available")),
@@ -222,22 +218,6 @@ def chat_run(
         raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
     return ChatResponse(**result_to_dict(result, llm_model=resolved_model))
 
-
-@router.post("/runs/{run_id}/journal", response_model=RunOut)
-def ensure_journal(
-    run_id: int,
-    _: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_session)],
-) -> RunOut:
-    """Write journal_entries.json for an existing run if missing (§4)."""
-    run = session.get(GenerationRun, run_id)
-    if run is None or not run.artifact_dir:
-        raise HTTPException(status_code=404, detail="Run or artifacts not found")
-    try:
-        ensure_journal_artifact(run)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return _run_out(run)
 
 
 @router.get("/runs/{run_id}/artifacts/{filename}")

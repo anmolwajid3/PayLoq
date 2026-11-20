@@ -110,13 +110,13 @@ def check_parameters_consistency(
         )
     if growth is not None:
         # Reject percent-scale mistakes like 0.8 meaning 80%/mo or 3 meaning 300%.
-        if abs(growth) > 0.5:
+        if abs(growth) > 0.2:
             issues.append(
                 ConsistencyIssue(
                     code="growth_not_fraction",
                     message=(
                         f"growth {growth} is not a MoM fraction "
-                        "(expected e.g. 0.003 for 0.3%/month, |g|≤0.5)"
+                        "(expected e.g. 0.003 for 0.3%/month, |g|≤0.2)"
                     ),
                     field="monthly_revenue_growth",
                 )

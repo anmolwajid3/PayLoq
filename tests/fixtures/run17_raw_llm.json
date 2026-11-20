@@ -32,7 +32,7 @@
         "type": "capex",
         "amount_eur": 2800000,
         "month_index": 4,
-        "direction": "out",
+        "direction": "outflow",
         "label": "production_line"
       }
     ],

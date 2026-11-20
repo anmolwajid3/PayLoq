@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from payloq_generator.pipeline import run_generation
-from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter, input_from_text
+from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter
 from payloq_llm.nl_cash_intent import (
     looks_cash_critical,
     repair_params_from_nl,
@@ -20,6 +20,8 @@ from payloq_schemas.models import (
     ScenarioMeta,
 )
 from payloq_validate.checks import _behaviour_sid, validate_pack
+
+from helpers_stub_input import generator_input_via_stub_extract
 
 HOTEL_COVENANT_NL = (
     "12-room boutique hotel. Winter cash ~€30k. Bank covenant €25k. "
@@ -88,10 +90,8 @@ def test_stub_hotel_covenant_not_good_default() -> None:
 
 
 def test_hotel_covenant_pack_passes_vr20_as_cash_critical(tmp_path: Path) -> None:
-    adapter = StubLlmAdapter()
-    inp = input_from_text(
+    inp = generator_input_via_stub_extract(
         text=HOTEL_COVENANT_NL,
-        adapter=adapter,
         language="en",
         options={
             "industry": "boutique hotel",
@@ -241,39 +241,11 @@ def test_fallback_keeps_param_stub_flag_after_invoice_texts() -> None:
     assert fb2.param_extraction_fallback_reason
 
 
-def test_weak_ollama_numbers_repaired_in_pipeline(tmp_path: Path) -> None:
-    fake = ParametersFromLanguageModel(
-        monthly_revenue_start_eur=180_000,
-        monthly_revenue_growth=0.008,
-        cost_shares_of_revenue=CostShares(
-            materials=0.37, services=0.08, personnel=0.34, other=0.15
-        ),
-        days_sales_outstanding=40,
-        days_payables_outstanding=32,
-        target_cash_at_end_eur=330_000,
-        special_investment_eur=95_000,
-        special_investment_month=2,
-        monthly_revenue_factors=[
-            0.30,
-            0.30,
-            0.35,
-            0.70,
-            0.90,
-            1.0,
-            1.0,
-            1.0,
-            0.85,
-            0.35,
-            0.30,
-            0.30,
-        ],
-        notes="ollama weak guess",
-    )
-    inp = GeneratorInput(
-        meta=ScenarioMeta(fictional=True, note="parameters via ollama adapter"),
-        scenario_description=ScenarioDescription(
-            fi=HOTEL_COVENANT_NL, en=HOTEL_COVENANT_NL
-        ),
+def test_cash_critical_stub_params_pass_vr20_in_pipeline(tmp_path: Path) -> None:
+    """Pilot: no keyword NL repair in pipeline — use cash-critical-scale params."""
+    inp = generator_input_via_stub_extract(
+        text=HOTEL_COVENANT_NL,
+        language="en",
         options={
             "industry": "boutique hotel",
             "company_size": "small",
@@ -282,14 +254,10 @@ def test_weak_ollama_numbers_repaired_in_pipeline(tmp_path: Path) -> None:
             "currency": "EUR",
             "as_of": "2026-10-31",
         },
-        parameters_from_language_model=fake,
     )
-    outcome = run_generation(inp, tmp_path / "repair", seed=42, llm_name="ollama")
+    outcome = run_generation(inp, tmp_path / "repair", seed=42, llm_name="stub")
     assert outcome.ok, outcome.error_message
     assert outcome.pack is not None
     assert outcome.pack.input.parameters_from_language_model.target_cash_at_end_eur <= 40_000
     assert _behaviour_sid(outcome.pack) == "cash_critical"
     assert not any(i.code == "behaviour_good_profit" for i in outcome.validation.issues)
-    assert any(
-        c.get("field") == "target_cash_at_end_eur" for c in outcome.param_clips
-    )

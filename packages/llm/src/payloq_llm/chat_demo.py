@@ -251,9 +251,15 @@ def run_chat_demo(
     if isinstance(used, FallbackAdapter):
         if used.used_fallback:
             fallback_note = used.last_fallback_reason
-            adapter_name = f"{used.primary.name}->stub"
+            # Labelling rule: stub answers never show a model name.
+            if getattr(used.fallback, "name", None) == "stub":
+                adapter_name = "stub"
+            else:
+                adapter_name = f"{used.primary.name}->{getattr(used.fallback, 'name', 'fallback')}"
         else:
             adapter_name = used.primary.name
+    elif adapter_name == "stub" or llm == "stub":
+        adapter_name = "stub"
     return ChatDemoResult(
         question=q,
         answer=answer,

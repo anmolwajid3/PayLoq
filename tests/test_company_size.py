@@ -88,42 +88,31 @@ def test_scale_defaults_large_above_small() -> None:
     assert mid["monthly_revenue_start_eur"] == large["monthly_revenue_start_eur"]
 
 
-def test_from_text_persists_size_label_and_seed(tmp_path: Path) -> None:
+def test_from_text_rejects_stub_for_size_label() -> None:
     opts = default_options_from_text(
         industry="machine shop",
         company_size=parse_company_size("small"),
         months=12,
         language="en",
     )
-    inp = input_from_text(
-        text="A small machine shop with tight cash.",
-        adapter=StubLlmAdapter(),
-        language="en",
-        options=opts,
-    )
-    assert inp.options.company_size == "small"
-    outcome = run_generation(inp, tmp_path / "label", seed=99, llm_name="stub")
-    assert outcome.ok
-    written = json.loads((outcome.out_dir / "input.json").read_text(encoding="utf-8"))
-    assert written["options"]["company_size"] == "small"
-    assert written["options"]["industry"] == "machine shop"
-    assert written["options"]["months"] == 12
-    run_log = json.loads((outcome.out_dir / "run_log.json").read_text(encoding="utf-8"))
-    assert run_log["seed"] == outcome.seed_used
-    assert run_log["options"]["company_size"] == "small"
+    with pytest.raises(ValueError, match="stub"):
+        input_from_text(
+            text="A small machine shop with tight cash.",
+            adapter=StubLlmAdapter(),
+            language="en",
+            options=opts,
+        )
 
 
-def test_from_text_persists_employee_count(tmp_path: Path) -> None:
+def test_preset_persists_employee_count(tmp_path: Path) -> None:
     size = parse_company_size("12 employees")
-    opts = default_options_from_text(company_size=size, months=18, language="fi")
-    inp = input_from_text(
-        text="Pieni konepaja, kassa on kriittinen.",
-        adapter=StubLlmAdapter(),
-        language="fi",
-        options=opts,
-    )
-    assert inp.options.company_size == "12 employees"
-    outcome = run_generation(inp, tmp_path / "emps", seed=42, llm_name="stub")
+    from payloq_generator.engine import load_input
+
+    root = Path(__file__).resolve().parents[1]
+    inp = load_input(root / "scenarios" / "good" / "input.json")
+    inp.options.company_size = size
+    inp.options.months = 18
+    outcome = run_generation(inp, tmp_path / "emps", seed=42)
     assert outcome.ok
     written = json.loads((outcome.out_dir / "input.json").read_text(encoding="utf-8"))
     assert written["options"]["company_size"] == "12 employees"

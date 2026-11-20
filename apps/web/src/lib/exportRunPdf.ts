@@ -316,7 +316,7 @@ export function buildRunPdf(run: Run, lang: Lang): jsPDF {
         .map((ev) => {
           const e = ev as Record<string, unknown>;
           const amt = Number(e.amount_eur) || 0;
-          const dir = String(e.direction || "out");
+          const dir = String(e.direction || "outflow");
           const mi = e.month_index != null ? `M${e.month_index}` : "";
           const label = e.label ? String(e.label) : "";
           return [label, mi, dir, fmtEur(amt, lang)].filter(Boolean).join(" ");

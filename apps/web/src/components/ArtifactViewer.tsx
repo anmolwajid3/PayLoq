@@ -34,13 +34,11 @@ function detectKind(filename: string, data: unknown): string {
   const name = filename.toLowerCase();
   if (name.includes("cash_and_invoices")) return "cash";
   if (name.includes("monthly_reports")) return "monthly";
-  if (name.includes("journal_entries")) return "journal";
   if (name.includes("input")) return "input";
   if (data && typeof data === "object") {
     const o = data as Record<string, unknown>;
     if (o.balance_history && o.open_invoices) return "cash";
     if (Array.isArray(o.months)) return "monthly";
-    if (Array.isArray(o.entries)) return "journal";
     if (o.parameters_from_language_model || o.scenario_description) return "input";
   }
   return "generic";
@@ -104,9 +102,6 @@ export function ArtifactViewer({ filename, text, lang, onClose }: Props) {
       ) : null}
       {tab === "view" && parsed.data != null && kind === "input" ? (
         <InputPackView data={parsed.data as InputPack} lang={lang} />
-      ) : null}
-      {tab === "view" && parsed.data != null && kind === "journal" ? (
-        <JournalPackView data={parsed.data as JournalPack} lang={lang} />
       ) : null}
       {tab === "view" && parsed.data != null && kind === "generic" ? (
         <GenericPackView data={parsed.data} lang={lang} />
@@ -499,108 +494,6 @@ function InputPackView({ data, lang }: { data: InputPack; lang: Lang }) {
           <strong>{t("paramNotes", lang)}:</strong> {String(params.notes)}
         </p>
       )}
-    </div>
-  );
-}
-
-/* ---------- journal_entries ---------- */
-
-type JournalPack = {
-  meta?: { note?: string; as_of?: string };
-  chart_note_fi?: string;
-  chart_note_en?: string;
-  entries?: {
-    id: string;
-    date: string;
-    description_fi: string;
-    description_en: string;
-    source: string;
-    lines: {
-      account: string;
-      account_name_fi: string;
-      account_name_en: string;
-      debit: number;
-      credit: number;
-    }[];
-  }[];
-};
-
-function JournalPackView({ data, lang }: { data: JournalPack; lang: Lang }) {
-  const entries = data.entries || [];
-  const [openId, setOpenId] = useState<string | null>(entries[0]?.id ?? null);
-  const totalDebit = entries.reduce(
-    (s, e) => s + e.lines.reduce((a, l) => a + l.debit, 0),
-    0,
-  );
-
-  return (
-    <div className="pack-view">
-      <div className="summary-cards">
-        <SummaryCard label={t("journalEntries", lang)} value={String(entries.length)} />
-        <SummaryCard label={t("totalDebit", lang)} value={fmtEur(totalDebit, lang)} />
-      </div>
-      <p className="muted pack-note">{lang === "fi" ? data.chart_note_fi : data.chart_note_en}</p>
-
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>{t("date", lang)}</th>
-              <th>{t("description", lang)}</th>
-              <th>{t("source", lang)}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <Fragment key={e.id}>
-                <tr>
-                  <td>{e.id}</td>
-                  <td>{e.date}</td>
-                  <td>{lang === "fi" ? e.description_fi : e.description_en}</td>
-                  <td>{e.source}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-tiny"
-                      onClick={() => setOpenId(openId === e.id ? null : e.id)}
-                    >
-                      {openId === e.id ? t("hideLines", lang) : t("showLines", lang)}
-                    </button>
-                  </td>
-                </tr>
-                {openId === e.id && (
-                  <tr className="nested-row">
-                    <td colSpan={5}>
-                      <table className="data-table compact nested-table">
-                        <thead>
-                          <tr>
-                            <th>{t("account", lang)}</th>
-                            <th>{t("accountName", lang)}</th>
-                            <th>{t("debit", lang)}</th>
-                            <th>{t("credit", lang)}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {e.lines.map((l, idx) => (
-                            <tr key={`${e.id}-${l.account}-${idx}`}>
-                              <td>{l.account}</td>
-                              <td>{lang === "fi" ? l.account_name_fi : l.account_name_en}</td>
-                              <td className="num">{l.debit ? fmtEur(l.debit, lang) : "—"}</td>
-                              <td className="num">{l.credit ? fmtEur(l.credit, lang) : "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

@@ -34,7 +34,6 @@ def run_generation(
     seed: int = 42,
     max_seed_attempts: int = 3,
     write_xlsx: bool = True,
-    write_journal: bool = True,
     raw_llm_output: str | None = None,
     llm_name: str | None = None,
     clamp: bool = True,
@@ -48,36 +47,12 @@ def run_generation(
 
     Special case: ``invoices_out_of_balance`` is deliberately broken (TEST_ONLY_BROKEN):
     validation MUST fail VR-05; files are still written and labelled.
+
+    Pilot fix: no keyword NL repair; fidelity is blocking with consistency.
     """
     out_dir = Path(out_dir)
     working = inp.model_copy(deep=True)
     clips: list[dict[str, Any]] = []
-    # NL covenant / winter-cash / one-off / size repair before numeric clamp.
-    try:
-        from payloq_llm.nl_cash_intent import repair_params_from_nl
-        from payloq_llm.nl_param_hints import repair_investment_and_revenue_from_nl
-
-        desc = (
-            f"{working.scenario_description.fi} {working.scenario_description.en}"
-        ).strip()
-        if desc:
-            repaired, nl_clips = repair_params_from_nl(
-                desc, working.parameters_from_language_model.model_dump()
-            )
-            repaired, inv_clips = repair_investment_and_revenue_from_nl(
-                desc,
-                repaired,
-                industry=str(working.options.industry or ""),
-                company_size=str(getattr(working.options, "company_size", "") or ""),
-            )
-            nl_clips = list(nl_clips) + list(inv_clips)
-            if nl_clips:
-                from payloq_schemas.models import ParametersFromLanguageModel as _Params
-
-                working.parameters_from_language_model = _Params.model_validate(repaired)
-                clips.extend(nl_clips)
-    except ImportError:  # pragma: no cover
-        pass
     if clamp:
         clamped, clamp_clips = clamp_parameters(working.parameters_from_language_model)
         working.parameters_from_language_model = clamped
@@ -102,7 +77,11 @@ def run_generation(
             pack = break_receivables_mismatch(pack)
         answer_key = build_answer_key(pack)
         # For deliberate broken, skip VR-11 mismatch noise: still validate data rules
-        result = validate_pack(pack, answer_key=None if deliberate_broken else answer_key)
+        result = validate_pack(
+            pack,
+            answer_key=None if deliberate_broken else answer_key,
+            check_fidelity=not deliberate_broken,
+        )
         attempts.append(
             {
                 "attempt": attempt_i + 1,
@@ -123,7 +102,6 @@ def run_generation(
                     pack,
                     out_dir,
                     write_xlsx=write_xlsx,
-                    write_journal=write_journal,
                     seed=seed_used,
                     raw_llm_output=raw_llm_output,
                     llm_name=llm_name,
@@ -153,7 +131,6 @@ def run_generation(
                 pack,
                 out_dir,
                 write_xlsx=write_xlsx,
-                write_journal=write_journal,
                 seed=seed_used,
                 raw_llm_output=raw_llm_output,
                 llm_name=llm_name,
@@ -180,7 +157,6 @@ def run_generation(
             last_pack,
             out_dir,
             write_xlsx=False,
-            write_journal=False,
             seed=seed_used,
             raw_llm_output=raw_llm_output,
             llm_name=llm_name,

@@ -21,7 +21,6 @@ export function RunDetailPage() {
   const [jsonText, setJsonText] = useState<string | null>(null);
   const [jsonName, setJsonName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [journalBusy, setJournalBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
@@ -41,20 +40,6 @@ export function RunDetailPage() {
       setJsonText(text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
-    }
-  }
-
-  async function buildJournal() {
-    if (!run) return;
-    setJournalBusy(true);
-    setError(null);
-    try {
-      const updated = await api.ensureJournal(run.id);
-      setRun(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error");
-    } finally {
-      setJournalBusy(false);
     }
   }
 
@@ -261,21 +246,6 @@ export function RunDetailPage() {
 
             <div className="panel">
               <h3>{t("artifacts", lang)}</h3>
-              {!run.artifacts.includes("journal_entries.json") && run.status === "ok" && (
-                <p>
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    disabled={journalBusy}
-                    onClick={buildJournal}
-                  >
-                    {journalBusy ? t("loading", lang) : t("ensureJournal", lang)}
-                  </button>
-                </p>
-              )}
-              {run.artifacts.includes("journal_entries.json") && (
-                <p className="status-ok">{t("journalReady", lang)}: journal_entries.json</p>
-              )}
               <div className="artifact-list">
                 {run.artifacts.map((name) => (
                   <div key={name} className="artifact-row">

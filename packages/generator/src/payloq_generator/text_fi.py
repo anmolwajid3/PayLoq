@@ -1,4 +1,4 @@
-"""Finnish/English stub descriptive texts for invoices (no LLM required)."""
+"""Finnish/English default descriptive texts for invoices (no LLM required)."""
 
 from __future__ import annotations
 
