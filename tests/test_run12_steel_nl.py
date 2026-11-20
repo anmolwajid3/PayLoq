@@ -6,7 +6,7 @@ from pathlib import Path
 
 from payloq_generator.params_clamp import clamp_parameters
 from payloq_generator.pipeline import run_generation
-from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter, input_from_text
+from payloq_llm.adapters import FallbackAdapter, StubLlmAdapter
 from payloq_llm.nl_cash_intent import (
     extract_euro_amounts,
     looks_cash_critical,
@@ -21,6 +21,8 @@ from payloq_llm.nl_param_hints import (
 from payloq_llm.params_coerce import coerce_parameters_dict
 from payloq_llm.parse import validate_model
 from payloq_schemas.models import ParametersFromLanguageModel
+
+from helpers_stub_input import generator_input_via_stub_extract
 
 STEEL_NL = (
     "Large Finnish steel fabricator, about 420 employees. "
@@ -200,10 +202,9 @@ def test_stub_steel_large_pass_level_params() -> None:
 
 
 def test_pipeline_steel_from_text_stub(tmp_path: Path) -> None:
-    inp = input_from_text(
+    inp = generator_input_via_stub_extract(
         text=STEEL_NL,
         language="en",
-        adapter=StubLlmAdapter(),
         options={
             "industry": "steel",
             "company_size": "420",

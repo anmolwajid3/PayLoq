@@ -1101,7 +1101,9 @@ def input_from_text(
             "Ollama adapter required for from-text generation "
             "(stub keyword extraction removed from the pipeline)."
         )
-    if getattr(adapter, "name", None) == "stub" or isinstance(adapter, StubLlmAdapter):
+    # Reject the stub keyword / exact StubLlmAdapter only. Test fakes that subclass
+    # StubLlmAdapter but advertise a non-stub name (e.g. digits_leak) may still be used.
+    if getattr(adapter, "name", None) == "stub" or type(adapter) is StubLlmAdapter:
         raise ValueError(
             "Keyword stub is not allowed for parameter extraction. Use Ollama."
         )
@@ -1178,7 +1180,7 @@ def input_from_descriptions(
 ) -> GeneratorInput:
     if adapter is None:
         raise ValueError("Ollama adapter required for from-text generation.")
-    if getattr(adapter, "name", None) == "stub" or isinstance(adapter, StubLlmAdapter):
+    if getattr(adapter, "name", None) == "stub" or type(adapter) is StubLlmAdapter:
         raise ValueError("Keyword stub is not allowed for parameter extraction.")
     params = adapter.extract_parameters(description_fi, description_en, options)
     validated = validate_model(ParametersFromLanguageModel, params)

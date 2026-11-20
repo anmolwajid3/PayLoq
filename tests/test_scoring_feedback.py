@@ -8,10 +8,11 @@ from pathlib import Path
 from payloq_generator.engine import generate_pack
 from payloq_generator.params_clamp import clamp_parameters, cost_share_sum
 from payloq_generator.pipeline import run_generation
-from payloq_llm.adapters import StubLlmAdapter, input_from_text
 from payloq_schemas.models import CostShares, ParametersFromLanguageModel
 from payloq_schemas.text_rules import descriptive_text_has_numbers
 from payloq_validate.checks import validate_pack
+
+from helpers_stub_input import generator_input_via_stub_extract
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -73,10 +74,8 @@ def test_cost_share_repair_lands_in_run_log(tmp_path: Path) -> None:
 
 
 def test_hotel_winter_seasonality_and_month2_investment(tmp_path: Path) -> None:
-    adapter = StubLlmAdapter()
-    inp = input_from_text(
+    inp = generator_input_via_stub_extract(
         text=HOTEL_WINTER_NL,
-        adapter=adapter,
         language="en",
         options={
             "industry": "boutique hotel",

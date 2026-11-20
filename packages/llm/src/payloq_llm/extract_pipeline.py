@@ -67,12 +67,10 @@ def finalize_extracted_parameters(
     scenario_shape_quote = envelope.get("scenario_shape_quote")
     parameters = dict(envelope.get("parameters") or {})
     stated = normalize_stated_map(envelope.get("stated") or {}, parameters)
-    # Options fields often echo config, not the NL description — drop if quote absent.
-    desc_l = (description or "").casefold()
+    # Options fields echo request config, not extractable NL params — never keep in
+    # stated/field_quotes (also keeps same-seed H8 input.json byte-stable).
     for opt_key in ("industry", "company_size"):
-        q = stated.get(opt_key)
-        if q is not None and str(q).casefold() not in desc_l:
-            stated.pop(opt_key, None)
+        stated.pop(opt_key, None)
 
     for key in list(parameters.keys()):
         if key in {"one_off_events", "industry", "company_size"}:

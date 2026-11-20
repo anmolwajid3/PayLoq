@@ -103,7 +103,8 @@ def test_llm_models_endpoint(client: TestClient):
     assert all("stub" not in t for t in body["recommended"])
 
 
-def test_generate_from_text_stub(client: TestClient):
+def test_generate_from_text_rejects_stub(client: TestClient):
+    """From-text is Ollama-only — stub keyword must be rejected at the schema."""
     login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
@@ -120,66 +121,25 @@ def test_generate_from_text_stub(client: TestClient):
             "seed": 42,
         },
     )
-    assert run.status_code == 200, run.text
-    body = run.json()
-    assert body["status"] == "ok"
-    assert body["validation_ok"] is True
-    assert body["source"] == "from_text"
-    assert body["llm_adapter"] == "stub"
-    assert body["seed"] == 42
-    assert body.get("llm_model") in (None, "")
-    assert "journal_entries.json" not in body.get("artifacts", [])
-    soft = (body.get("pack_summary") or {}).get("nl_soft_warnings") or []
-    assert isinstance(soft, list)
-    # Stub heuristics + critical NL should surface at least the stub soft-hint.
-    assert any(w.get("code") == "nl_stub_heuristic" for w in soft)
-    assert (body.get("pack_summary") or {}).get("parameters")
-    assert (body.get("pack_summary") or {}).get("language") == "fi"
-    options = (body.get("pack_summary") or {}).get("options") or {}
-    assert options.get("company_size") == "8 employees"
-    assert options.get("industry") == "machine shop"
-    assert options.get("months") == 12
+    assert run.status_code == 422, run.text
+    detail = str(run.json())
+    assert "ollama" in detail.lower()
 
-    art = client.get(
-        f"/api/runs/{body['id']}/artifacts/input.json",
-        headers=headers,
+
+def test_generate_from_text_accepts_large_company_size():
+    """Request schema normalizes Large → large (generation itself needs Ollama)."""
+    from payloq_api.schemas import GenerateFromTextRequest
+
+    body = GenerateFromTextRequest(
+        text="Mid-market steel plant; cash is tight within three weeks.",
+        llm="ollama",
+        language="en",
+        industry="steel",
+        company_size="Large",
+        months=12,
+        seed=7,
     )
-    assert art.status_code == 200
-    assert art.json()["options"]["company_size"] == "8 employees"
-
-    log = client.get(
-        f"/api/runs/{body['id']}/artifacts/run_log.json",
-        headers=headers,
-    )
-    assert log.status_code == 200
-    run_log = log.json()
-    assert run_log["seed"] == 42
-    assert run_log["options"]["company_size"] == "8 employees"
-
-
-def test_generate_from_text_accepts_large_company_size(client: TestClient):
-    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
-    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-
-    run = client.post(
-        "/api/generate/from-text",
-        headers=headers,
-        json={
-            "text": "Mid-market steel plant; cash is tight within three weeks.",
-            "llm": "stub",
-            "language": "en",
-            "industry": "steel",
-            "company_size": "Large",
-            "months": 12,
-            "seed": 7,
-        },
-    )
-    assert run.status_code == 200, run.text
-    body = run.json()
-    options = (body.get("pack_summary") or {}).get("options") or {}
-    assert options.get("company_size") == "large"
-    params = (body.get("pack_summary") or {}).get("parameters") or {}
-    assert params.get("monthly_revenue_start_eur") == 1_200_000.0
+    assert body.company_size == "large"
 
 
 def test_generate_from_text_rejects_bad_company_size(client: TestClient):
@@ -191,7 +151,7 @@ def test_generate_from_text_rejects_bad_company_size(client: TestClient):
         headers=headers,
         json={
             "text": "Pieni konepaja.",
-            "llm": "stub",
+            "llm": "ollama",
             "company_size": "  ",
             "months": 12,
         },
@@ -203,7 +163,7 @@ def test_generate_from_text_rejects_bad_company_size(client: TestClient):
         headers=headers,
         json={
             "text": "Pieni konepaja.",
-            "llm": "stub",
+            "llm": "ollama",
             "company_size": "huge",
             "months": 12,
         },
@@ -218,24 +178,19 @@ def test_chat_uses_run_model_without_llm_body(client: TestClient):
     login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
+    # Preset run (no from-text stub). Chat may still use stub override / defaults.
     run = client.post(
-        "/api/generate/from-text",
+        "/api/generate/preset",
         headers=headers,
-        json={
-            "text": "Pieni konepaja, kassa on kriittinen kolmen viikon päästä.",
-            "llm": "stub",
-            "language": "fi",
-            "months": 12,
-        },
+        json={"scenario_slug": "cash_critical", "seed": 42, "write_xlsx": False},
     )
     assert run.status_code == 200, run.text
     run_id = run.json()["id"]
-    assert run.json()["llm_adapter"] == "stub"
 
     chat = client.post(
         f"/api/runs/{run_id}/chat",
         headers=headers,
-        json={"preset": "cash_drop", "language": "fi"},
+        json={"preset": "cash_drop", "language": "fi", "llm": "stub"},
     )
     assert chat.status_code == 200, chat.text
     payload = chat.json()
