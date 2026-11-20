@@ -107,13 +107,17 @@ def test_grade_probes_and_interpretation_stub_answers() -> None:
         "Ennuste ei mene negatiiviseksi annetuilla luvuilla."
     )
     ig = grade_interpretation(text, summary)
-    assert ig.score >= 0.66
+    assert ig.score >= 0.8
+    assert ig.per_field["factual"] == 1.0
+    assert ig.per_field["grounded"] == 1.0
     assert ig.per_field["no_invented_causes"] == 1.0
+    assert ig.per_field["no_contradiction"] == 1.0
     assert ig.per_field["fi_quality"] >= 0.75
 
     bad = "Cash dropped because of customer fraud and a bank freeze."
     bad_g = grade_interpretation(bad, summary)
     assert bad_g.per_field["no_invented_causes"] == 0.0
+    assert bad_g.score < 1.0
 
 
 def test_fi_quality_band_en_only_vs_finnish() -> None:

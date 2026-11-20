@@ -9,7 +9,7 @@ Work order §3 metrics live in `packages/benchmark` and are driven by `payloq be
 | Parameter correctness | Code grader vs scenario `parameters_from_language_model` answer key |
 | Figure reading | Code-checked numeric probes (`cash_end`, `revenue_last`, first negative projection week) |
 | MoM change | Probe on `mom_revenue_change` from monthly reports |
-| Interpretation quality | Rubric: factual / understandable / no invented causes; optional LLM judge; human spot-check CSV |
+| Interpretation quality | Rubric: factual / understandable / **grounded** / no invented causes / **no contradiction**; optional LLM judge; human spot-check CSV |
 | **FI quality band** | Separate score for Finnish markers on FI prompts — EN-only models are **not failed** on the main interpretation rubric |
 | Latency / tokens / hardware | Per-call adapter metrics + `hardware.json` |
 | Rough cost | Local energy proxy from tokens + wall time (`rough_cost_eur`) |
@@ -85,6 +85,39 @@ Ollama install steps: [ollama-windows.md](ollama-windows.md).
 
 - **Parameters:** `payloq_benchmark.graders.grade_parameters`
 - **Reading / MoM:** `grade_probes` over `DEFAULT_PROBES`
-- **Interpretation:** `grade_interpretation`
+- **Interpretation:** `grade_interpretation` (five fields; mean overall)
 - **FI band:** `grade_fi_quality`
 - **Judge (optional):** `payloq_benchmark.judge.run_llm_judge`
+- **Adversarial fixtures:** [`benchmarks/adversarial_answers.json`](../benchmarks/adversarial_answers.json) — deliberately wrong answers that must score well below 1.0 (`tests/test_grader_adversarial.py`)
+
+### Stub scores of 1.0 = pipeline wiring only
+
+The `stub` adapter answers reading probes by echoing `pack_summary` JSON and builds interpretation text from the same figures. A perfect stub reading/interpretation score therefore **only proves the harness is wired** (figures → adapter → graders), not that a model “understands” the pack. Live Ollama cells, the Finnish quality band, and human spot-check remain the real quality signal (Anmol Mac, PL-30).
+
+### Interpretation rubric (hardened)
+
+| Field | Fail when… |
+| --- | --- |
+| `understandable` | Answer too short |
+| `factual` | Does not cite any pack figure |
+| `grounded` | Money-like amounts in the answer are not in the pack (invented €) |
+| `no_invented_causes` | Unsupported causal tropes (fraud, konkurssi/konkurssissa, bank freeze, …) |
+| `no_contradiction` | Claims cash already/always negative (or a negative week) when the pack disagrees |
+
+### Field-by-field wrong-answer check (for Anmol)
+
+Use the pack in `benchmarks/adversarial_answers.json` (`cash_end=330000`, `revenue_last=210000`, `mom_revenue_change=1600`, `first_negative_projection_week=null`):
+
+| Field | Wrong answer | Graders must… |
+| --- | --- | --- |
+| `reading.cash_end` | `{"value": 1}` | score ≪ 1.0 |
+| `reading.revenue_last` | `{"value": 999999}` | score ≪ 1.0 |
+| `reading.mom_revenue_change` | `{"value": -99999}` | score ≪ 1.0 |
+| `reading.first_negative_projection_week` | `{"value": 7}` | score 0.0 (pack is null) |
+| `interpretation.no_invented_causes` | “…customer fraud and a bank freeze…” | field 0.0; overall below 1.0 |
+| `interpretation.grounded` / `factual` | cash 999999 / revenue 888888 | both 0.0; overall well below 1.0 |
+| `interpretation.no_contradiction` | “kassa on jo negatiivinen joka viikko” (while citing 330000) | field 0.0; overall below 1.0 |
+
+```bash
+uv run pytest tests/test_grader_adversarial.py -q
+```
