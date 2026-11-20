@@ -93,7 +93,10 @@ def test_null_cost_shares_and_partial_event_assumed() -> None:
 
 
 def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
-    """Incomplete one-offs are dropped; null cost shares assumed; stated scalars kept."""
+    """TC-ABC: incomplete CAPEX dropped → empty list while NL requires outflow → error.
+
+    Never drop a description-stated one-off silently; fail naming the missing event.
+    """
     envelope = {
         "scenario_shape": "unspecified",
         "scenario_shape_quote": None,
@@ -125,7 +128,7 @@ def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
             "company_size": None,
         },
     }
-    params, changes, grounding = finalize_extracted_parameters(
+    _params, _changes, grounding = finalize_extracted_parameters(
         envelope,
         RUN19_DESC,
         industry="services",
@@ -133,15 +136,10 @@ def test_finalize_run19_null_payload_grounds_and_assumes() -> None:
         seed=19,
         require_starting_cash=False,
     )
-    assert grounding.ok, grounding.error_text()
-    assert params["monthly_revenue_start_eur"] == pytest.approx(180_000)
-    assert params["starting_cash_eur"] == pytest.approx(45_000)
-    assert params["target_cash_at_end_eur"] == pytest.approx(40_000)
-    assert params["field_sources"].get("cost_shares_of_revenue") == "assumed"
-    # Incomplete CAPEX dropped — investment assumed (not invented from NL keywords).
-    assert params["one_off_events"] == []
-    assert params["field_sources"].get("special_investment_eur") == "assumed"
-    assert any("assumed" in (c.get("message") or "") for c in changes)
+    assert not grounding.ok
+    err = grounding.error_text().casefold()
+    assert "one_off" in err
+    assert "80000" in err or "80,000" in err or "80 000" in err or "missing" in err
 
 
 def test_complete_capex_event_promoted_before_assume() -> None:
