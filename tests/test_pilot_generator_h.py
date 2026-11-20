@@ -230,12 +230,19 @@ def test_h5_unreachable_ollama_errors_no_files(tmp_path: Path):
 
 def test_h6_invalid_json_errors():
     class BadOllama(OllamaAdapter):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self.calls = 0
+
         def _chat(self, *args: Any, **kwargs: Any) -> str:  # type: ignore[override]
+            self.calls += 1
             return "NOT JSON {{{"
 
     adapter = BadOllama(model=DEFAULT_OLLAMA_MODEL, host=DEFAULT_OLLAMA_HOST, timeout_s=5)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="invalid parameters JSON after retries"):
         adapter.extract_parameters(VAGUE, VAGUE, _opts())
+    # 1 initial + 2 retries = 3 model calls total
+    assert adapter.calls == 3
 
 
 @requires_ollama

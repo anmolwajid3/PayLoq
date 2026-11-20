@@ -24,7 +24,7 @@ Scope: Task A generator only. Benchmark (Task B) and chat demo kept, with **labe
 | `packages/llm/src/payloq_llm/defaults.py` | `DEFAULT_OLLAMA_MODEL` | Default `qwen2.5:7b` (not `llama3.2:1b`). Host stays `http://127.0.0.1:11434`. |
 | `apps/api/src/payloq_api/config.py` | `Settings.ollama_model` | Default `qwen2.5:7b` from config/env. |
 | `packages/llm/src/payloq_llm/adapters.py` | `OllamaAdapter.__init__`, `_chat` | Temp 0; fixed seed in `options`; pass section-B JSON schema as `format` (not bare `"json"`). Log model, latency, tokens. |
-| `packages/llm/src/payloq_llm/adapters.py` | `OllamaAdapter.extract_parameters` | Ollama-only; 2 retries then raise (status error). No stub fallback. |
+| `packages/llm/src/payloq_llm/adapters.py` | `OllamaAdapter.extract_parameters` | Ollama-only; **3 model calls total** (1 initial + 2 retries) then raise (status error). No stub fallback. |
 | `packages/llm/src/payloq_llm/adapters.py` | `get_adapter` | Generator path: never wrap ollama with stub. Stub adapter remains for Task B / chat only. |
 | `packages/llm/src/payloq_llm/adapters.py` | `input_from_text`, `input_from_descriptions` | Require Ollama adapter; reject stub / unwrap FallbackAdapter. |
 | `apps/api/src/payloq_api/services/generate.py` | `run_from_text` | Ollama only; on extract failure → `status=error`, no data files. |

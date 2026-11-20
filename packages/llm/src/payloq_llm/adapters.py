@@ -658,8 +658,8 @@ class OllamaAdapter(LlmAdapter):
         industry = str(options.get("industry") or "")
         company_size = str(options.get("company_size") or "")
         months = int(options.get("months") or 12)
-        # Pilot fix A/C: 2 retries then error — never stub.
-        max_attempts = 2
+        # Pilot fix A/C: 1 initial + 2 retries (= 3 model calls) then error — never stub.
+        max_attempts = 3
         for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
