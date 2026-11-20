@@ -36,7 +36,10 @@ Aliases accepted: revenue_monthly_start_eur / revenue_monthly_eur,
 growth_per_month_fraction, dso_days, dpo_days.
 HARD RULES:
 - Extract ONLY numbers that appear in the description (after k/M/%/€ parsing).
-- If starting_cash_eur is not stated, return null (do not invent).
+- HARD: When the description mentions Starting cash / opening cash / alkukassa
+  (also aloituskassa, avauskassa, initial cash), you MUST set starting_cash_eur
+  to that euro amount. Never leave it null when those words appear with a figure.
+- If starting_cash_eur is not stated in the description, return null (do not invent).
 - Cost shares when present should sum to about 0.9–1.0.
 - monthly_revenue_factors: twelve MULTIPLIERS Jan–Dec (~0.1–2.0), never euro totals.
 - CAPEX one-offs are always direction "out".
@@ -86,6 +89,8 @@ def parameter_repair_prompt(previous: str, error: str) -> str:
         f"Previous response:\n{previous}\n\n"
         "Return corrected JSON only. Use null for unstated fields. "
         "Every stated number MUST appear in the description after parsing units (k, M, %, €). "
+        "If the description states Starting cash / opening cash / alkukassa, "
+        "starting_cash_eur is REQUIRED (copy that euro amount; do not leave null). "
         "Do not invent defaults. Do not retry with the same wrong numbers.\n"
     )
 

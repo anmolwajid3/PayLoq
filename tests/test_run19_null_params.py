@@ -160,6 +160,6 @@ def test_stub_run19_invest_80000_month_3() -> None:
     assert events[0]["month_index"] == 3
     assert events[0]["direction"] in {"out", "outflow"}
     assert out["monthly_revenue_start_eur"] == pytest.approx(180_000)
-    assert out["starting_cash_eur"] == pytest.approx(40_000) or out[
-        "starting_cash_eur"
-    ] == pytest.approx(45_000)
+    # Starting cash €45,000 is stated in NL (not covenant €40k).
+    assert out["starting_cash_eur"] == pytest.approx(45_000)
+    assert out["field_sources"].get("starting_cash_eur") == "stated"
