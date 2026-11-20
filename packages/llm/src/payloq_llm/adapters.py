@@ -41,6 +41,7 @@ from payloq_llm.nl_cash_intent import (
 from payloq_llm.nl_param_hints import (
     extract_growth_rate,
     extract_special_investment,
+    extract_starting_cash_eur,
     looks_bakery,
     looks_steel_or_manufacturing,
     repair_investment_and_revenue_from_nl,
@@ -328,8 +329,19 @@ class StubLlmAdapter(LlmAdapter):
         if band != "small":
             notes = f"{notes}; company_size band={band}"
 
-        # Opening cash: prefer explicit NL cash figure; else scale with target.
-        starting_cash = float(nl_cash) if nl_cash is not None else round(cash * 1.15, 2)
+        # Opening cash: prefer explicit Starting cash / alkukassa; never invent when absent.
+        nl_starting = extract_starting_cash_eur(combined)
+        if nl_starting is not None:
+            starting_cash = float(nl_starting)
+            starting_from_nl = True
+        elif nl_cash is not None:
+            # Soft fallback for stub demos only (covenant/trough scale) — not invention of
+            # a labeled starting-cash figure when the NL never stated one.
+            starting_cash = float(nl_cash)
+            starting_from_nl = False
+        else:
+            starting_cash = round(cash * 1.15, 2)
+            starting_from_nl = False
         if starting_cash <= 0:
             starting_cash = max(cash, 1.0)
 
@@ -357,7 +369,7 @@ class StubLlmAdapter(LlmAdapter):
                 "monthly_revenue_start_eur": "stated" if nl_rev is not None else "assumed",
                 "monthly_revenue_growth": "stated" if nl_growth is not None else "assumed",
                 "target_cash_at_end_eur": "stated" if cash_from_nl else "assumed",
-                "starting_cash_eur": "stated" if nl_cash is not None else "assumed",
+                "starting_cash_eur": "stated" if starting_from_nl else "assumed",
                 "special_investment_eur": "stated" if invest_from_nl else "assumed",
                 "days_sales_outstanding": "assumed",
                 "days_payables_outstanding": "assumed",

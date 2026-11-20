@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from payloq_llm.nl_param_hints import repair_starting_cash_from_nl
 from payloq_schemas.constants import REQUIRED_STATED_FIELDS
 from payloq_schemas.industry_defaults import draw_assumed_defaults
 
@@ -185,6 +186,13 @@ def apply_assumed_defaults(
         sources.setdefault("target_cash_at_end_eur", sources.get("covenant_min_cash_eur", "stated"))
     if out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
         out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
+
+    # Run #22: if LLM null/omits starting_cash_eur, parse from NL before required-check.
+    # Only invent-free: fill when Starting cash / opening cash / alkukassa is stated.
+    out["field_sources"] = sources
+    out, start_changes = repair_starting_cash_from_nl(description or "", out)
+    changes.extend(start_changes)
+    sources = dict(out.get("field_sources") or sources)
 
     for key in REQUIRED_STATED_FIELDS:
         if key == "starting_cash_eur" and not require_starting_cash:

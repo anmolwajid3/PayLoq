@@ -306,6 +306,130 @@ def _window_has_invest(window: str) -> bool:
     return bool(_keyword_positions(window, _INVEST_CONTEXT))
 
 
+# Opening / starting cash wording (EN + FI). Distinct from covenant / winter trough.
+_STARTING_CASH_CONTEXT: tuple[str, ...] = (
+    "starting cash",
+    "opening cash",
+    "initial cash",
+    "cash at start",
+    "cash at opening",
+    "beginning cash",
+    "alkukassa",
+    "aloituskassa",
+    "avauskassa",
+    "alkusaldo",
+    "kassa alussa",
+    "kassa alussa on",
+)
+
+# Labels that mark covenant / trough / target — never treat as starting cash.
+_NOT_STARTING_CASH_CONTEXT: tuple[str, ...] = (
+    "covenant",
+    "kovenantti",
+    "minimum cash",
+    "min cash",
+    "winter cash",
+    "talvikassa",
+    "target cash",
+    "tavoitekassa",
+    "ending cash",
+    "trough",
+    "talvipohja",
+    "kassapohja",
+    "capex",
+    "invest",
+    "investointi",
+    "repair",
+    "korjaus",
+    "monthly revenue",
+    "liikevaihto",
+    "revenue",
+)
+
+
+def extract_starting_cash_eur(text: str) -> float | None:
+    """
+    Parse ``starting_cash_eur`` from NL when explicitly labeled.
+
+    Matches EN/FI: Starting cash / opening cash / alkukassa / aloituskassa, etc.
+    Does not invent a figure and does not treat covenant / CAPEX / revenue amounts
+    as opening cash.
+
+    Examples:
+      'Starting cash €45,000' → 45000
+      'Alkukassa 45 000 €' → 45000
+      'Opening cash €1.3M' → 1300000
+    """
+    blob = text or ""
+    low = blob.lower()
+    best: tuple[float, float] | None = None  # amount, score (higher better)
+
+    for amt, idx in extract_euro_amounts(text):
+        if amt < 1_000:
+            continue
+        left = max(0, idx - 64)
+        window = low[left : idx + 48]
+        amt_pos = idx - left
+
+        start_left = _nearest_left_distance(window, amt_pos, _STARTING_CASH_CONTEXT)
+        start_dist = _nearest_keyword_distance(window, amt_pos, _STARTING_CASH_CONTEXT)
+        if start_left is None and start_dist is None:
+            continue
+
+        # Prefer labels immediately before the amount (Starting cash €45k).
+        not_left = _nearest_left_distance(window, amt_pos, _NOT_STARTING_CASH_CONTEXT)
+        if not_left is not None and (start_left is None or not_left < start_left):
+            continue
+
+        score = 2.0 if start_left is not None else 1.0
+        if start_left is not None:
+            score += max(0.0, 1.5 - (start_left / 40.0))
+        elif start_dist is not None:
+            score += max(0.0, 0.8 - (start_dist / 50.0))
+        if best is None or score > best[1] or (score == best[1] and amt > best[0]):
+            best = (float(amt), score)
+
+    return None if best is None else best[0]
+
+
+def repair_starting_cash_from_nl(
+    text: str,
+    params: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """
+    If LLM omitted ``starting_cash_eur`` but NL states it, fill with source=stated.
+
+    Does not invent a value when the description has no starting-cash figure.
+    """
+    data = dict(params)
+    changes: list[dict[str, Any]] = []
+    cur = data.get("starting_cash_eur")
+    if cur not in (None, ""):
+        return data, changes
+
+    parsed = extract_starting_cash_eur(text or "")
+    if parsed is None:
+        return data, changes
+
+    data["starting_cash_eur"] = parsed
+    sources = dict(data.get("field_sources") or {})
+    sources["starting_cash_eur"] = "stated"
+    data["field_sources"] = sources
+    changes.append(
+        {
+            "field": "starting_cash_eur",
+            "original": None,
+            "clipped": parsed,
+            "message": (
+                f"starting_cash_eur repaired from null to {parsed} "
+                "using NL starting/opening cash / alkukassa figure"
+            ),
+            "source": "nl_param_hints",
+        }
+    )
+    return data, changes
+
+
 def extract_special_investment(text: str) -> tuple[float, int] | None:
     """
     Parse one-off capex/repair amount + 1-based month from NL.

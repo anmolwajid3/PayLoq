@@ -13,6 +13,7 @@ from payloq_llm.grounding import (
     ground_stated_parameters,
     mark_stated_sources,
 )
+from payloq_llm.nl_param_hints import repair_starting_cash_from_nl
 from payloq_llm.params_coerce import normalize_monthly_revenue_factors
 from payloq_schemas.models import ExtractedParameters, ParametersFromLanguageModel
 
@@ -59,6 +60,12 @@ def finalize_extracted_parameters(
     data, changes = prepare_extracted_dict(raw_data)
     extracted = ExtractedParameters.model_validate(data)
     data = extracted.model_dump()
+    sources = mark_stated_sources(data)
+    data["field_sources"] = sources
+
+    # Repair omitted starting_cash from NL before grounding / required-check (Run #22).
+    data, start_changes = repair_starting_cash_from_nl(description, data)
+    changes.extend(start_changes)
     sources = mark_stated_sources(data)
     data["field_sources"] = sources
 
