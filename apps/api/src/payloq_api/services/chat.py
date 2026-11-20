@@ -104,6 +104,7 @@ def chat_on_run(
         llm=resolved_llm,
         ollama_model=resolved_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL,
         ollama_host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
+        ollama_timeout=settings.ollama_timeout,
         no_fallback_stub=no_fallback_stub,
     )
 

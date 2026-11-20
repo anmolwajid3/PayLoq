@@ -2,13 +2,33 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 # Small CPU-friendly default; override with --ollama-model.
 # Pull: `ollama pull llama3.2:1b`
 DEFAULT_OLLAMA_MODEL = "llama3.2:1b"
 DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
-DEFAULT_TIMEOUT_S = 120
+# CPU-first param extraction (esp. Mac Docker) often needs >120s for tiny models.
+# Override with PAYLOQ_OLLAMA_TIMEOUT / OLLAMA_TIMEOUT; Compose ollama profile uses 600.
+DEFAULT_TIMEOUT_S = 300
+
+
+def resolve_ollama_timeout_s(explicit: float | None = None) -> float:
+    """Resolve HTTP timeout seconds: explicit arg → env → DEFAULT_TIMEOUT_S."""
+    if explicit is not None:
+        return float(explicit)
+    for key in ("PAYLOQ_OLLAMA_TIMEOUT", "OLLAMA_TIMEOUT"):
+        raw = os.environ.get(key)
+        if raw is None or not str(raw).strip():
+            continue
+        try:
+            value = float(str(raw).strip())
+        except ValueError:
+            continue
+        if value > 0:
+            return value
+    return float(DEFAULT_TIMEOUT_S)
 
 # Official CPU-first shortlist for Anmol Desktop / PayLoq local PoC (PL-7).
 # Recommended always includes llama3.2:1b; larger tags are optional stretch pulls.

@@ -228,6 +228,7 @@ def run_chat_demo(
     adapter: LlmAdapter | None = None,
     ollama_model: str | None = None,
     ollama_host: str | None = None,
+    ollama_timeout: float | None = None,
     no_fallback_stub: bool = False,
 ) -> ChatDemoResult:
     """
@@ -242,6 +243,7 @@ def run_chat_demo(
         fallback_stub=not no_fallback_stub,
         model=ollama_model or DEFAULT_OLLAMA_MODEL,
         host=ollama_host or DEFAULT_OLLAMA_HOST,
+        timeout_s=ollama_timeout,
     )
     answer = used.interpret_figures(q, figures)
     fallback_note = None

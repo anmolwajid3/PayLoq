@@ -169,6 +169,7 @@ def run_from_text(
             fallback_stub=not no_fallback_stub,
             model=resolved_model or DEFAULT_OLLAMA_MODEL,
             host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
+            timeout_s=settings.ollama_timeout,
         )
         opts = default_options_from_text(
             industry=industry,

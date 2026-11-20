@@ -21,7 +21,7 @@ from payloq_schemas.models import (
 from payloq_llm.defaults import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
-    DEFAULT_TIMEOUT_S,
+    resolve_ollama_timeout_s,
 )
 from payloq_llm.parse import extract_json_object, validate_model
 from payloq_llm.prompts import (
@@ -581,13 +581,16 @@ class OllamaAdapter(LlmAdapter):
         model: str = DEFAULT_OLLAMA_MODEL,
         host: str = DEFAULT_OLLAMA_HOST,
         *,
-        timeout_s: float = DEFAULT_TIMEOUT_S,
+        timeout_s: float | None = None,
         max_retries: int = 1,
+        http_timeout_retries: int = 1,
     ) -> None:
         self.model = model
         self.host = host.rstrip("/")
-        self.timeout_s = timeout_s
+        self.timeout_s = resolve_ollama_timeout_s(timeout_s)
         self.max_retries = max_retries
+        # Extra HTTP attempts after a timeout (1 = one retry → 2 total tries).
+        self.http_timeout_retries = max(0, int(http_timeout_retries))
         self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
@@ -723,47 +726,80 @@ class OllamaAdapter(LlmAdapter):
         if json_mode:
             payload["format"] = "json"
         body = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            f"{self.host}/api/chat",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.URLError as exc:
-            self.last_call_metrics = {
-                "latency_ms": (time.perf_counter() - t0) * 1000,
-                "adapter": self.name,
-                "model": self.model,
-                "error": str(exc),
-            }
-            raise RuntimeError(
-                f"Ollama unavailable at {self.host} (model={self.model}). "
-                f"Install/start Ollama or use --llm stub. Underlying error: {exc}"
-            ) from exc
-        except TimeoutError as exc:
-            self.last_call_metrics = {
-                "latency_ms": (time.perf_counter() - t0) * 1000,
-                "adapter": self.name,
-                "model": self.model,
-                "error": "timeout",
-            }
-            raise RuntimeError(
-                f"Ollama timed out after {self.timeout_s}s at {self.host}."
-            ) from exc
+        attempts = 1 + self.http_timeout_retries
+        last_timeout: BaseException | None = None
+        for attempt in range(attempts):
+            req = urllib.request.Request(
+                f"{self.host}/api/chat",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+            except TimeoutError as exc:
+                last_timeout = exc
+                if attempt + 1 < attempts:
+                    continue
+                self.last_call_metrics = {
+                    "latency_ms": (time.perf_counter() - t0) * 1000,
+                    "adapter": self.name,
+                    "model": self.model,
+                    "error": "timeout",
+                }
+                raise RuntimeError(
+                    f"Ollama timed out after {self.timeout_s}s at {self.host}."
+                ) from exc
+            except urllib.error.URLError as exc:
+                if _is_timeout_urlerror(exc):
+                    last_timeout = exc
+                    if attempt + 1 < attempts:
+                        continue
+                    self.last_call_metrics = {
+                        "latency_ms": (time.perf_counter() - t0) * 1000,
+                        "adapter": self.name,
+                        "model": self.model,
+                        "error": "timeout",
+                    }
+                    raise RuntimeError(
+                        f"Ollama timed out after {self.timeout_s}s at {self.host}."
+                    ) from exc
+                self.last_call_metrics = {
+                    "latency_ms": (time.perf_counter() - t0) * 1000,
+                    "adapter": self.name,
+                    "model": self.model,
+                    "error": str(exc),
+                }
+                raise RuntimeError(
+                    f"Ollama unavailable at {self.host} (model={self.model}). "
+                    f"Install/start Ollama or use --llm stub. Underlying error: {exc}"
+                ) from exc
+            else:
+                tokens_in = data.get("prompt_eval_count")
+                tokens_out = data.get("eval_count")
+                self.last_call_metrics = {
+                    "latency_ms": (time.perf_counter() - t0) * 1000,
+                    "tokens_in": int(tokens_in) if tokens_in is not None else None,
+                    "tokens_out": int(tokens_out) if tokens_out is not None else None,
+                    "adapter": self.name,
+                    "model": self.model,
+                }
+                return data.get("message", {}).get("content", "") or ""
 
-        tokens_in = data.get("prompt_eval_count")
-        tokens_out = data.get("eval_count")
-        self.last_call_metrics = {
-            "latency_ms": (time.perf_counter() - t0) * 1000,
-            "tokens_in": int(tokens_in) if tokens_in is not None else None,
-            "tokens_out": int(tokens_out) if tokens_out is not None else None,
-            "adapter": self.name,
-            "model": self.model,
-        }
-        return data.get("message", {}).get("content", "") or ""
+        # Unreachable: loop either returns or raises; keep type-checkers happy.
+        raise RuntimeError(
+            f"Ollama timed out after {self.timeout_s}s at {self.host}."
+        ) from last_timeout
+
+
+def _is_timeout_urlerror(exc: urllib.error.URLError) -> bool:
+    """urllib usually wraps socket/TimeoutError inside URLError.reason."""
+    reason = getattr(exc, "reason", None)
+    if isinstance(reason, TimeoutError):
+        return True
+    text = f"{reason!s} {exc!s}".lower()
+    return "timed out" in text or "timeout" in text
 
 class FallbackAdapter(LlmAdapter):
     """Try primary adapter; on failure use stub (logs reason via last_fallback_reason)."""

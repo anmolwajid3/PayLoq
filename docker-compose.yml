@@ -4,6 +4,8 @@
 #   docker compose --profile ollama exec ollama ollama pull llama3.2:1b
 #   docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
 #   docker compose --profile ollama exec ollama ollama pull llama3.2:3b
+# PAYLOQ_OLLAMA_TIMEOUT=600 gives Mac Docker CPU enough headroom for param extraction
+# (code default is 300s; raise further with e.g. PAYLOQ_OLLAMA_TIMEOUT=900).
 services:
   db:
     image: postgres:16-alpine
@@ -32,6 +34,8 @@ services:
       PAYLOQ_AUTH_USERNAME: payloq
       PAYLOQ_AUTH_PASSWORD: payloq
       PAYLOQ_OLLAMA_HOST: http://ollama:11434
+      # Mac Docker Desktop CPU: tiny models often need >120s for NL→params.
+      PAYLOQ_OLLAMA_TIMEOUT: "600"
     ports:
       - "8000:8000"
     volumes:
