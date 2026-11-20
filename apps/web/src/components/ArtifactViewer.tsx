@@ -13,7 +13,8 @@ import {
 } from "recharts";
 import type { Lang } from "../i18n";
 import { t } from "../i18n";
-import { fmtEur, fmtNum, fmtPct } from "../lib/format";
+import { fmtEur, fmtPct } from "../lib/format";
+import { buildFieldSummaryFromMap } from "../lib/fieldSummary";
 import { BalanceHistoryChart, ProjectionChart } from "./CashChart";
 
 const tooltipStyle = {
@@ -401,6 +402,8 @@ function InputPackView({ data, lang }: { data: InputPack; lang: Lang }) {
   const params = data.parameters_from_language_model || {};
   const shares = (params.cost_shares_of_revenue || {}) as Record<string, number>;
   const shareRows = Object.entries(shares).map(([k, v]) => ({ name: k, value: Number(v) }));
+  // Generic display: every field-map row uses that row's label only.
+  const fieldRows = buildFieldSummaryFromMap(params, opts, lang);
 
   return (
     <div className="pack-view">
@@ -425,33 +428,14 @@ function InputPackView({ data, lang }: { data: InputPack; lang: Lang }) {
       )}
 
       <div className="summary-cards">
-        {"monthly_revenue_start_eur" in params && (
+        {fieldRows.map((row) => (
           <SummaryCard
-            label={t("revenueStart", lang)}
-            value={fmtEur(Number(params.monthly_revenue_start_eur), lang)}
+            key={row.input_name}
+            label={row.label}
+            value={row.display}
+            hint={row.source != null ? String(row.source) : undefined}
           />
-        )}
-        {"monthly_revenue_growth" in params && (
-          <SummaryCard label={t("growth", lang)} value={fmtPct(Number(params.monthly_revenue_growth), lang)} />
-        )}
-        {"target_cash_at_end_eur" in params && (
-          <SummaryCard
-            label={t("targetCash", lang)}
-            value={fmtEur(Number(params.target_cash_at_end_eur), lang)}
-          />
-        )}
-        {"special_investment_eur" in params && (
-          <SummaryCard
-            label={t("investment", lang)}
-            value={fmtEur(Number(params.special_investment_eur), lang)}
-          />
-        )}
-        {"days_sales_outstanding" in params && (
-          <SummaryCard label="DSO" value={`${fmtNum(Number(params.days_sales_outstanding), lang, 0)} ${t("days", lang)}`} />
-        )}
-        {"days_payables_outstanding" in params && (
-          <SummaryCard label="DPO" value={`${fmtNum(Number(params.days_payables_outstanding), lang, 0)} ${t("days", lang)}`} />
-        )}
+        ))}
       </div>
 
       {Object.keys(opts).length > 0 && (

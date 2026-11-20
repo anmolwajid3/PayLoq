@@ -47,6 +47,18 @@ export type Run = {
     description?: { fi: string; en: string };
     language?: "fi" | "en" | string;
     parameters?: Record<string, unknown>;
+    options?: Record<string, unknown>;
+    field_summary?: {
+      input_name: string;
+      output_location: string;
+      label: string;
+      label_en?: string;
+      label_fi?: string;
+      value: unknown;
+      display: string;
+      source?: string | null;
+      format?: string;
+    }[];
     nl_soft_warnings?: {
       code: string;
       severity?: string;

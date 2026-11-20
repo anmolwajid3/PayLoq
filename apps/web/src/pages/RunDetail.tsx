@@ -7,7 +7,8 @@ import { ArtifactViewer } from "../components/ArtifactViewer";
 import { BalanceHistoryChart, ProjectionChart } from "../components/CashChart";
 import { ChatDemo } from "../components/ChatDemo";
 import { SoftWarnings, ValidationPanel } from "../components/SoftWarnings";
-import { fmtEur, fmtPct } from "../lib/format";
+import { fmtEur } from "../lib/format";
+import { resolveFieldSummary } from "../lib/fieldSummary";
 import { t } from "../i18n";
 
 function normText(s: string | null | undefined): string {
@@ -149,28 +150,23 @@ export function RunDetailPage() {
               </div>
             )}
 
-            {params && (
+            {(params || (summary?.field_summary && summary.field_summary.length > 0)) && (
               <div className="panel">
                 <h3>{t("extractedParams", lang)}</h3>
                 <div className="summary-cards">
-                  <div className="summary-card">
-                    <div className="summary-label">{t("revenueStart", lang)}</div>
-                    <div className="summary-value">{fmtEur(Number(params.monthly_revenue_start_eur), lang)}</div>
-                  </div>
-                  <div className="summary-card">
-                    <div className="summary-label">{t("growth", lang)}</div>
-                    <div className="summary-value">{fmtPct(Number(params.monthly_revenue_growth), lang)}</div>
-                  </div>
-                  <div className="summary-card">
-                    <div className="summary-label">{t("targetCash", lang)}</div>
-                    <div className="summary-value">{fmtEur(Number(params.target_cash_at_end_eur), lang)}</div>
-                  </div>
-                  <div className="summary-card">
-                    <div className="summary-label">{t("investment", lang)}</div>
-                    <div className="summary-value">{fmtEur(Number(params.special_investment_eur || 0), lang)}</div>
-                  </div>
+                  {resolveFieldSummary(summary, lang).map((row) => (
+                    <div className="summary-card" key={row.input_name}>
+                      <div className="summary-label">{row.label}</div>
+                      <div className="summary-value">
+                        {row.display}
+                        {row.source != null && (
+                          <span className="summary-hint"> · {row.source}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {params.notes != null && String(params.notes) && (
+                {params?.notes != null && String(params.notes) && (
                   <p className="muted pack-note">
                     <strong>{t("paramNotes", lang)}:</strong> {String(params.notes)}
                   </p>

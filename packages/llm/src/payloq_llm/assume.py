@@ -183,6 +183,9 @@ def apply_assumed_defaults(
         )
     if out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
         out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
+        sources.setdefault(
+            "covenant_min_cash_eur", sources.get("target_cash_at_end_eur", "stated")
+        )
 
     drawn = draw_assumed_defaults(
         industry=industry,
@@ -230,6 +233,18 @@ def apply_assumed_defaults(
             )
         else:
             sources.setdefault(key, "stated")
+
+    # Keep covenant ↔ target mirrored after assumes so field-map provenance is set.
+    if out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
+        out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
+        sources.setdefault(
+            "covenant_min_cash_eur", sources.get("target_cash_at_end_eur", "assumed")
+        )
+    if out.get("target_cash_at_end_eur") is None and out.get("covenant_min_cash_eur") is not None:
+        out["target_cash_at_end_eur"] = out["covenant_min_cash_eur"]
+        sources.setdefault(
+            "target_cash_at_end_eur", sources.get("covenant_min_cash_eur", "assumed")
+        )
 
     shares_raw = out.get("cost_shares_of_revenue")
     shares = shares_raw
