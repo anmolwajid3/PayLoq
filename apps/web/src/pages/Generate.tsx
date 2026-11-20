@@ -47,8 +47,8 @@ export function GeneratePage() {
         setRecommended(res.recommended || []);
         const names = res.models.map((m) => m.name);
         const preferred =
-          names.find((n) => n === "llama3.2:1b" || n.startsWith("llama3.2:1b")) ||
-          names.find((n) => n.includes("qwen2.5:0.5b")) ||
+          names.find((n) => n === "qwen2.5:7b" || n.startsWith("qwen2.5:7b")) ||
+          names.find((n) => n.includes("qwen2.5:7b")) ||
           names[0] ||
           "";
         setModel(preferred);

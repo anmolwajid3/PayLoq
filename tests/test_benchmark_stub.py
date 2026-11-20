@@ -39,13 +39,14 @@ def _repo_root() -> Path:
 
 def test_parse_model_token() -> None:
     assert parse_model_token("stub").adapter == "stub"
-    assert parse_model_token("ollama").model == "llama3.2:1b"
+    assert parse_model_token("ollama").model == "qwen2.5:7b"
     assert parse_model_token("ollama:llama3.2:1b").id == "ollama:llama3.2:1b"
     assert parse_model_token("llama3.2:1b").adapter == "ollama"
 
 
-def test_cpu_shortlist_includes_llama32_1b_and_optionals() -> None:
+def test_cpu_shortlist_includes_qwen25_7b_and_optionals() -> None:
     tags = recommended_ollama_tags(include_optional=True)
+    assert "qwen2.5:7b" in tags
     assert "llama3.2:1b" in tags
     assert "qwen2.5:0.5b" in tags
     assert "llama3.2:3b" in tags
@@ -55,12 +56,13 @@ def test_cpu_shortlist_includes_llama32_1b_and_optionals() -> None:
     specs = expand_model_tokens(["shortlist"])
     ids = [s.id for s in specs]
     assert ids[0] == "stub"
+    assert "ollama:qwen2.5:7b" in ids
     assert "ollama:llama3.2:1b" in ids
     assert "ollama:qwen2.5:0.5b" in ids
-    assert len(ids) == 5
+    assert len(ids) == 6
 
     rec_only = expand_model_tokens(["shortlist:recommended"])
-    assert [s.id for s in rec_only] == ["stub", "ollama:llama3.2:1b"]
+    assert [s.id for s in rec_only] == ["stub", "ollama:qwen2.5:7b"]
 
     assert len(cpu_shortlist_specs(include_optional=False)) == 2
 

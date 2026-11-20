@@ -43,8 +43,10 @@ Scope: Task A generator only. Benchmark (Task B) and chat demo kept, with **labe
 
 | File | Function / symbol | Change |
 | --- | --- | --- |
-| `packages/llm/src/payloq_llm/stated_checks.py` | `check_stated_quotes`, growth/one-off validators | Quote ⊆ description; growth ∈ [-0.2, 0.2]; direction inflow\|outflow. |
-| `packages/llm/src/payloq_llm/extract_pipeline.py` | `finalize_extracted_parameters` | Wire B→C→D; no keyword invent path. |
+| `packages/llm/src/payloq_llm/stated_checks.py` | `check_stated_values` (was quote match), `scan_description_numbers`, `clean_extraction_output`, `enforce_required_one_offs` | **TC-ABC:** value-based grounding (not quote-string); clean brackets/unmentioned zeros; stated+null → warn+demote; required one-offs fail if missing/wrong direction. Growth ∈ [-0.2, 0.2]; direction inflow\|outflow. |
+| `packages/llm/src/payloq_llm/extract_pipeline.py` | `finalize_extracted_parameters` | Wire B→clean→C value ground→D; enforce description one-offs; upgrade under-classified shapes to `cash_critical` when NL looks cash-critical (TC-A projection fall). |
+| `packages/llm/src/payloq_llm/prompts.py` | repair prompts | Quotes optional; value must appear in description. |
+| `packages/llm/src/payloq_llm/defaults.py` / `Generate.tsx` | UI + shortlist | Default/header model `qwen2.5:7b` (no silent substitute). |
 
 ## D. Unstated values (code assume)
 

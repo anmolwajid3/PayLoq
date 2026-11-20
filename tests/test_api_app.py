@@ -98,7 +98,7 @@ def test_llm_models_endpoint(client: TestClient):
     assert "available" in body
     assert "models" in body
     assert isinstance(body["models"], list)
-    assert "llama3.2:1b" in body["recommended"]
+    assert "qwen2.5:7b" in body["recommended"]
     # UI must never need stub here — recommended tags are Ollama-only.
     assert all("stub" not in t for t in body["recommended"])
 

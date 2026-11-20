@@ -42,9 +42,11 @@ def parse_model_token(token: str) -> ModelSpec:
       ollama
       ollama:llama3.2:1b
       ollama/llama3.2:1b
-      shortlist   → recommended CPU shortlist (stub + llama3.2:1b + optional)
-      shortlist:recommended → stub + llama3.2:1b only
+      shortlist   → recommended CPU shortlist (stub + qwen2.5:7b + optional)
+      shortlist:recommended → stub + qwen2.5:7b only
     """
+    from payloq_llm.defaults import DEFAULT_OLLAMA_MODEL
+
     token = token.strip()
     if not token or token == "stub":
         return ModelSpec(id="stub", adapter="stub", tier="baseline")
@@ -55,9 +57,9 @@ def parse_model_token(token: str) -> ModelSpec:
         return ModelSpec(id="__shortlist_recommended__", adapter="shortlist", tier="recommended")
     if token == "ollama":
         return ModelSpec(
-            id="ollama:llama3.2:1b",
+            id=f"ollama:{DEFAULT_OLLAMA_MODEL}",
             adapter="ollama",
-            model="llama3.2:1b",
+            model=DEFAULT_OLLAMA_MODEL,
             tier="recommended",
         )
     if token.startswith("ollama:"):
@@ -269,16 +271,16 @@ DEFAULT_MATRIX_EXAMPLE: dict[str, Any] = {
     "models": [
         {"id": "stub", "adapter": "stub", "tier": "baseline"},
         {
-            "id": "ollama:llama3.2:1b",
+            "id": "ollama:qwen2.5:7b",
             "adapter": "ollama",
-            "model": "llama3.2:1b",
+            "model": "qwen2.5:7b",
             "tier": "recommended",
-            "fallback_stub": True,
+            "fallback_stub": False,
         },
     ],
     "judge": {
         "enabled": False,
         "adapter": "ollama",
-        "model": "llama3.2:1b",
+        "model": "qwen2.5:7b",
     },
 }

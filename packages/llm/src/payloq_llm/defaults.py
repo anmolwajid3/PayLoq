@@ -31,8 +31,7 @@ def resolve_ollama_timeout_s(explicit: float | None = None) -> float:
     return float(DEFAULT_TIMEOUT_S)
 
 # Official CPU-first shortlist for Anmol Desktop / PayLoq local PoC (PL-7).
-# Recommended always includes llama3.2:1b; larger tags are optional stretch pulls.
-# Tiny tags (0.5b) are for Mac Docker CPU when larger pulls are slow.
+# Default / recommended Task A model is qwen2.5:7b (TC-ABC / pilot header).
 RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
     {
         "id": "stub",
@@ -41,12 +40,21 @@ RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
         "notes": "Always-on stub — no Ollama required (CI / offline / CLI).",
     },
     {
+        "id": "ollama:qwen2.5:7b",
+        "adapter": "ollama",
+        "model": "qwen2.5:7b",
+        "tier": "recommended",
+        "approx_size": "~4.7 GB",
+        "notes": "Default Task A extract model. Header must show qwen2.5:7b.",
+        "fallback_stub": False,
+    },
+    {
         "id": "ollama:llama3.2:1b",
         "adapter": "ollama",
         "model": "llama3.2:1b",
-        "tier": "recommended",
+        "tier": "optional",
         "approx_size": "~1.3 GB",
-        "notes": "Default CPU-friendly live model. Pull first on Desktop.",
+        "notes": "Smaller optional CPU-friendly live model.",
         "fallback_stub": True,
     },
     {
@@ -80,6 +88,7 @@ RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
 
 # Tags suggested in the web UI / docs when Ollama is empty (excludes stub).
 UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
+    "qwen2.5:7b",
     "llama3.2:1b",
     "qwen2.5:0.5b",
     "llama3.2:3b",
