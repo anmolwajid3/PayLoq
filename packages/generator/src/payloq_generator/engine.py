@@ -222,6 +222,12 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
             )
         gen_meta.setdefault("cash_critical_payable_bump_eur", bump)
 
+    # Typical weekly cash settlement — keep history wave scale near open-invoice weeks.
+    last_rev = abs(months[-1].income_statement.revenue)
+    dso_weeks = max(1.0, float(params.days_sales_outstanding) / 7.0)
+    wc_weekly = (abs(receivables) + abs(payables)) / max(dso_weeks, 4.0)
+    weekly_flow = max(10_000.0, last_rev / 3.2, wc_weekly * 0.55)
+
     history = _generate_balance_history(
         as_of=as_of,
         end_cash=last_cash,
@@ -231,6 +237,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         seed=seed,
         first_month=first_month,
         one_off_events=one_offs,
+        weekly_flow_eur=weekly_flow,
     )
     # Enforce exact link to last month cash (VR-07)
     history[-1] = BalanceHistoryPoint(
@@ -545,6 +552,7 @@ def _generate_balance_history(
     seed: int,
     first_month: date | None = None,
     one_off_events: list[OneOffCashEvent] | None = None,
+    weekly_flow_eur: float = 8_000.0,
 ) -> list[BalanceHistoryPoint]:
     """
     Build 26-week balance history.
@@ -552,6 +560,9 @@ def _generate_balance_history(
     One-off events (e.g. €95k roof repair) punch a discrete step into the week
     nearest the event month-end so the outflow is visible in weekly history even
     when the calendar month falls near/before the history window.
+
+    ``weekly_flow_eur`` sizes the settlement wave so history week moves stay in the
+    same order of magnitude as open-invoice projection weeks (VR-08 scale).
     """
     # Map one-off events → week index (1..weeks)
     event_by_week: dict[int, float] = {}
@@ -572,26 +583,32 @@ def _generate_balance_history(
                 w = min(weeks - 1, max(2, w))
             event_by_week[w] = event_by_week.get(w, 0.0) + signed
 
+    flow = max(5_000.0, float(weekly_flow_eur))
     points: list[BalanceHistoryPoint] = []
     for week_idx in range(1, weeks + 1):
         w_from_end = weeks - week_idx  # 25..0
         d = as_of - timedelta(days=7 * w_from_end)
         t = (week_idx - 1) / max(1, weeks - 1)
         base = start_cash + (end_cash - start_cash) * t
-        wave = 4_000.0 * math.sin((week_idx + seed) * 0.55)
+        # Settlement-scale wave + occasional pulse (not a flat ±4k sine).
+        wave = flow * 0.7 * math.sin((week_idx + seed) * 0.55)
+        pulse = 0.0
+        if week_idx % 3 == (seed % 3) and week_idx not in (1, weeks):
+            pulse = flow * (0.45 if (week_idx // 3) % 2 == 0 else -0.3)
         if profile == "good":
-            bal = base + abs(wave) * 0.3
+            bal = base + abs(wave) * 0.55 + pulse * 0.65
         elif profile == "weak":
-            bal = base - abs(wave) * 0.2
+            bal = base - abs(wave) * 0.4 + pulse * 0.45
         elif profile == "cash_turning_critical_later":
             if week_idx < 18:
                 bal = start_cash - (start_cash - 40_000.0) * (week_idx / 18.0) * 0.35
+                bal = bal + wave * 0.2 + pulse * 0.35
             elif week_idx <= 22:
                 bal = 15_000.0 - 8_000.0 * (week_idx - 18)
             else:
-                bal = base
+                bal = base + wave * 0.15
         else:
-            bal = base + wave * 0.15
+            bal = base + wave * 0.3 + pulse * 0.4
         # One-off events: single-week step (visible outflow/inflow), not a lasting drag.
         # Week-to-week delta ≈ event amount; following weeks resume the base path.
         if week_idx in event_by_week and week_idx < weeks:
@@ -622,6 +639,25 @@ def _split_amounts(total: float, n: int, seed: int) -> list[float]:
     return rounded
 
 
+def _due_in_projection_week(as_of: date, week: int, *, day_in_week: int = 3) -> date:
+    """Return a calendar due date that maps to projection week ``week`` (1-based)."""
+    week = max(1, int(week))
+    day = min(6, max(1, int(day_in_week)))
+    return as_of + timedelta(days=7 * (week - 1) + day)
+
+
+def _spread_weeks(n: int, first: int, last: int) -> list[int]:
+    """Evenly spread ``n`` items across inclusive week indices first..last."""
+    first = max(1, int(first))
+    last = max(first, int(last))
+    span = last - first + 1
+    if n <= 0:
+        return []
+    if n == 1:
+        return [first]
+    return [first + (i * (span - 1)) // (n - 1) for i in range(n)]
+
+
 def _generate_invoices(
     *,
     as_of: date,
@@ -646,6 +682,13 @@ def _generate_invoices(
     sales_desc = texts.sales_descriptions or SALES_DESCRIPTIONS_FI
     purch_desc = texts.purchase_descriptions or PURCHASE_DESCRIPTIONS_FI
 
+    # Projection horizon for due staggering (keep weekly moves near history scale).
+    # Start open (non-overdue) dues at week 2 so week-1 is not overdue+open piled up.
+    sales_last_w = min(8, max(4, int(math.ceil(float(dso) / 7.0))))
+    purch_last_w = min(8, max(4, int(math.ceil(float(dpo) / 7.0))))
+    sales_weeks = _spread_weeks(max(0, n_sales - 1), 2, sales_last_w)
+    purch_weeks = _spread_weeks(n_purch, 2, purch_last_w)
+
     invoices: list[OpenInvoice] = []
 
     # Sales: mix of overdue + future dues
@@ -662,8 +705,22 @@ def _generate_invoices(
                 due = as_of + timedelta(days=21 + i * 3)
                 status = "open"
             else:
-                issue = as_of + timedelta(days=i)
-                due = issue + timedelta(days=int(dso))
+                # Remaining collections after the cliff, still inside 8 weeks
+                w = 5 + ((i - 3) % 4)  # weeks 5–8
+                due = _due_in_projection_week(as_of, w, day_in_week=2 + (i % 4))
+                issue = due - timedelta(days=int(dso))
+                status = "open"
+        elif profile == "cash_turning_critical_later":
+            # Near-term projection must stay solvent (crisis lives in history ~week 20).
+            # Stagger collections across weeks 1–8 so purchases never cliff first.
+            if i == 0:
+                issue = as_of - timedelta(days=int(dso) + 3)
+                due = as_of - timedelta(days=2)
+                status = "overdue"
+            else:
+                w = sales_weeks[i - 1] if i - 1 < len(sales_weeks) else sales_last_w
+                due = _due_in_projection_week(as_of, w, day_in_week=2 + (i % 4))
+                issue = due - timedelta(days=max(14, int(dso) // 2))
                 status = "open"
         elif profile == "weak":
             if i == 0:
@@ -671,17 +728,21 @@ def _generate_invoices(
                 due = as_of - timedelta(days=5)
                 status = "overdue"
             else:
-                issue = as_of - timedelta(days=max(0, int(dso) - i * 3))
-                due = issue + timedelta(days=int(dso))
+                w = sales_weeks[i - 1] if i - 1 < len(sales_weeks) else sales_last_w
+                due = _due_in_projection_week(as_of, w, day_in_week=1 + (i % 5))
+                issue = due - timedelta(days=int(dso))
                 status = "open" if due >= as_of else "overdue"
-        else:  # good
+        else:  # good / default — spread dues to avoid one 180k+ week
             if i == 0:
                 issue = as_of - timedelta(days=int(dso) + 3)
                 due = as_of - timedelta(days=2)
                 status = "overdue"
             else:
-                issue = as_of - timedelta(days=max(0, 20 - i * 2))
-                due = issue + timedelta(days=int(dso))
+                w = sales_weeks[i - 1] if i - 1 < len(sales_weeks) else sales_last_w
+                due = _due_in_projection_week(as_of, w, day_in_week=2 + (i % 4))
+                issue = due - timedelta(days=int(dso))
+                if issue > as_of:
+                    issue = as_of - timedelta(days=1 + (i % 5))
                 status = "open" if due >= as_of else "overdue"
 
         net, vat, gross = _vat_split(amt)
@@ -708,17 +769,24 @@ def _generate_invoices(
             due = as_of + timedelta(days=15 + (i % 6))  # ~Nov 15–21 if as_of Oct 31
             status = "open"
         elif profile == "cash_turning_critical_later":
-            # Gradually longer customer terms already in DSO; purchases steady
-            issue = as_of - timedelta(days=8 + (i % 4))
-            due = issue + timedelta(days=int(dpo))
+            # Spread supplier dues across weeks 2–7 (no early cliff before sales).
+            w = purch_weeks[i] if i < len(purch_weeks) else purch_last_w
+            w = min(7, max(2, w))
+            due = _due_in_projection_week(as_of, w, day_in_week=1 + (i % 5))
+            issue = due - timedelta(days=int(dpo))
             status = "open" if due >= as_of else "overdue"
         elif profile == "weak":
-            issue = as_of - timedelta(days=5 + i)
-            due = as_of + timedelta(days=3 + i * 4)
+            w = purch_weeks[i] if i < len(purch_weeks) else purch_last_w
+            due = _due_in_projection_week(as_of, w, day_in_week=2 + (i % 4))
+            issue = as_of - timedelta(days=5 + (i % 6))
             status = "open" if due >= as_of else "overdue"
         else:
-            issue = as_of - timedelta(days=8 + (i % 4))
-            due = issue + timedelta(days=int(dpo))
+            # good / default — spread across DPO window
+            w = purch_weeks[i] if i < len(purch_weeks) else purch_last_w
+            due = _due_in_projection_week(as_of, w, day_in_week=1 + (i % 5))
+            issue = due - timedelta(days=int(dpo))
+            if issue > as_of:
+                issue = as_of - timedelta(days=2 + (i % 4))
             status = "open" if due >= as_of else "overdue"
 
         net, vat, gross = _vat_split(amt)
