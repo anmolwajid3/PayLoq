@@ -10,12 +10,17 @@ def assess_nl_params(
     params: dict[str, Any],
     *,
     language: str = "fi",
+    params_from_stub: bool | None = None,
 ) -> list[dict[str, str]]:
     """
     Heuristic soft-warnings for extracted parameters vs the NL description.
 
     Never fails generation — warnings are informational for the researcher.
     Each item: {code, severity: "warning", message_fi, message_en}.
+
+    ``params_from_stub``: when False, never emit ``nl_stub_heuristic`` even if
+    notes mention the word stub. When True, always emit it. When None, fall back
+    to notes containing ``stub:`` (legacy).
     """
     warnings: list[dict[str, str]] = []
     blob = (text or "").lower()
@@ -25,11 +30,13 @@ def assess_nl_params(
     shares = params.get("cost_shares_of_revenue") or {}
     share_sum = sum(float(shares.get(k) or 0) for k in ("materials", "services", "personnel", "other"))
 
+    from payloq_llm.nl_cash_intent import looks_cash_critical
+
     critical_kw = ("kriittinen", "critical", "negatiiv", "kolmen viikon", "three weeks", "cash critical")
     weak_kw = ("laskee", "falling", "tappioll", "weak", "heikko", "heikkene")
     good_kw = ("hyvä kassa", "healthy cash", "steady growth", "tasainen kasvu", "hyvä kassatilanne")
 
-    looks_critical = any(k in blob for k in critical_kw)
+    looks_critical = looks_cash_critical(text) or any(k in blob for k in critical_kw)
     looks_weak = any(k in blob for k in weak_kw) and not looks_critical
     looks_good = any(k in blob for k in good_kw) and not looks_critical and not looks_weak
 
@@ -106,7 +113,8 @@ def assess_nl_params(
         )
 
     notes = str(params.get("notes") or "")
-    if "stub:" in notes.lower() and language:
+    stub_in_notes = "stub:" in notes.lower()
+    if params_from_stub is True or (params_from_stub is None and stub_in_notes and language):
         warnings.append(
             _w(
                 "nl_stub_heuristic",
@@ -114,6 +122,9 @@ def assess_nl_params(
                 "Parameters came from stub heuristics (no live model) — check fit to the description.",
             )
         )
+    elif params_from_stub is False and stub_in_notes:
+        # Live model path — do not claim stub heuristics just because notes mention "stub".
+        pass
 
     return warnings
 

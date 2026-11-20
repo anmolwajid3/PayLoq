@@ -90,11 +90,28 @@ def _infer_profile(inp: GeneratorInput) -> str:
         return "invoices_out_of_balance" if sid == "test_only_broken" else sid
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
-    text = f"{inp.scenario_description.fi} {inp.scenario_description.en}".lower()
+    text = f"{inp.scenario_description.fi} {inp.scenario_description.en}"
+    text_l = text.lower()
     if g < -0.005:
         return "weak"
-    if cash <= 60_000 or any(
-        k in text for k in ("kriittinen", "critical", "cash tight", "negatiiv")
+    try:
+        from payloq_llm.nl_cash_intent import looks_cash_critical
+    except ImportError:  # pragma: no cover — optional in minimal installs
+        looks_cash_critical = None  # type: ignore[assignment]
+    if cash <= 60_000 or (
+        looks_cash_critical is not None and looks_cash_critical(text)
+    ) or any(
+        k in text_l
+        for k in (
+            "kriittinen",
+            "critical",
+            "cash tight",
+            "negatiiv",
+            "covenant",
+            "kovenantti",
+            "winter cash",
+            "ohut kassa",
+        )
     ):
         return "cash_critical"
     return "good"
@@ -397,6 +414,10 @@ def _generate_months(
         "cash_turning_critical_later": 180_000.0,
         "invoices_out_of_balance": 200_000.0,
     }.get(profile, 200_000.0)
+    # Thin winter / covenant stories: keep opening cash on the same scale as target
+    # so history/projection do not look like a healthy 300k+ pack.
+    if profile == "cash_critical" and params.target_cash_at_end_eur <= 60_000:
+        cash0 = min(cash0, max(35_000.0, float(params.target_cash_at_end_eur) * 2.2))
 
     # Fixed cost bases from start revenue
     base_personnel = start_rev * shares.personnel
