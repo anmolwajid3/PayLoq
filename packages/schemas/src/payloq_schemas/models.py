@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+ParamSource = Literal["stated", "assumed"]
 
 
 class ScenarioMeta(BaseModel):
@@ -14,6 +17,8 @@ class ScenarioMeta(BaseModel):
     currency: str | None = None
     scenario: str | None = None
     as_of: str | None = None
+    # Work order C: seed stamped into every output meta when present.
+    seed: int | None = None
 
 
 class ScenarioDescription(BaseModel):
@@ -45,23 +50,69 @@ class CostShares(BaseModel):
 class OneOffCashEvent(BaseModel):
     """Structured one-off cash event (capex, roof repair, grant, etc.)."""
 
+    type: str = Field(
+        default="other",
+        description="Event type (capex, grant, repair, other). CAPEX is always an outflow.",
+    )
     amount_eur: float = Field(gt=0)
     month_index: int = Field(
         ge=1,
         le=24,
         description="1-based index into the generated monthly_reports series",
     )
-    direction: Literal["in", "out"] = "out"
+    direction: Literal["in", "out", "inflow", "outflow"] = "out"
     label: str | None = None
+
+    @model_validator(mode="after")
+    def _capex_and_direction(self) -> OneOffCashEvent:
+        direction = self.direction
+        if direction == "inflow":
+            direction = "in"
+        elif direction == "outflow":
+            direction = "out"
+        event_type = (self.type or "other").strip().lower() or "other"
+        if event_type in {"capex", "capital_expenditure", "investment"}:
+            event_type = "capex"
+            direction = "out"
+        if direction not in {"in", "out"}:
+            raise ValueError("one_off_events.direction must be in/out (or inflow/outflow)")
+        if self.month_index is None:
+            raise ValueError("one_off_events.month_index is required")
+        object.__setattr__(self, "type", event_type)
+        object.__setattr__(self, "direction", direction)
+        return self
 
 
 class ParametersFromLanguageModel(BaseModel):
-    monthly_revenue_start_eur: float = Field(gt=0)
-    monthly_revenue_growth: float
+    """Generator parameters. Legacy names are the serialization keys; WO aliases accepted."""
+
+    monthly_revenue_start_eur: float = Field(
+        gt=0,
+        description="Month-1 revenue in EUR (alias: revenue_monthly_start_eur / revenue_monthly_eur).",
+    )
+    monthly_revenue_growth: float = Field(
+        description="MoM growth fraction; 0.003 means 0.3% (alias: growth_per_month_fraction).",
+    )
     cost_shares_of_revenue: CostShares
-    days_sales_outstanding: float = Field(gt=0)
-    days_payables_outstanding: float = Field(gt=0)
-    target_cash_at_end_eur: float
+    days_sales_outstanding: float = Field(
+        gt=0, description="DSO in days (alias: dso_days)."
+    )
+    days_payables_outstanding: float = Field(
+        gt=0, description="DPO in days (alias: dpo_days)."
+    )
+    target_cash_at_end_eur: float = Field(
+        description="Ending / covenant cash target EUR (alias: covenant_min_cash_eur).",
+    )
+    # Work order A/C: opening cash. Optional on hand-authored packs; required after LLM extract.
+    starting_cash_eur: float | None = Field(
+        default=None,
+        description="Opening cash EUR. Must be stated for LLM extraction; assumed only via code table.",
+    )
+    # Explicit WO alias field (mirrors target when set).
+    covenant_min_cash_eur: float | None = Field(
+        default=None,
+        description="Optional covenant floor; when set, mirrors/overrides target_cash_at_end_eur.",
+    )
     special_investment_eur: float = 0.0
     # 1-based month index for special_investment_eur (default 2 → second monthly report).
     special_investment_month: int = Field(default=2, ge=1, le=24)
@@ -75,6 +126,8 @@ class ParametersFromLanguageModel(BaseModel):
     notes: str | None = None
     # When True, personnel/other are partly fixed to start-month levels (weak/critical).
     partly_fixed_costs: bool = False
+    # Work order A/B: per-field provenance. Keys use legacy serialization names.
+    field_sources: dict[str, ParamSource] = Field(default_factory=dict)
 
     @field_validator("monthly_revenue_factors")
     @classmethod
@@ -84,6 +137,56 @@ class ParametersFromLanguageModel(BaseModel):
         if len(v) != 12:
             raise ValueError("monthly_revenue_factors must have exactly 12 floats (Jan–Dec)")
         return [float(x) for x in v]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_wo_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        alias_map = {
+            "revenue_monthly_start_eur": "monthly_revenue_start_eur",
+            "revenue_monthly_eur": "monthly_revenue_start_eur",
+            "growth_per_month_fraction": "monthly_revenue_growth",
+            "dso_days": "days_sales_outstanding",
+            "dpo_days": "days_payables_outstanding",
+        }
+        for alias, canonical in alias_map.items():
+            if out.get(canonical) is None and out.get(alias) is not None:
+                out[canonical] = out[alias]
+        # covenant_min_cash_eur ↔ target_cash_at_end_eur
+        if out.get("target_cash_at_end_eur") is None and out.get("covenant_min_cash_eur") is not None:
+            out["target_cash_at_end_eur"] = out["covenant_min_cash_eur"]
+        elif out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
+            out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
+        return out
+
+
+class ExtractedParameters(BaseModel):
+    """
+    LLM extraction shape (work order A): only stated values; unstated fields are null.
+    The LLM must never invent defaults. Code assumes missing optional fields later.
+    """
+
+    monthly_revenue_start_eur: float | None = None
+    monthly_revenue_growth: float | None = None
+    cost_shares_of_revenue: CostShares | None = None
+    days_sales_outstanding: float | None = None
+    days_payables_outstanding: float | None = None
+    target_cash_at_end_eur: float | None = None
+    starting_cash_eur: float | None = None
+    covenant_min_cash_eur: float | None = None
+    special_investment_eur: float | None = None
+    special_investment_month: int | None = None
+    monthly_revenue_factors: list[float] | None = None
+    one_off_events: list[OneOffCashEvent] | None = None
+    notes: str | None = None
+    partly_fixed_costs: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_wo_aliases(cls, data: Any) -> Any:
+        return ParametersFromLanguageModel._accept_wo_aliases(data)
 
 
 class InvoiceDescriptiveTexts(BaseModel):

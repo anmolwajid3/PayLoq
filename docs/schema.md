@@ -18,14 +18,18 @@ Schema is **free to evolve**. Figures are owned by code; the LLM only supplies p
 
 | Field | Role | Notes |
 | --- | --- | --- |
-| `monthly_revenue_start_eur` | Typical monthly revenue | Clipped 20k–10M (mid-market / large) |
-| `monthly_revenue_growth` | MoM growth rate | −10% … +5% |
-| `cost_shares_of_revenue` | materials/services/personnel/other | Each 0–1; **sum must be ~0.9–1.0** |
+| `monthly_revenue_start_eur` | **Month-1** revenue (aliases: `revenue_monthly_start_eur`, `revenue_monthly_eur`) | Clipped 20k–10M; stated values must ground in the NL description |
+| `monthly_revenue_growth` | MoM growth fraction (alias: `growth_per_month_fraction`; 0.003 = 0.3%) | −10% … +5% |
+| `cost_shares_of_revenue` | materials/services/personnel/other | Each 0–1; **sum must be ~0.9–1.0**; unstated → industry×size assumed |
 | `monthly_revenue_factors` | 12 floats Jan–Dec | Seasonality (e.g. winter 0.3, summer 1.0); applied to monthly revenue |
 | `special_investment_eur` / `special_investment_month` | Capex / roof repair | 1-based month index (default 2); raises FA + cash outflow; clipped 0–10M |
-| `one_off_events` | `[{amount_eur, month_index, direction, label}]` | Structured in/out cash events |
-| `target_cash_at_end_eur` | Ending-cash target | Drives dynamics; clipped −50k–5M; last cash is **not** forced exact equality (see `run_log.ending_cash`) |
-| `days_sales_outstanding` / `days_payables_outstanding` | Payment terms | 14–90 |
+| `one_off_events` | `[{type, amount_eur, month_index, direction, label}]` | CAPEX always outflow; missing month/direction rejected |
+| `target_cash_at_end_eur` | Ending-cash target (alias: `covenant_min_cash_eur`) | Drives dynamics; clipped −50k–5M; last cash is **not** forced exact equality (see `run_log.ending_cash`) |
+| `starting_cash_eur` | Opening cash | Required when LLM-extracted; unstated → hard error (not invented) |
+| `days_sales_outstanding` / `days_payables_outstanding` | Payment terms (aliases: `dso_days` / `dpo_days`) | 14–90; unstated → industry×size assumed |
+| `field_sources` | `stated` \| `assumed` per field | Provenance; Assumed values listed on Excel **Assumptions** tab |
+
+**Work order D:** `projection_history_scale` is a **warning** (non-blocking); ratio is logged.
 
 Optional `invoice_texts` (`InvoiceDescriptiveTexts`):
 

@@ -6,48 +6,41 @@ import json
 from typing import Any
 
 PARAM_SCHEMA_HINT = """
-Return ONLY a JSON object with these keys (no markdown, no commentary):
+Return ONLY a JSON object with these keys (no markdown, no commentary).
+Use null for any value NOT explicitly stated in the description. NEVER invent defaults.
 {
-  "monthly_revenue_start_eur": <positive number>,
-  "monthly_revenue_growth": <monthly growth rate, e.g. 0.008 or -0.012>,
+  "monthly_revenue_start_eur": <positive number or null>,
+  "monthly_revenue_growth": <MoM fraction e.g. 0.003 for 0.3%/month, or null>,
   "cost_shares_of_revenue": {
-    "materials": <0-1>,
-    "services": <0-1>,
-    "personnel": <0-1>,
-    "other": <0-1>
-  },
-  "days_sales_outstanding": <positive number, typical 30-50>,
-  "days_payables_outstanding": <positive number, typical 25-40>,
-  "target_cash_at_end_eur": <number, can be low for cash-critical>,
-  "special_investment_eur": <number, 0 if none>,
-  "special_investment_month": <1-based month index in the report series, e.g. 2 for month 2>,
-  "monthly_revenue_factors": [<12 floats Jan..Dec>, e.g. summer 1.0 winter 0.3 for hotel collapse],
+    "materials": <0-1 or null>,
+    "services": <0-1 or null>,
+    "personnel": <0-1 or null>,
+    "other": <0-1 or null>
+  } | null,
+  "days_sales_outstanding": <days or null>,
+  "days_payables_outstanding": <days or null>,
+  "starting_cash_eur": <positive number — REQUIRED when stated; null if unstated>,
+  "target_cash_at_end_eur": <number or null>,
+  "covenant_min_cash_eur": <number or null>,
+  "special_investment_eur": <number or null>,
+  "special_investment_month": <1-based month index or null>,
+  "monthly_revenue_factors": [<12 floats Jan..Dec>] | null,
   "one_off_events": [
-    {"amount_eur": <positive>, "month_index": <1-based>, "direction": "in"|"out", "label": "<optional>"}
-  ],
-  "notes": "<short English or Finnish note — never write the word stub unless you are the stub>",
-  "partly_fixed_costs": <true|false — true when costs stay high while revenue falls or cash is critical>
+    {"type": "capex"|"other", "amount_eur": <positive>, "month_index": <1-based>,
+     "direction": "in"|"out", "label": "<optional>"}
+  ] | null,
+  "notes": "<short note or null>",
+  "partly_fixed_costs": <true|false|null>
 }
-Cost shares MUST sum to about 0.9–1.0 (blocking). Prefer ~0.94.
-REQUIRED every time: monthly_revenue_start_eur, monthly_revenue_growth,
-cost_shares_of_revenue (4 keys), days_sales_outstanding, days_payables_outstanding,
-target_cash_at_end_eur.
-monthly_revenue_factors: exactly twelve calendar-month MULTIPLIERS Jan..Dec in about
-0.1–2.0 (SRS clip 0.05–2.0). NEVER absolute euro month totals like 12000.
-Use low winter factors when sales collapse Oct–Mar. one_off_events (or
-special_investment_*) land capex/repairs in a specific month — copy the euro amount
-and month from the description (e.g. oven repair €42k in month 3 → 42000, month 3).
-Do not invent absolute P&L or balance-sheet figures — code will compute those.
-Scale monthly_revenue_start_eur to company size (small bakery ≪ 200000;
-large / ~420-employee steel fabricator can be millions/month — copy explicit euros).
-HARD: If the description mentions a bank covenant, winter cash/trough, or thin cash figure
-(e.g. €10k covenant, ~€8k winter cash, or mid-market trough €1.2M / covenant €1.5M),
-set target_cash_at_end_eur to that scale. Copy growth % and one-off CAPEX amount+month
-when stated (e.g. €2.8M in month 4 → 2800000, month 4).
-NEVER invent SME defaults like revenue 200000 / invest 80000 / target 500000 when the
-NL states millions. NEVER invent a healthy default like 330000 when the story is
-cash-stressed, hotel winter collapse, bakery thin cash, or covenant-bound. Finnish
-(kovenantti, ohut kassa, talvi, leipomo, teräs, miljoonaa) counts the same as English.
+Aliases accepted: revenue_monthly_start_eur / revenue_monthly_eur,
+growth_per_month_fraction, dso_days, dpo_days.
+HARD RULES:
+- Extract ONLY numbers that appear in the description (after k/M/%/€ parsing).
+- If starting_cash_eur is not stated, return null (do not invent).
+- Cost shares when present should sum to about 0.9–1.0.
+- monthly_revenue_factors: twelve MULTIPLIERS Jan–Dec (~0.1–2.0), never euro totals.
+- CAPEX one-offs are always direction "out".
+- Do not invent absolute P&L or balance-sheet figures — code computes those.
 """.strip()
 
 
@@ -77,9 +70,8 @@ def parameter_extraction_prompt(
     return (
         "You map a short company situation into structured generator parameters for PayLoq.\n"
         "Finnish support is required: read both FI and EN descriptions.\n"
-        "Code calculates all financial figures; you only choose parameters.\n"
-        "Respect options.company_size: small ≈ SME monthly revenue, medium higher, "
-        "large / 250+ employees ≈ mid-market scale (do not force small/medium heuristics).\n\n"
+        "Code calculates all financial figures; you only extract stated parameters.\n"
+        "Return null for unstated fields. Never invent SME defaults or company-specific guesses.\n\n"
         f"Description (FI):\n{description_fi}\n\n"
         f"Description (EN):\n{description_en}\n\n"
         f"Options JSON:\n{json.dumps(options, ensure_ascii=False)}\n\n"
@@ -89,21 +81,22 @@ def parameter_extraction_prompt(
 
 def parameter_repair_prompt(previous: str, error: str) -> str:
     return (
-        "Your previous JSON was invalid for PayLoq parameters.\n"
-        f"Validation error:\n{error}\n\n"
+        "Your previous JSON failed PayLoq parameter checks (schema and/or grounding).\n"
+        f"Error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
-        "Return corrected JSON only, matching the required schema.\n"
-        "MUST include all required fields:\n"
-        "  monthly_revenue_start_eur (positive),\n"
-        "  monthly_revenue_growth (e.g. 0.0),\n"
-        "  cost_shares_of_revenue {{materials,services,personnel,other}} summing ~0.9–1.0,\n"
-        "  days_sales_outstanding, days_payables_outstanding,\n"
-        "  target_cash_at_end_eur.\n"
-        "monthly_revenue_factors MUST be exactly 12 multiplicative floats Jan–Dec "
-        "each in ~0.1–2.0 (NOT absolute euro amounts). "
-        "If you cannot produce valid factors, omit the key (set null).\n"
-        "Copy special_investment_eur / special_investment_month from the description "
-        "when a one-off repair/capex month is stated.\n"
+        "Return corrected JSON only. Use null for unstated fields. "
+        "Every stated number MUST appear in the description after parsing units (k, M, %, €). "
+        "Do not invent defaults. Do not retry with the same wrong numbers.\n"
+    )
+
+
+def parameter_grounding_repair_prompt(previous: str, grounding_error: str) -> str:
+    return (
+        "Grounding check failed: stated numbers must match the description.\n"
+        f"{grounding_error}\n\n"
+        f"Previous response:\n{previous}\n\n"
+        "Return corrected JSON only. Fix the named fields so values appear in the "
+        "description (e.g. €4.2M → 4200000, not 420000). Use null when unstated.\n"
     )
 
 
@@ -117,7 +110,7 @@ def descriptive_texts_prompt(
     return (
         "You write fictional Finnish SME invoice counterparties and line descriptions for PayLoq.\n"
         "Numbers (amounts, dates, VAT, IDs) are produced by code — you supply text only.\n"
-        "Use the descriptions only to infer industry flavour (hotel, workshop, …). "
+        "Use the descriptions only to infer industry flavour. "
         "Never paste description phrases that contain digits or € amounts into the JSON strings.\n\n"
         f"Industry: {industry}\n"
         f"Preferred language for texts: {language}\n"
