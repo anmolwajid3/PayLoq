@@ -321,6 +321,47 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     return pack
 
 
+def _balance_sheet_plug(
+    *,
+    fa: float,
+    inventory: float,
+    receivables: float,
+    cash: float,
+    equity: float,
+    loans: float,
+    payables: float,
+    loan_floor: float = 100_000.0,
+) -> tuple[float, float, float]:
+    """Balance the BS while holding equity and cash fixed.
+
+    Returns ``(fixed_assets, loans, other_current_liabilities)``.
+    Negative plug → reduce loans toward ``loan_floor``, then raise FA.
+    """
+    total_assets = _r(fa + inventory + receivables + cash)
+    other_cl = _r(total_assets - equity - loans - payables)
+    if other_cl >= -0.5:
+        return _r(fa), _r(loans), max(0.0, other_cl) if other_cl < 0 else other_cl
+
+    deficit = _r(-other_cl)
+    reducible = max(0.0, loans - loan_floor)
+    take = min(deficit, reducible)
+    loans = _r(loans - take)
+    deficit = _r(deficit - take)
+    if deficit > 0.5:
+        fa = _r(fa + deficit)
+        deficit = 0.0
+    total_assets = _r(fa + inventory + receivables + cash)
+    other_cl = _r(total_assets - equity - loans - payables)
+    if other_cl < -0.5:
+        # Cent-level leftover after loan floor: raise FA so the identity holds.
+        fa = _r(fa - other_cl)
+        total_assets = _r(fa + inventory + receivables + cash)
+        other_cl = _r(total_assets - equity - loans - payables)
+    if other_cl < 0:
+        other_cl = 0.0
+    return _r(fa), _r(loans), _r(other_cl)
+
+
 def _generate_months(
     *,
     first_month: date,
@@ -452,27 +493,28 @@ def _generate_months(
         cash_path = base_path + scar
         cash = _r(cash_path)
 
-        loans = _r(max(100_000.0, 480_000.0 - 5_000.0 * (i + 1)))
-        equity = _r((equity0 if i == 0 else months[i - 1].balance_sheet.equity_and_liabilities.equity) + net_result)
+        loan_floor = 100_000.0
+        loans = _r(max(loan_floor, 480_000.0 - 5_000.0 * (i + 1)))
+        # Equity roll-forward (VR-04 continuity): equity_t = equity_{t-1} + net_result_t.
+        # Never absorb a negative BS plug into equity (that broke cash_critical packs).
+        equity = _r(
+            (equity0 if i == 0 else months[i - 1].balance_sheet.equity_and_liabilities.equity)
+            + net_result
+        )
 
-        assets_sum_wo_plug = fa + inventory + receivables + cash
-        # Plug other current liabilities so BS balances — do NOT drain cash to
-        # meet a liability floor (that previously fought the target-cash path).
-        other_cl = _r(assets_sum_wo_plug - equity - loans - payables)
-        if other_cl < 0:
-            # Absorb negative plug into equity rather than rewriting cash.
-            equity = _r(equity + other_cl)
-            other_cl = 0.0
-
-        total_assets = _r(fa + inventory + receivables + cash)
-        total_el = _r(equity + loans + payables + other_cl)
-        # Final cent-level reconcile via other_cl (prefer not rewriting cash)
-        if abs(total_assets - total_el) > 0.5:
-            other_cl = _r(total_assets - equity - loans - payables)
-            if other_cl < 0:
-                equity = _r(equity + other_cl)
-                other_cl = 0.0
-            total_el = _r(equity + loans + payables + other_cl)
+        # Plug other current liabilities so BS balances — do NOT drain cash (target
+        # path) and do NOT rewrite equity (continuity). Prefer loan reduction, then
+        # raise fixed assets as a last resort.
+        fa, loans, other_cl = _balance_sheet_plug(
+            fa=fa,
+            inventory=inventory,
+            receivables=receivables,
+            cash=cash,
+            equity=equity,
+            loans=loans,
+            payables=payables,
+            loan_floor=loan_floor,
+        )
 
         months.append(
             MonthlyReport(
@@ -510,13 +552,24 @@ def _generate_months(
             )
         )
 
-        # Ensure totals match after construction
+        # Ensure totals match after construction without touching equity.
         a = months[-1].balance_sheet.assets
         e = months[-1].balance_sheet.equity_and_liabilities
         if abs(a.total_assets - e.total_equity_and_liabilities) > 0.5:
-            e.other_current_liabilities = _r(
-                a.total_assets - e.equity - e.loans - e.payables
+            fa2, loans2, ocl2 = _balance_sheet_plug(
+                fa=a.fixed_assets,
+                inventory=a.inventory,
+                receivables=a.receivables,
+                cash=a.cash,
+                equity=e.equity,
+                loans=e.loans,
+                payables=e.payables,
+                loan_floor=loan_floor,
             )
+            a.fixed_assets = fa2
+            a.total_assets = _r(fa2 + a.inventory + a.receivables + a.cash)
+            e.loans = loans2
+            e.other_current_liabilities = ocl2
             e.total_equity_and_liabilities = _r(
                 e.equity + e.loans + e.payables + e.other_current_liabilities
             )
