@@ -44,11 +44,17 @@ def test_run17_grounding_rejects_wrong_revenue_scale() -> None:
     assert "420000" in err or "420000.0" in err
 
 
-def test_run17_finalize_rejects_before_assume() -> None:
+def test_run17_finalize_locks_code_stated_revenue_scale() -> None:
+    """
+    Code-first NL parse locks €4.2M over raw LLM €420k before grounding.
+
+    Pure grounding still rejects the uncorrected raw payload (test above);
+    finalize must not keep the undercounted revenue.
+    """
     data = _run17()
     desc = f"{data['description_fi']} {data['description_en']}"
     opts = data["options"]
-    _params, _changes, grounding = finalize_extracted_parameters(
+    params, changes, grounding = finalize_extracted_parameters(
         dict(data["raw_llm_parameters"]),
         desc,
         industry=opts.get("industry"),
@@ -56,8 +62,19 @@ def test_run17_finalize_rejects_before_assume() -> None:
         seed=int(opts.get("seed") or 17),
         require_starting_cash=True,
     )
-    assert not grounding.ok
-    assert any(i.field == "monthly_revenue_start_eur" for i in grounding.issues)
+    assert grounding.ok, grounding.error_text()
+    assert params["monthly_revenue_start_eur"] == pytest.approx(
+        float(data["expected_correct_revenue_eur"])
+    )
+    assert params["monthly_revenue_start_eur"] != pytest.approx(
+        float(data["wrong_revenue_eur"])
+    )
+    assert params["field_sources"].get("monthly_revenue_start_eur") == "stated"
+    assert any(
+        c.get("field") == "monthly_revenue_start_eur"
+        and "nl_stated" in (c.get("source") or "")
+        for c in changes
+    )
 
 
 def test_raw_vs_parsed_detects_revenue_scale_mutation() -> None:

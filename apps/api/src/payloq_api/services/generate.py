@@ -185,9 +185,15 @@ def run_from_text(
             with_invoice_texts=True,
         )
         llm_name = llm
+        extract_mode = (
+            getattr(adapter, "param_extraction_mode", None)
+            if isinstance(adapter, FallbackAdapter)
+            else None
+        )
         params_from_stub = llm == "stub" or (
             isinstance(adapter, FallbackAdapter)
             and (adapter.param_extraction_used_fallback or adapter.used_fallback)
+            and extract_mode != "hybrid_code_nl"
         )
         if isinstance(adapter, FallbackAdapter) and (
             adapter.param_extraction_used_fallback or adapter.used_fallback
@@ -195,7 +201,10 @@ def run_from_text(
             run.llm_fallback_note = (
                 adapter.param_extraction_fallback_reason or adapter.last_fallback_reason
             )
-            run.llm_adapter = f"{llm}->stub"
+            if extract_mode == "hybrid_code_nl":
+                run.llm_adapter = f"{llm}->code-nl"
+            else:
+                run.llm_adapter = f"{llm}->stub"
             llm_name = run.llm_adapter
         # Persist the concrete Ollama tag even after stub fallback so chat can reuse it.
         if llm == "ollama" and resolved_model:

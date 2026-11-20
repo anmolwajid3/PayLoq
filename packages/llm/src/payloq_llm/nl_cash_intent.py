@@ -177,10 +177,11 @@ def extract_euro_amounts(text: str) -> list[tuple[float, int]]:
     blob = text or ""
     found: list[tuple[float, int]] = []
     patterns = [
-        # €4.2M / €4,2M / €4.2 m / €4200000
-        r"[€]\s*~?\s*(\d+(?:[.,]\d+)?|\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*([mM]|[kK])?\b",
+        # Prefer thousands groups before decimal fragments so €1,300,000 ≠ 1300.
+        # €4.2M / €4,2M / €1,300,000 / €4200000
+        r"[€]\s*~?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+(?:[.,]\d+)?|\d+)\s*([mM]|[kK])?\b",
         # 4.2M € / 4,2 miljoonaa euroa / 2.8 million EUR
-        r"~?\s*(\d+(?:[.,]\d+)?|\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*"
+        r"~?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+(?:[.,]\d+)?|\d+)\s*"
         r"([mM]|[kK]|miljoon(?:aa|a)?|millions?)\s*(?:€|euros?\b|euroa\b)?",
         # 25,000 € / 25k EUR / 25000 euroa (no \b after € — € is non-word)
         r"~?\s*(\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*([kK])?\s*(?:€|euros?\b|euroa\b)",

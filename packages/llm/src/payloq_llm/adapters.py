@@ -834,7 +834,11 @@ def _is_timeout_urlerror(exc: urllib.error.URLError) -> bool:
     return "timed out" in text or "timeout" in text
 
 class FallbackAdapter(LlmAdapter):
-    """Try primary adapter; on failure use stub (logs reason via last_fallback_reason)."""
+    """Try primary; on extract failure prefer hybrid/code-nl, else stub.
+
+    Sticky param-extraction flags survive later successful invoice-text calls so the
+    UI does not claim live Ollama when params came from code-nl or stub.
+    """
 
     name = "fallback"
 
@@ -844,9 +848,11 @@ class FallbackAdapter(LlmAdapter):
         self.last_fallback_reason: str | None = None
         self.used_fallback = False
         # Sticky: extract_parameters fallback must survive later successful invoice-text calls
-        # so the UI does not claim live Ollama when params actually came from stub.
+        # so the UI does not claim live Ollama when params actually came from stub/code-nl.
         self.param_extraction_used_fallback = False
         self.param_extraction_fallback_reason: str | None = None
+        # "hybrid_code_nl" | "stub" | None — honest sticky labeling for generate UI.
+        self.param_extraction_mode: str | None = None
         self.last_call_metrics: dict[str, Any] | None = None
 
     def is_available(self) -> bool:
@@ -860,6 +866,7 @@ class FallbackAdapter(LlmAdapter):
             if method == "extract_parameters":
                 self.param_extraction_used_fallback = False
                 self.param_extraction_fallback_reason = None
+                self.param_extraction_mode = None
             self.last_call_metrics = getattr(self.primary, "last_call_metrics", None)
             self.last_raw_output = getattr(self.primary, "last_raw_output", None)
             return result
@@ -868,12 +875,68 @@ class FallbackAdapter(LlmAdapter):
             self.used_fallback = True
             self.last_fallback_reason = reason
             if method == "extract_parameters":
+                recovered = self._try_hybrid_code_nl(
+                    description_fi=args[0] if args else kwargs.get("description_fi", ""),
+                    description_en=args[1] if len(args) > 1 else kwargs.get("description_en", ""),
+                    options=args[2] if len(args) > 2 else kwargs.get("options") or {},
+                    primary_error=exc,
+                )
+                if recovered is not None:
+                    return recovered
                 self.param_extraction_used_fallback = True
                 self.param_extraction_fallback_reason = reason
+                self.param_extraction_mode = "stub"
             result = getattr(self.fallback, method)(*args, **kwargs)
             self.last_call_metrics = getattr(self.fallback, "last_call_metrics", None)
             self.last_raw_output = getattr(self.fallback, "last_raw_output", None)
             return result
+
+    def _try_hybrid_code_nl(
+        self,
+        *,
+        description_fi: str,
+        description_en: str,
+        options: dict[str, Any],
+        primary_error: BaseException,
+    ) -> dict[str, Any] | None:
+        """Recover from total Ollama JSON failure via code-stated ∪ assumed defaults."""
+        from payloq_llm.nl_stated import build_hybrid_params_from_nl
+
+        combined = f"{description_fi or ''} {description_en or ''}".strip()
+        if not combined:
+            return None
+        try:
+            params, _changes = build_hybrid_params_from_nl(
+                combined,
+                industry=str(options.get("industry") or "") or None,
+                company_size=str(options.get("company_size") or "") or None,
+                seed=int(options.get("seed") or 42),
+                require_starting_cash=True,
+            )
+        except Exception:  # noqa: BLE001 — fall through to stub heuristics
+            return None
+        reason = (
+            f"{self.primary.name} failed: {primary_error}; "
+            "recovered via hybrid/code-nl (stated NL parse + assumed defaults)"
+        )
+        self.used_fallback = True
+        self.last_fallback_reason = reason
+        self.param_extraction_used_fallback = True
+        self.param_extraction_fallback_reason = reason
+        self.param_extraction_mode = "hybrid_code_nl"
+        # Strip internal marker before callers validate ParametersFromLanguageModel.
+        mode = params.pop("_extraction_mode", "hybrid_code_nl")
+        self.last_raw_output = json.dumps(
+            {**params, "_extraction_mode": mode}, ensure_ascii=False, indent=2
+        )
+        self.last_call_metrics = {
+            "latency_ms": 0.0,
+            "adapter": "hybrid_code_nl",
+            "model": "code-nl",
+            "tokens_in": max(1, len(combined) // 4),
+            "tokens_out": 64,
+        }
+        return params
 
     def extract_parameters(
         self, description_fi: str, description_en: str, options: dict[str, Any]
@@ -1071,7 +1134,11 @@ def input_from_text(
             or adapter.last_fallback_reason
             or "primary adapter failed"
         )
-        note = f"{note}; {reason}"
+        mode = getattr(adapter, "param_extraction_mode", None)
+        if mode == "hybrid_code_nl":
+            note = f"parameters via hybrid/code-nl; {reason}"
+        else:
+            note = f"{note}; {reason}"
 
     return GeneratorInput(
         meta=ScenarioMeta(fictional=True, note=note),

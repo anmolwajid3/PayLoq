@@ -1,6 +1,8 @@
 """NL → parameters pipeline: extract → ground → assume (work order A/B).
 
 Code calculates; the LLM only returns stated values (null when unstated).
+Code-first NL parse runs before/alongside LLM JSON so weak models cannot
+omit required stated figures or override grounded numbers.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from payloq_llm.grounding import (
     ground_stated_parameters,
     mark_stated_sources,
 )
-from payloq_llm.nl_param_hints import repair_starting_cash_from_nl
+from payloq_llm.nl_stated import extract_stated_params_from_nl, merge_llm_with_code_stated
 from payloq_llm.params_coerce import normalize_monthly_revenue_factors
 from payloq_schemas.models import ExtractedParameters, ParametersFromLanguageModel
 
@@ -51,22 +53,25 @@ def finalize_extracted_parameters(
     require_starting_cash: bool = True,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], GroundingResult]:
     """
-    Full post-extract path: normalize → mark stated → ground → assume.
+    Full post-extract path: code-NL ∪ LLM → normalize → ground → assume.
 
     Returns (params_dict, change_log, grounding_result).
-    Raises MissingRequiredParameterError when starting_cash_eur is required and null.
+    Raises MissingRequiredParameterError when starting_cash_eur is required and
+    absent from both the description and the LLM payload.
     When grounding.ok is False, caller should retry the LLM once with the error text.
     """
-    data, changes = prepare_extracted_dict(raw_data)
+    code_stated = extract_stated_params_from_nl(description)
+    merged_raw, merge_changes = merge_llm_with_code_stated(raw_data, code_stated)
+
+    data, changes = prepare_extracted_dict(merged_raw)
+    changes = merge_changes + changes
     extracted = ExtractedParameters.model_validate(data)
     data = extracted.model_dump()
+    # Preserve code-stated provenance through Pydantic round-trip.
     sources = mark_stated_sources(data)
-    data["field_sources"] = sources
-
-    # Repair omitted starting_cash from NL before grounding / required-check (Run #22).
-    data, start_changes = repair_starting_cash_from_nl(description, data)
-    changes.extend(start_changes)
-    sources = mark_stated_sources(data)
+    for key, src in (merged_raw.get("field_sources") or {}).items():
+        if src == "stated":
+            sources[key] = "stated"
     data["field_sources"] = sources
 
     grounding = ground_stated_parameters(data, description, field_sources=sources)
@@ -84,6 +89,8 @@ def finalize_extracted_parameters(
     changes.extend(assume_changes)
 
     filled.pop("_assume_meta", None)
+    # Drop internal hybrid marker before schema validate if present on raw path.
+    filled.pop("_extraction_mode", None)
     params = ParametersFromLanguageModel.model_validate(filled)
     return params.model_dump(), changes, grounding
 

@@ -179,10 +179,22 @@ def generate(
 
         raw_llm = getattr(adapter, "last_raw_output", None)
         llm_name = getattr(adapter, "name", llm)
-        if isinstance(adapter, FallbackAdapter) and adapter.used_fallback:
-            fallback_note = adapter.last_fallback_reason
-            llm_name = f"stub (fallback from {llm})"
-            typer.echo(f"Warning: fell back to stub LLM ({fallback_note})", err=True)
+        if isinstance(adapter, FallbackAdapter) and (
+            adapter.param_extraction_used_fallback or adapter.used_fallback
+        ):
+            fallback_note = (
+                adapter.param_extraction_fallback_reason or adapter.last_fallback_reason
+            )
+            mode = getattr(adapter, "param_extraction_mode", None)
+            if mode == "hybrid_code_nl":
+                llm_name = f"code-nl (fallback from {llm})"
+                typer.echo(
+                    f"Warning: Ollama failed; recovered via hybrid/code-nl ({fallback_note})",
+                    err=True,
+                )
+            else:
+                llm_name = f"stub (fallback from {llm})"
+                typer.echo(f"Warning: fell back to stub LLM ({fallback_note})", err=True)
 
     outcome = run_generation(
         inp,
