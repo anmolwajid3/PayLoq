@@ -21,9 +21,11 @@ from payloq_llm.chat_demo import (
 from payloq_llm.defaults import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
+    DEFAULT_TIMEOUT_S,
     RECOMMENDED_CPU_MODELS,
     UI_SUGGESTED_OLLAMA_TAGS,
     recommended_ollama_tags,
+    resolve_ollama_timeout_s,
 )
 from payloq_llm.nl_quality import assess_nl_params
 from payloq_llm.text_sanitize import sanitize_invoice_texts
@@ -31,6 +33,7 @@ from payloq_llm.text_sanitize import sanitize_invoice_texts
 __all__ = [
     "DEFAULT_OLLAMA_HOST",
     "DEFAULT_OLLAMA_MODEL",
+    "DEFAULT_TIMEOUT_S",
     "DEMO_PRESETS",
     "ChatDemoResult",
     "RECOMMENDED_CPU_MODELS",
@@ -47,6 +50,7 @@ __all__ = [
     "list_demo_presets",
     "list_ollama_models",
     "recommended_ollama_tags",
+    "resolve_ollama_timeout_s",
     "run_chat_demo",
     "sanitize_invoice_texts",
     "suggest_followup_questions",

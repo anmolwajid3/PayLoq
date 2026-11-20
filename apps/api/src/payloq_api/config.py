@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from payloq_llm.defaults import DEFAULT_TIMEOUT_S
+
 
 def _default_repo_root() -> Path:
     here = Path(__file__).resolve()
@@ -35,6 +37,9 @@ class Settings(BaseSettings):
 
     ollama_host: str = "http://127.0.0.1:11434"
     ollama_model: str = "llama3.2:1b"
+    # Seconds for Ollama /api/chat (Mac Docker CPU often needs 300–600).
+    # Env: PAYLOQ_OLLAMA_TIMEOUT (compose sets 600 for the api service).
+    ollama_timeout: float = float(DEFAULT_TIMEOUT_S)
 
     @property
     def cors_origin_list(self) -> list[str]:

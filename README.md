@@ -22,6 +22,7 @@ Primary checkout: `~/Desktop/PayLoq`. Prefer `gh` when cloning PRs.
 cd ~/Desktop/PayLoq
 git fetch --prune && git checkout main && git pull origin main
 docker compose --profile ollama up --build -d
+until curl -sf http://127.0.0.1:11434/api/tags >/dev/null; do echo "waiting for ollama…"; sleep 2; done
 ```
 
 Pull a few small CPU-friendly models into the Compose Ollama service (tags appear in Generate):
@@ -33,9 +34,10 @@ docker compose --profile ollama exec ollama ollama pull llama3.2:1b
 docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
 docker compose --profile ollama exec ollama ollama pull llama3.2:3b
 docker compose --profile ollama exec ollama ollama list
+docker compose --profile ollama exec api printenv PAYLOQ_OLLAMA_TIMEOUT   # expect 600
 ```
 
-Open http://localhost:5173 · login `payloq` / `payloq` · **Generate** → pick a model from the dropdown (no Stub).
+Open http://localhost:5173 · login `payloq` / `payloq` · **Generate** → pick a model from the dropdown (no Stub). On Mac CPU, wait for the run: success shows **`LLM ollama`** (not `ollama->stub`). Compose sets `PAYLOQ_OLLAMA_TIMEOUT=600` for the API; raise it if param extraction still times out.
 
 Review a PR locally with `gh`:
 
