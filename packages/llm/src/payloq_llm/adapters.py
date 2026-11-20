@@ -29,6 +29,7 @@ from payloq_llm.prompts import (
     descriptive_texts_prompt,
     interpretation_prompt,
     parameter_extraction_prompt,
+    parameter_grounding_repair_prompt,
     parameter_repair_prompt,
 )
 from payloq_llm.nl_cash_intent import (
@@ -284,6 +285,7 @@ class StubLlmAdapter(LlmAdapter):
             )
             one_offs.append(
                 {
+                    "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
                     "direction": "out",
@@ -296,6 +298,7 @@ class StubLlmAdapter(LlmAdapter):
             invest_month = 2
             one_offs.append(
                 {
+                    "type": "capex",
                     "amount_eur": invest,
                     "month_index": invest_month,
                     "direction": "out",
@@ -322,6 +325,11 @@ class StubLlmAdapter(LlmAdapter):
         if band != "small":
             notes = f"{notes}; company_size band={band}"
 
+        # Opening cash: prefer explicit NL cash figure; else scale with target.
+        starting_cash = float(nl_cash) if nl_cash is not None else round(cash * 1.15, 2)
+        if starting_cash <= 0:
+            starting_cash = max(cash, 1.0)
+
         params = ParametersFromLanguageModel(
             monthly_revenue_start_eur=rev_start,
             monthly_revenue_growth=growth,
@@ -334,12 +342,24 @@ class StubLlmAdapter(LlmAdapter):
             days_sales_outstanding=40.0,
             days_payables_outstanding=32.0,
             target_cash_at_end_eur=cash,
+            covenant_min_cash_eur=cash,
+            starting_cash_eur=starting_cash,
             special_investment_eur=invest,
             special_investment_month=invest_month,
             monthly_revenue_factors=factors,
             one_off_events=one_offs,
             notes=notes,
             partly_fixed_costs=partly,
+            field_sources={
+                "monthly_revenue_start_eur": "stated" if nl_rev is not None else "assumed",
+                "monthly_revenue_growth": "stated" if nl_growth is not None else "assumed",
+                "target_cash_at_end_eur": "stated" if cash_from_nl else "assumed",
+                "starting_cash_eur": "stated" if nl_cash is not None else "assumed",
+                "special_investment_eur": "stated" if invest_from_nl else "assumed",
+                "days_sales_outstanding": "assumed",
+                "days_payables_outstanding": "assumed",
+                "cost_shares_of_revenue": "assumed",
+            },
         )
         out = params.model_dump()
         # Defense in depth: same repair path used after live Ollama extraction
@@ -604,62 +624,59 @@ class OllamaAdapter(LlmAdapter):
     def extract_parameters(
         self, description_fi: str, description_en: str, options: dict[str, Any]
     ) -> dict[str, Any]:
-        from payloq_generator.params_clamp import cost_shares_out_of_range
+        from payloq_generator.consistency import require_consistent
+        from payloq_llm.assume import MissingRequiredParameterError
+        from payloq_llm.extract_pipeline import finalize_extracted_parameters
 
         prompt = parameter_extraction_prompt(description_fi, description_en, options)
         raw = self._chat(prompt, json_mode=True)
         self.last_raw_output = raw
         last_err: Exception | None = None
         combined = f"{description_fi} {description_en}"
-        # FR-A-11 / FR-A-13: retry invalid JSON or out-of-range cost shares up to 2 times
+        industry = str(options.get("industry") or "")
+        company_size = str(options.get("company_size") or "")
+        seed = int(options.get("seed") or 42)
+        # Work order A: ground stated numbers; retry once on grounding failure (new seed not used).
         max_attempts = max(self.max_retries, 2) + 1
+        grounding_retried = False
         for attempt in range(max_attempts):
             try:
                 data = extract_json_object(raw)
-                # Soft-repair incomplete / euro-level factors before Pydantic (Run #10).
-                data, _ = coerce_parameters_dict(data, combined, options=options)
-                params = validate_model(ParametersFromLanguageModel, data)
-                shares = params.cost_shares_of_revenue.model_dump()
-                if cost_shares_out_of_range(shares):
-                    share_sum = sum(shares.values())
-                    raise ValueError(
-                        f"cost_shares_of_revenue sum to {share_sum:.4f}; "
-                        "must be within ~0.9–1.0 (FR-A-11)"
-                    )
-                self.last_raw_output = raw
-                out = params.model_dump()
-                out, _ = repair_params_from_nl(combined, out)
-                out, _ = repair_investment_and_revenue_from_nl(
+                out, _changes, grounding = finalize_extracted_parameters(
+                    data,
                     combined,
-                    out,
-                    industry=str(options.get("industry") or ""),
-                    company_size=str(options.get("company_size") or ""),
+                    industry=industry,
+                    company_size=company_size,
+                    seed=seed,
+                    require_starting_cash=True,
                 )
+                if not grounding.ok:
+                    raise ValueError(grounding.error_text())
+                require_consistent(out)
+                self.last_raw_output = raw
                 return out
-            except (ValueError, json.JSONDecodeError) as exc:
+            except MissingRequiredParameterError as exc:
                 last_err = exc
                 if attempt >= max_attempts - 1:
                     break
                 raw = self._chat(parameter_repair_prompt(raw, str(exc)), json_mode=True)
                 self.last_raw_output = raw
-        # Accept schema-valid JSON after coerce; pipeline clamp_parameters hard-repairs (FR-A-11).
-        try:
-            data = extract_json_object(raw)
-            data, _ = coerce_parameters_dict(data, combined, options=options)
-            params = validate_model(ParametersFromLanguageModel, data)
-            out = params.model_dump()
-            out, _ = repair_params_from_nl(combined, out)
-            out, _ = repair_investment_and_revenue_from_nl(
-                combined,
-                out,
-                industry=str(options.get("industry") or ""),
-                company_size=str(options.get("company_size") or ""),
-            )
-            return out
-        except (ValueError, json.JSONDecodeError) as exc:
-            raise RuntimeError(
-                f"Ollama returned invalid parameters JSON after retries: {last_err or exc}"
-            ) from last_err
+            except (ValueError, json.JSONDecodeError) as exc:
+                last_err = exc
+                msg = str(exc)
+                if attempt >= max_attempts - 1:
+                    break
+                if (not grounding_retried) and msg.startswith("Grounding rejected"):
+                    grounding_retried = True
+                    raw = self._chat(
+                        parameter_grounding_repair_prompt(raw, msg), json_mode=True
+                    )
+                else:
+                    raw = self._chat(parameter_repair_prompt(raw, msg), json_mode=True)
+                self.last_raw_output = raw
+        raise RuntimeError(
+            f"Ollama returned invalid parameters JSON after retries: {last_err}"
+        ) from last_err
 
     def generate_invoice_texts(
         self,
@@ -928,9 +945,17 @@ def get_adapter(
 
     - stub: always available
     - ollama: local HTTP; when fallback_stub=True, wraps with FallbackAdapter
+
+    Ollama-only kwargs (``timeout_s``, ``max_retries``, ``http_timeout_retries``)
+    are ignored for the stub so API/chat can pass a shared options bag.
     """
+    ollama_only = {"timeout_s", "max_retries", "http_timeout_retries"}
     if name == "stub":
-        return StubLlmAdapter(**kwargs)
+        stub_kwargs = {k: v for k, v in kwargs.items() if k not in ollama_only}
+        # ``preset`` is the only StubLlmAdapter constructor arg today.
+        if "preset" in stub_kwargs:
+            return StubLlmAdapter(preset=stub_kwargs["preset"])
+        return StubLlmAdapter()
     if name == "ollama":
         ollama_kwargs = dict(kwargs)
         if model is not None:

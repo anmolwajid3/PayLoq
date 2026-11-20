@@ -31,11 +31,46 @@ COST_SHARE_SUM_TARGET: float = 0.94
 REVENUE_FACTOR_MIN: float = 0.05
 REVENUE_FACTOR_MAX: float = 2.0
 
-# Projection vs history weekly-move scale (VR-08). Ratio above this is blocking.
+# Projection vs history weekly-move scale (VR-08). Ratio above this → WARNING only
+# (work order D: non-blocking; still logged for diagnostics).
 PROJECTION_HISTORY_SCALE_RATIO: float = 5.0
 # Early projection negativity vs late history crisis (VR-08 timing).
 PROJECTION_EARLY_NEG_WEEK: int = 4
 HISTORY_LATE_NEG_WEEK: int = 18
+
+# Month-1 revenue noise band (work order C): |noise| ≤ this fraction of base revenue.
+REVENUE_NOISE_BAND_FRACTION: float = 0.02
+
+# Grounding: stated numeric params must match a description amount within this relative tol.
+GROUNDING_RELATIVE_TOLERANCE: float = 0.05
+GROUNDING_ABSOLUTE_TOLERANCE_EUR: float = 1.0
+
+# Fields the LLM must state (null → hard error). Others may be assumed from range tables.
+REQUIRED_STATED_FIELDS: frozenset[str] = frozenset(
+    {
+        "starting_cash_eur",
+    }
+)
+
+# Canonical WO unit-in-name ↔ legacy serialization aliases.
+PARAM_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
+    "monthly_revenue_start_eur": (
+        "monthly_revenue_start_eur",
+        "revenue_monthly_start_eur",
+        "revenue_monthly_eur",
+    ),
+    "monthly_revenue_growth": (
+        "monthly_revenue_growth",
+        "growth_per_month_fraction",
+    ),
+    "days_sales_outstanding": ("days_sales_outstanding", "dso_days"),
+    "days_payables_outstanding": ("days_payables_outstanding", "dpo_days"),
+    "target_cash_at_end_eur": (
+        "target_cash_at_end_eur",
+        "covenant_min_cash_eur",
+    ),
+    "starting_cash_eur": ("starting_cash_eur",),
+}
 
 FORBIDDEN_TEXT_WORDS: frozenset[str] = frozenset(
     {

@@ -31,6 +31,18 @@
     "target_cash_at_end_eur": 8000,
     "special_investment_eur": 0,
     "notes": "DSO rising narrative; cash turns negative around balance-history week 20.",
-    "partly_fixed_costs": false
+    "partly_fixed_costs": false,
+    "starting_cash_eur": 180000.0,
+    "covenant_min_cash_eur": 8000,
+    "field_sources": {
+      "monthly_revenue_start_eur": "stated",
+      "monthly_revenue_growth": "stated",
+      "cost_shares_of_revenue": "stated",
+      "days_sales_outstanding": "stated",
+      "days_payables_outstanding": "stated",
+      "target_cash_at_end_eur": "stated",
+      "starting_cash_eur": "stated",
+      "special_investment_eur": "stated"
+    }
   }
 }

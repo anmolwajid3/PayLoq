@@ -1,0 +1,44 @@
+{
+  "_fixture_note": "Run #17 grounding rejection: description states €4.2M monthly revenue but raw LLM emitted 420000 (€420k). Created because no raw artifact was in-repo.",
+  "description_en": "Large Finnish steel fabricator, about 420 employees. Monthly revenue ~€4.2M, growth ~0.3%/month. Winter cash trough ~€1.2M; bank covenant €1.5M. Starting cash €1.3M. Cash critical through the winter. One-off CAPEX / production line investment €2.8M in month 4.",
+  "description_fi": "Suuri suomalainen teräsvalmistaja, noin 420 työntekijää. Kuukausiliikevaihto noin 4,2 miljoonaa euroa, kasvu 0,3 % kuukaudessa. Talvipohja noin 1,2 miljoonaa euroa; pankin kovenantti 1,5 miljoonaa euroa. Alkukassa 1,3 miljoonaa euroa. Kassa kriittinen talvella. Kertaluonteinen investointi 2,8 miljoonaa euroa kuukaudessa 4.",
+  "options": {
+    "industry": "steel fabrication / manufacturing",
+    "company_size": "420 employees",
+    "months": 12,
+    "language": "en",
+    "currency": "EUR",
+    "scenario_id": "cash_critical",
+    "seed": 17
+  },
+  "raw_llm_parameters": {
+    "monthly_revenue_start_eur": 420000,
+    "monthly_revenue_growth": 0.003,
+    "cost_shares_of_revenue": {
+      "materials": 0.42,
+      "services": 0.08,
+      "personnel": 0.32,
+      "other": 0.12
+    },
+    "days_sales_outstanding": 45,
+    "days_payables_outstanding": 35,
+    "starting_cash_eur": 1300000,
+    "target_cash_at_end_eur": 1200000,
+    "covenant_min_cash_eur": 1500000,
+    "special_investment_eur": 2800000,
+    "special_investment_month": 4,
+    "one_off_events": [
+      {
+        "type": "capex",
+        "amount_eur": 2800000,
+        "month_index": 4,
+        "direction": "out",
+        "label": "production_line"
+      }
+    ],
+    "notes": "run17 raw — revenue wrongly scaled to 420k instead of 4.2M",
+    "partly_fixed_costs": true
+  },
+  "expected_correct_revenue_eur": 4200000,
+  "wrong_revenue_eur": 420000
+}

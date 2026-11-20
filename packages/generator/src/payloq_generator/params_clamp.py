@@ -217,31 +217,44 @@ def clamp_parameters(
         )
     data["special_investment_month"] = clipped_mi
 
-    # one_off_events: drop invalid rows softly
+    # one_off_events: reject rows missing month/direction; CAPEX forced to outflow.
     events = data.get("one_off_events") or []
     if isinstance(events, list):
         cleaned = []
         for ev in events:
             if not isinstance(ev, dict):
-                continue
-            try:
-                amt = float(ev.get("amount_eur") or 0)
-                month_i = int(ev.get("month_index") or 0)
-            except (TypeError, ValueError):
-                continue
-            if amt <= 0 or month_i < 1:
                 changes.append(
                     {
                         "field": "one_off_events",
-                        "message": f"dropped invalid one_off_event: {ev!r}",
+                        "message": f"rejected non-object one_off_event: {ev!r}",
                     }
                 )
                 continue
-            direction = str(ev.get("direction") or "out").lower()
-            if direction not in {"in", "out"}:
+            if ev.get("month_index") is None or ev.get("direction") is None:
+                raise ValueError(
+                    f"one_off_event missing month_index or direction: {ev!r}"
+                )
+            try:
+                amt = float(ev.get("amount_eur") or 0)
+                month_i = int(ev.get("month_index"))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"invalid one_off_event: {ev!r}") from exc
+            if amt <= 0 or month_i < 1:
+                raise ValueError(f"invalid one_off_event amount/month: {ev!r}")
+            direction = str(ev.get("direction") or "").lower()
+            if direction in {"inflow", "in"}:
+                direction = "in"
+            elif direction in {"outflow", "out"}:
+                direction = "out"
+            else:
+                raise ValueError(f"one_off_event direction must be in/out: {ev!r}")
+            event_type = str(ev.get("type") or ev.get("label") or "other").lower()
+            if event_type in {"capex", "capital_expenditure", "investment", "special_investment"}:
+                event_type = "capex"
                 direction = "out"
             cleaned.append(
                 {
+                    "type": event_type,
                     "amount_eur": amt,
                     "month_index": min(24, max(1, month_i)),
                     "direction": direction,

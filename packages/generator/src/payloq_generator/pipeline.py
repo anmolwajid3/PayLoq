@@ -82,6 +82,10 @@ def run_generation(
         clamped, clamp_clips = clamp_parameters(working.parameters_from_language_model)
         working.parameters_from_language_model = clamped
         clips.extend(clamp_clips)
+    # Work order B: reject inconsistent parameters before generation.
+    from payloq_generator.consistency import require_consistent
+
+    require_consistent(working.parameters_from_language_model)
 
     sid = (working.options.scenario_id or working.meta.scenario or "").lower()
     deliberate_broken = sid in {"invoices_out_of_balance", "test_only_broken"}

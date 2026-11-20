@@ -140,6 +140,15 @@ def _pack_label(inp: GeneratorInput, profile: str) -> str:
     return profile
 
 
+PROJECTION_ASSUMPTIONS: dict[str, str] = {
+    "sales_paid_on_due_date": "Sales invoices are assumed paid on their due date.",
+    "overdue_sales_paid_week_1": "Overdue sales invoices are assumed paid in projection week 1.",
+    "payroll_and_tax_excluded": (
+        "Payroll, tax and other recurring payments are excluded from the open-invoice projection."
+    ),
+}
+
+
 def _collect_one_off_events(params) -> list[OneOffCashEvent]:
     """Merge special_investment_* into the structured one_off_events list."""
     events = list(params.one_off_events or [])
@@ -155,6 +164,7 @@ def _collect_one_off_events(params) -> list[OneOffCashEvent]:
         if not already:
             events.append(
                 OneOffCashEvent(
+                    type="capex",
                     amount_eur=invest,
                     month_index=month_i,
                     direction="out",
@@ -313,15 +323,21 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     )
 
     currency = inp.options.currency
+    proj_note = (
+        "Balance history is weekly for the past 26 weeks. "
+        + " ".join(PROJECTION_ASSUMPTIONS.values())
+    )
     monthly = MonthlyReports(
         meta=ScenarioMeta(
             fictional=True,
             dataset="monthly_reports",
             currency=currency,
             scenario=scenario_id,
+            seed=seed,
             note=(
                 "Income statement items are VAT 0 %. "
-                f"Receivables and payables include VAT ({VAT_RATE_FI * 100:.1f} %)."
+                f"Receivables and payables include VAT ({VAT_RATE_FI * 100:.1f} %). "
+                f"seed={seed}."
             ),
         ),
         months=months,
@@ -333,16 +349,15 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
             currency=currency,
             scenario=scenario_id,
             as_of=as_of.isoformat(),
-            note=(
-                "Balance history is weekly for the past 26 weeks. "
-                "The projection takes into account only the open invoices below "
-                "(payroll, tax and other recurring payments are not included)."
-            ),
+            seed=seed,
+            note=proj_note + f" seed={seed}.",
         ),
         balance_history=history,
         open_invoices=invoices,
         projection_from_open_invoices=projection,
     )
+    gen_meta["projection_assumptions"] = dict(PROJECTION_ASSUMPTIONS)
+    gen_meta["seed"] = seed
 
     # Stamp pack label on input meta for round-trips (behaviour profile kept in note).
     stamped = inp.model_copy(deep=True)
@@ -423,17 +438,21 @@ def _generate_months(
     fixed_assets = 300_000.0
     equity0 = 245_000.0 if profile == "good" else 210_000.0
     loans = 480_000.0
-    cash0 = {
-        "good": 270_000.0,
-        "weak": 265_000.0,
-        "cash_critical": 110_000.0,
-        "cash_turning_critical_later": 180_000.0,
-        "invoices_out_of_balance": 200_000.0,
-    }.get(profile, 200_000.0)
-    # Thin winter / covenant stories: keep opening cash on the same scale as target
-    # so history/projection do not look like a healthy 300k+ pack.
-    if profile == "cash_critical" and params.target_cash_at_end_eur <= 60_000:
-        cash0 = min(cash0, max(35_000.0, float(params.target_cash_at_end_eur) * 2.2))
+    # Work order C: starting_cash_eur is authoritative when provided.
+    if getattr(params, "starting_cash_eur", None) is not None:
+        cash0 = float(params.starting_cash_eur)
+    else:
+        cash0 = {
+            "good": 270_000.0,
+            "weak": 265_000.0,
+            "cash_critical": 110_000.0,
+            "cash_turning_critical_later": 180_000.0,
+            "invoices_out_of_balance": 200_000.0,
+        }.get(profile, 200_000.0)
+        # Thin winter / covenant stories: keep opening cash on the same scale as target
+        # so history/projection do not look like a healthy 300k+ pack.
+        if profile == "cash_critical" and params.target_cash_at_end_eur <= 60_000:
+            cash0 = min(cash0, max(35_000.0, float(params.target_cash_at_end_eur) * 2.2))
 
     # Fixed cost bases from start revenue
     base_personnel = start_rev * shares.personnel
@@ -453,6 +472,7 @@ def _generate_months(
         "one_off_events_applied": [],
         "ending_cash_note": None,
         "target_cash_at_end_eur": target_end,
+        "starting_cash_eur": cash0,
     }
 
     for i in range(n):
@@ -467,9 +487,16 @@ def _generate_months(
             if i == max(2, n // 3) and abs(cal_factor - 1.0) < 0.02:
                 seasonal *= 0.92
         else:
-            seasonal = 1.0 + 0.045 * math.sin((i + seed % 7) * 0.9)
+            from payloq_schemas.constants import REVENUE_NOISE_BAND_FRACTION
+
+            # Work order C: noise only within the configured band around month path.
+            seasonal = 1.0 + REVENUE_NOISE_BAND_FRACTION * math.sin(
+                (i + seed % 7) * 0.9
+            )
             if i == max(2, n // 3):
-                seasonal *= 0.92  # deliberate ≥5% move vs neighbours
+                # Keep a deliberate ≥5% MoM kink for VR-21 when no calendar factors.
+                seasonal *= 0.92
+        # revenue_monthly_start_eur / monthly_revenue_start_eur ≡ month 1 revenue (i=0).
         revenue = _r(start_rev * ((1.0 + growth) ** i) * seasonal)
 
         materials = _r(revenue * shares.materials)

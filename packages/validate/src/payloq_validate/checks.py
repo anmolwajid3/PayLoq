@@ -249,6 +249,37 @@ def _check_cash(
             rule_id="VR-07",
         )
 
+    # Work order D: weekly dates must be regular (7-day spacing) — blocking.
+    if len(cash.balance_history) >= 2:
+        for i in range(1, len(cash.balance_history)):
+            try:
+                prev_d = date.fromisoformat(cash.balance_history[i - 1].date)
+                cur_d = date.fromisoformat(cash.balance_history[i].date)
+            except ValueError:
+                result.add(
+                    "history_date_invalid",
+                    f"balance_history[{i}] has invalid date",
+                    rule_id="VR-07",
+                )
+                continue
+            delta = (cur_d - prev_d).days
+            # Final point may snap to as_of (≤7 days from prior week grid).
+            if i == len(cash.balance_history) - 1:
+                if delta < 0 or delta > 7:
+                    result.add(
+                        "history_week_spacing",
+                        f"final history date gap {delta} days (expected 0..7 to as_of)",
+                        rule_id="VR-07",
+                        numbers={"index": i, "delta_days": delta},
+                    )
+            elif delta != 7:
+                result.add(
+                    "history_week_spacing",
+                    f"balance_history week spacing {delta} days at index {i} (expected 7)",
+                    rule_id="VR-07",
+                    numbers={"index": i, "delta_days": delta},
+                )
+
     last_cash = monthly.months[-1].balance_sheet.assets.cash
     hist_last = cash.balance_history[-1].balance
     if not _near(last_cash, hist_last):
@@ -359,9 +390,8 @@ def _check_cash(
                     },
                 )
 
-    # VR-08 related: projection week moves must stay within ~5x of history week moves.
-    # Severe mismatch (>PROJECTION_HISTORY_SCALE_RATIO) is blocking — generator should
-    # size history settlement waves and stagger invoice dues so scales agree.
+    # VR-08 related: log when projection week moves diverge from history scale.
+    # Work order D: projection_history_scale is a WARNING (non-blocking); ratio is logged.
     if len(cash.balance_history) >= 2 and cash.projection_from_open_invoices:
         hist_deltas = [
             abs(cash.balance_history[i].balance - cash.balance_history[i - 1].balance)
@@ -380,10 +410,10 @@ def _check_cash(
                 (
                     f"Projection weekly cash moves (max {max_proj:,.0f} EUR) diverge "
                     f"{ratio:.0f}x from history week moves "
-                    f"(max {max_hist:,.0f} EUR); blocking when >"
-                    f"{PROJECTION_HISTORY_SCALE_RATIO:.0f}x."
+                    f"(max {max_hist:,.0f} EUR); warning when >"
+                    f"{PROJECTION_HISTORY_SCALE_RATIO:.0f}x (non-blocking)."
                 ),
-                severity="error",
+                severity="warning",
                 rule_id="VR-08",
                 numbers={
                     "max_projection_week_move_eur": max_proj,

@@ -6,10 +6,12 @@ from payloq_schemas.company_size import (
     size_band,
 )
 from payloq_schemas.constants import VAT_RATE_FI
+from payloq_schemas.industry_defaults import classify_industry, draw_assumed_defaults
 from payloq_schemas.models import (
     BalanceHistoryPoint,
     CashAndInvoices,
     CostShares,
+    ExtractedParameters,
     GeneratorInput,
     IncomeStatement,
     InvoiceDescriptiveTexts,
@@ -33,6 +35,7 @@ __all__ = [
     "BalanceHistoryPoint",
     "CashAndInvoices",
     "CostShares",
+    "ExtractedParameters",
     "GeneratorInput",
     "IncomeStatement",
     "InvoiceDescriptiveTexts",
@@ -49,6 +52,8 @@ __all__ = [
     "ScenarioDescription",
     "ScenarioMeta",
     "ScenarioPack",
+    "classify_industry",
+    "draw_assumed_defaults",
     "parse_company_size",
     "scale_defaults_for_size",
     "size_band",

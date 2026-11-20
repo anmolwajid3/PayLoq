@@ -146,10 +146,50 @@ def build_answer_key(pack: ScenarioPack) -> dict[str, Any]:
 
     forbidden = _forbidden_claims(sid, net_sum > 0, first_neg_proj is not None or first_neg_hist is not None)
 
+    sources = dict(getattr(params, "field_sources", None) or {})
+    # Hand-authored packs without provenance: treat present scalars as stated.
+    if not sources:
+        for key in (
+            "monthly_revenue_start_eur",
+            "monthly_revenue_growth",
+            "days_sales_outstanding",
+            "days_payables_outstanding",
+            "target_cash_at_end_eur",
+            "starting_cash_eur",
+            "cost_shares_of_revenue",
+            "special_investment_eur",
+        ):
+            if getattr(params, key, None) is not None:
+                sources[key] = "stated"
+    assumed_fields = sorted(k for k, v in sources.items() if v == "assumed")
+
+    sales_total = round(
+        sum(i.amount_incl_vat for i in cash.open_invoices if i.type == "sales"), 2
+    )
+    purchase_total = round(
+        sum(i.amount_incl_vat for i in cash.open_invoices if i.type == "purchase"), 2
+    )
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scenario": sid,
         "parameters": params.model_dump(),
+        "true_parameters": params.model_dump(),
+        "field_sources": sources,
+        "assumed_fields": assumed_fields,
+        "expected_first_negative_cash_week": (
+            first_neg_proj.week
+            if first_neg_proj
+            else (first_neg_hist.week if first_neg_hist else None)
+        ),
+        "invoice_totals": {
+            "open_sales_incl_vat_eur": sales_total,
+            "open_purchases_incl_vat_eur": purchase_total,
+            "open_sales_count": sum(1 for i in cash.open_invoices if i.type == "sales"),
+            "open_purchases_count": sum(
+                1 for i in cash.open_invoices if i.type == "purchase"
+            ),
+        },
         "parameter_field_map_srs_6_1": {
             "revenue_level_eur_month": "monthly_revenue_start_eur",
             "monthly_growth_pct": "monthly_revenue_growth (*100 for percent)",
@@ -157,6 +197,11 @@ def build_answer_key(pack: ScenarioPack) -> dict[str, Any]:
             "payment_terms_suppliers_days": "days_payables_outstanding",
             "cash_target_week": "derived from first_negative_projection_week / history",
             "number_of_months": "options.months",
+            "starting_cash_eur": "starting_cash_eur",
+            "growth_per_month_fraction": "monthly_revenue_growth",
+            "dso_days": "days_sales_outstanding",
+            "dpo_days": "days_payables_outstanding",
+            "covenant_min_cash_eur": "target_cash_at_end_eur / covenant_min_cash_eur",
         },
         "key_findings": key_findings,
         "month_over_month_revenue": mom_pairs,

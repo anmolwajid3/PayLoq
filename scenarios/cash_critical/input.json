@@ -32,6 +32,18 @@
     "special_investment_eur": 80000,
     "special_investment_month": 2,
     "notes": "Positive P&L; purchase invoices cluster before sales collections (~week 3).",
-    "partly_fixed_costs": true
+    "partly_fixed_costs": true,
+    "starting_cash_eur": 110000.0,
+    "covenant_min_cash_eur": 45000,
+    "field_sources": {
+      "monthly_revenue_start_eur": "stated",
+      "monthly_revenue_growth": "stated",
+      "cost_shares_of_revenue": "stated",
+      "days_sales_outstanding": "stated",
+      "days_payables_outstanding": "stated",
+      "target_cash_at_end_eur": "stated",
+      "starting_cash_eur": "stated",
+      "special_investment_eur": "stated"
+    }
   }
 }

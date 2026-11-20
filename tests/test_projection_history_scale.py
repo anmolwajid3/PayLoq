@@ -92,8 +92,8 @@ def test_cash_turning_critical_later_timing_aligned() -> None:
     assert not hard, hard
 
 
-def test_severe_scale_mismatch_is_blocking() -> None:
-    """Validator escalates >5× scale mismatch to error (not soft warning)."""
+def test_severe_scale_mismatch_is_warning_not_blocking() -> None:
+    """Work order D: >5× scale mismatch is a warning; run stays non-blocking on scale alone."""
     inp = load_input(SCENARIOS / "good" / "input.json")
     pack = generate_pack(inp, seed=42)
     # Flatten history around ending cash with tiny week moves (no end snap cliff).
@@ -108,10 +108,15 @@ def test_severe_scale_mismatch_is_blocking() -> None:
     result = validate_pack(pack)
     scale = [i for i in result.issues if i.code == "projection_history_scale"]
     assert scale, "expected projection_history_scale issue"
-    assert scale[0].severity == "error"
+    assert scale[0].severity == "warning"
     assert scale[0].rule_id == "VR-08"
     assert (scale[0].numbers or {}).get("ratio", 0) > PROJECTION_HISTORY_SCALE_RATIO
-    assert not result.ok
+    scale_errs = [i for i in scale if i.severity == "error"]
+    assert not scale_errs
+    # Scale alone must not flip ok → False (other hard errors may still fail the pack).
+    assert not any(
+        i.code == "projection_history_scale" and i.severity == "error" for i in result.issues
+    )
 
 
 def test_early_proj_vs_late_hist_timing_is_blocking() -> None:

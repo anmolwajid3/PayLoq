@@ -26,6 +26,7 @@ def write_scenario_xlsx(
     _history_sheet(wb.create_sheet("Balance history"), pack)
     _invoices_sheet(wb.create_sheet("Open invoices"), pack)
     _projection_sheet(wb.create_sheet("Projection"), pack)
+    _assumptions_sheet(wb.create_sheet("Assumptions"), pack)
     if include_journal and pack.journal_entries is not None:
         _journal_sheet(wb.create_sheet("Journal entries"), pack)
 
@@ -212,6 +213,38 @@ def _projection_sheet(ws, pack: ScenarioPack) -> None:
         ws.append(
             [w.week, w.week_end, w.sales_inflow, w.purchase_outflow, w.projected_balance]
         )
+
+
+def _assumptions_sheet(ws, pack: ScenarioPack) -> None:
+    """Work order F: list every value with source: assumed."""
+    params = pack.input.parameters_from_language_model
+    sources = dict(getattr(params, "field_sources", None) or {})
+    ws.append(
+        [
+            "Kenttä / Field",
+            "Arvo / Value",
+            "Lähde / Source",
+        ]
+    )
+    dump = params.model_dump()
+    assumed_rows = 0
+    for key, value in dump.items():
+        if key == "field_sources":
+            continue
+        src = sources.get(key)
+        if src != "assumed":
+            # Nested cost shares may be assumed per-component
+            if key == "cost_shares_of_revenue" and isinstance(value, dict):
+                for sk, sv in value.items():
+                    nested_src = sources.get(f"cost_shares_of_revenue.{sk}") or sources.get(key)
+                    if nested_src == "assumed":
+                        ws.append([f"cost_shares_of_revenue.{sk}", sv, "assumed"])
+                        assumed_rows += 1
+            continue
+        ws.append([key, str(value), "assumed"])
+        assumed_rows += 1
+    if assumed_rows == 0:
+        ws.append(["(none)", "", "stated"])
 
 
 def _journal_sheet(ws, pack: ScenarioPack) -> None:
