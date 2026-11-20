@@ -1,6 +1,7 @@
-"""NL → parameters pipeline: extract (B) → stated checks (C) → assume (D).
+"""NL → parameters pipeline: extract (B) → clean → value ground (C) → assume (D).
 
 Code calculates; the LLM only returns stated values (null when unstated).
+Grounding is value-based (numbers in the description), not quote-string matching.
 """
 
 from __future__ import annotations
@@ -8,17 +9,19 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from payloq_llm.assume import apply_assumed_defaults, drop_incomplete_one_off_events
+from payloq_llm.nl_cash_intent import looks_cash_critical
 from payloq_llm.stated_checks import (
     apply_annual_to_monthly,
     check_growth_bounds,
     check_one_off_events,
-    check_stated_quotes,
+    check_stated_values,
+    clean_extraction_output,
+    enforce_required_one_offs,
     map_b_parameters_to_engine,
     normalize_stated_map,
 )
 from payloq_schemas.models import ParametersFromLanguageModel
 from payloq_schemas.scenario_shape_ranges import profile_for_shape
-
 
 
 def normalize_aliases(data: dict[str, Any]) -> dict[str, Any]:
@@ -56,15 +59,25 @@ def finalize_extracted_parameters(
     llm_model_name: str | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], Any]:
     """
-    Full post-extract path: B normalize → C stated checks → annual convert → D assume.
+    Full post-extract path: B normalize → clean → C value ground → annual → D assume.
 
     Returns (params_dict, change_log, stated_check_result).
     When stated_check.ok is False, caller should retry the LLM once.
     """
     _ = require_starting_cash
     envelope = normalize_extraction_payload(raw_data)
-    scenario_shape = envelope.get("scenario_shape") or "unspecified"
+    scenario_shape = str(envelope.get("scenario_shape") or "unspecified").strip().lower()
     scenario_shape_quote = envelope.get("scenario_shape_quote")
+    # Code interprets cash-stress cues: upgrade under-classified shapes so the
+    # generator profile can produce a falling projection (TC-A).
+    if looks_cash_critical(description) and scenario_shape in {
+        "unspecified",
+        "healthy",
+        "weak",
+        "cash_tight",
+        "",
+    }:
+        scenario_shape = "cash_critical"
     parameters = dict(envelope.get("parameters") or {})
     stated = normalize_stated_map(envelope.get("stated") or {}, parameters)
     # Options fields echo request config, not extractable NL params — never keep in
@@ -72,17 +85,17 @@ def finalize_extracted_parameters(
     for opt_key in ("industry", "company_size"):
         stated.pop(opt_key, None)
 
-    for key in list(parameters.keys()):
-        if key in {"one_off_events", "industry", "company_size"}:
-            continue
-        if key not in stated and parameters.get(key) == 0:
-            parameters[key] = None
+    # TC-ABC item 3: clean before validation.
+    parameters, stated, clean_warnings = clean_extraction_output(
+        parameters, stated, description
+    )
 
-    stated_result = check_stated_quotes(
+    stated_result = check_stated_values(
         description=description,
         stated=stated,
         parameters=parameters,
     )
+    stated_result.warnings.extend(clean_warnings)
 
     growth = parameters.get("growth_per_month_fraction")
     if growth is None:
@@ -101,12 +114,22 @@ def finalize_extracted_parameters(
         stated_result.issues.extend(event_issues)
         stated_result.ok = False
 
+    # TC-ABC item 4: required one-offs from description must be present with
+    # matching direction — never drop silently.
+    one_off_req_issues = enforce_required_one_offs(
+        parameters.get("one_off_events"), description
+    )
+    if one_off_req_issues:
+        stated_result.issues.extend(one_off_req_issues)
+        stated_result.ok = False
+
     if not stated_result.ok:
         return {
             "scenario_shape": scenario_shape,
             "scenario_shape_quote": scenario_shape_quote,
             "stated": stated,
             "parameters": parameters,
+            "warnings": list(stated_result.warnings),
         }, [], stated_result
 
     parameters, conv_changes = apply_annual_to_monthly(parameters)
@@ -151,6 +174,16 @@ def finalize_extracted_parameters(
         scenario_shape=scenario_shape,
     )
     changes = list(conv_changes) + list(assume_changes)
+    for w in stated_result.warnings:
+        changes.append(
+            {
+                "field": "_clean",
+                "original": None,
+                "clipped": None,
+                "message": w,
+                "source": "clean_output",
+            }
+        )
     filled.pop("_assume_meta", None)
     filled["conversion_notes"] = list(conv_changes)
     filled["llm_model_name"] = llm_model_name

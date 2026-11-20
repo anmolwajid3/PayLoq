@@ -30,10 +30,13 @@ Never put one number in two fields. Do not calculate. Do not convert annual to m
   }
 }
 HARD RULES:
-- Only list a field in "stated" if the description states it; give the exact quote.
+- Only list a field in "stated" if the description states it. Quotes are optional
+  evidence; code grounds by numeric value, not quote-string matching.
 - Extract ONLY numbers that appear in the description (after k/M/million/%/€ parsing).
 - If starting_cash_eur is not stated, return null (code will assume it).
 - CAPEX / investment one-offs use direction "outflow".
+- When the description states a one-off with amount, month, and inflow/outflow,
+  you MUST return that event (never an empty list).
 - Do not invent absolute P&L or balance-sheet figures — code computes those.
 """.strip()
 
@@ -76,20 +79,21 @@ def parameter_extraction_prompt(
 
 def parameter_repair_prompt(previous: str, error: str) -> str:
     return (
-        "Your previous JSON failed PayLoq parameter checks (schema and/or stated-quote).\n"
+        "Your previous JSON failed PayLoq parameter checks (schema and/or value grounding).\n"
         f"Error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
         "Return corrected JSON only (section B schema). Use null for unstated fields. "
-        "Every field in stated must have an exact quote from the description, and the "
-        "value must appear in that quote after parsing units (k, M, million, %, €). "
-        "Do not invent defaults. Do not retry with the same wrong numbers.\n"
+        "Every stated number MUST appear in the description after parsing units "
+        "(k, M, million, %, €). Quotes are optional — do not invent quote text. "
+        "If the description states a one-off with amount, month, and direction, "
+        "include that event. Do not invent defaults. Do not retry with the same wrong numbers.\n"
     )
 
 
 def parameter_grounding_repair_prompt(previous: str, grounding_error: str) -> str:
     return (
-        "Stated-quote check failed: quotes must appear in the description and values "
-        "must appear in those quotes.\n"
+        "Value grounding failed: stated numbers must appear in the description "
+        "after parsing units (k, M, million, %, €). Quotes are optional.\n"
         f"{grounding_error}\n\n"
         f"Previous response:\n{previous}\n\n"
         "Return corrected JSON only. Fix the named fields. Use null when unstated.\n"
