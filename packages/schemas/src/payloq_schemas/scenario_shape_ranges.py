@@ -82,6 +82,7 @@ def overlay_shape_on_drawn(
     digest = hashlib.sha256(material).hexdigest()
     rng = random.Random(int(digest[:16], 16))
     out = dict(drawn)
+    # Iterate the config table in its declared order (fresh RNG from seed each call).
     for field, (lo, hi) in ranges.items():
         if hi < lo:
             lo, hi = hi, lo
