@@ -1,0 +1,54 @@
+{
+  "en": {
+    "sales_counterparties": [
+      "Northwind Metals",
+      "Harbour Components",
+      "Lakeside Engineering",
+      "Cedar Tools"
+    ],
+    "purchase_counterparties": [
+      "Ostrobothnia Steel",
+      "Grid Power",
+      "Workshop Supply",
+      "Nordic Freight"
+    ],
+    "sales_descriptions": [
+      "Machined parts",
+      "Repair work",
+      "Subcontract milling",
+      "Spare parts"
+    ],
+    "purchase_descriptions": [
+      "Steel plate",
+      "Cutting tools",
+      "Electricity",
+      "Freight"
+    ]
+  },
+  "fi": {
+    "sales_counterparties": [
+      "Pohjolan Metalli",
+      "Satamakomponentit",
+      "Jarvikone",
+      "Honkapaja"
+    ],
+    "purchase_counterparties": [
+      "Terashuolto",
+      "Sahkoverkko",
+      "Pajatarvike",
+      "Pohjolan Kuljetus"
+    ],
+    "sales_descriptions": [
+      "Koneistetut osat",
+      "Korjaustyo",
+      "Alihankintajyrsinta",
+      "Varaosat"
+    ],
+    "purchase_descriptions": [
+      "Teräslevy",
+      "Terat",
+      "Sahko",
+      "Rahti"
+    ]
+  }
+}

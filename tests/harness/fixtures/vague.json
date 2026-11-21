@@ -1,0 +1,19 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": null,
+  "expect": {
+    "cash_shape": "critical_early",
+    "broken_receivables": false
+  },
+  "id": "vague",
+  "scenario_shape": "cash_critical",
+  "scenario_shape_quote": "cash is tight now and critical in three weeks",
+  "lead": "A small machine shop, cash is tight now and critical in three weeks.",
+  "stated_order": [],
+  "quotes": {},
+  "ranges": {}
+}

@@ -1,0 +1,30 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": null,
+  "expect": {
+    "cash_shape": null,
+    "broken_receivables": false
+  },
+  "id": "annual_revenue",
+  "scenario_shape": "unspecified",
+  "scenario_shape_quote": "states annual revenue only",
+  "lead": "A small machine shop states annual revenue only.",
+  "stated_order": [
+    "revenue_annual_eur"
+  ],
+  "quotes": {
+    "revenue_annual_eur": "Annual revenue {revenue_annual_eur} euro."
+  },
+  "ranges": {
+    "revenue_annual_eur": {
+      "min": 80000,
+      "max": 240000,
+      "step": 1000,
+      "times": 12
+    }
+  }
+}

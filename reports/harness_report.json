@@ -1,0 +1,198 @@
+{
+  "tier": "fixture",
+  "command": "pytest tests/harness -q",
+  "seeds": [
+    1,
+    2,
+    3,
+    42,
+    99
+  ],
+  "caches": [
+    {
+      "file": "apps/api/src/payloq_api/config.py",
+      "line": 53,
+      "name": "get_settings"
+    },
+    {
+      "file": "apps/api/src/payloq_api/db.py",
+      "line": 11,
+      "name": "_engine"
+    },
+    {
+      "file": "packages/schemas/src/payloq_schemas/field_map.py",
+      "line": 60,
+      "name": "load_field_map"
+    }
+  ],
+  "table": {
+    "good": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "weak": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "cash_in_trouble": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "invoices_out_of_balance": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "cash_turning_critical": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "vague": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "fully_stated": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "partly_stated": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "one_off_inflow": {
+      "1": "status",
+      "2": "PASS",
+      "3": "status",
+      "42": "status",
+      "99": "PASS"
+    },
+    "no_one_off": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "annual_revenue": {
+      "1": "PASS",
+      "2": "status",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "status"
+    },
+    "months_24": {
+      "1": "PASS",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "finnish": {
+      "1": "PASS",
+      "2": "status",
+      "3": "PASS",
+      "42": "status",
+      "99": "PASS"
+    },
+    "stub": {
+      "1": "PASS",
+      "2": "—",
+      "3": "—",
+      "42": "—",
+      "99": "—"
+    },
+    "ollama-unreachable": {
+      "1": "PASS",
+      "2": "—",
+      "3": "—",
+      "42": "—",
+      "99": "—"
+    }
+  },
+  "failures": [
+    {
+      "scenario": "one_off_inflow",
+      "seed": 1,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 3,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 42,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 2,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 99,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "finnish",
+      "seed": 2,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    },
+    {
+      "scenario": "finnish",
+      "seed": 42,
+      "check": "status",
+      "expected": "four output files written (run status ok)",
+      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
+      "file": "input.json"
+    }
+  ],
+  "summary": {
+    "cells": 67,
+    "passed": 60,
+    "failed": 7
+  }
+}

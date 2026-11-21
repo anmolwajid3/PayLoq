@@ -1,0 +1,51 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": {
+    "type": "grant",
+    "direction": "inflow",
+    "amount": {
+      "min": 40000,
+      "max": 120000,
+      "step": 1000
+    },
+    "month": {
+      "min": 2,
+      "max": 6,
+      "step": 1
+    }
+  },
+  "expect": {
+    "cash_shape": null,
+    "broken_receivables": false
+  },
+  "id": "one_off_inflow",
+  "scenario_shape": "healthy",
+  "scenario_shape_quote": "receives a one-off inflow",
+  "lead": "A small machine shop receives a one-off inflow.",
+  "stated_order": [
+    "revenue_monthly_eur",
+    "starting_cash_eur",
+    "one_off_events"
+  ],
+  "quotes": {
+    "revenue_monthly_eur": "Monthly revenue {revenue_monthly_eur} euro.",
+    "starting_cash_eur": "Starting cash {starting_cash_eur} euro.",
+    "one_off_events": "One-off inflow of {one_off_amount_eur} euro in month {one_off_month}."
+  },
+  "ranges": {
+    "revenue_monthly_eur": {
+      "min": 100000,
+      "max": 200000,
+      "step": 1000
+    },
+    "starting_cash_eur": {
+      "min": 80000,
+      "max": 180000,
+      "step": 1000
+    }
+  }
+}
