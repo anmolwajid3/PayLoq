@@ -126,6 +126,16 @@ def format_field_value(row: FieldMapRow, value: Any, *, lang: str = "en") -> str
             return f"{float(value) * 100:.4g}%"
         except (TypeError, ValueError):
             return str(value)
+    if fmt == "percent":
+        try:
+            return f"{float(value):.4g}%"
+        except (TypeError, ValueError):
+            return str(value)
+    if fmt == "count":
+        try:
+            return f"{float(value):.0f}"
+        except (TypeError, ValueError):
+            return str(value)
     if fmt == "days":
         try:
             return f"{float(value):.0f} days" if lang != "fi" else f"{float(value):.0f} pv"
@@ -150,6 +160,29 @@ def format_field_value(row: FieldMapRow, value: Any, *, lang: str = "en") -> str
     return str(value)
 
 
+def _summary_source(
+    *,
+    keys: tuple[str, ...],
+    sources: dict[str, Any],
+    stated_values: dict[str, Any],
+) -> str | None:
+    """Stated wins, then derived, then assumed or any other recorded source."""
+    saw_derived = False
+    saw_other: str | None = None
+    for key in keys:
+        if sources.get(key) == "stated" or (
+            key in stated_values and stated_values.get(key) not in (None, "")
+        ):
+            return "stated"
+        if sources.get(key) == "derived":
+            saw_derived = True
+        elif key in sources and saw_other is None:
+            saw_other = str(sources[key])
+    if saw_derived:
+        return "derived"
+    return saw_other
+
+
 def build_field_summary_rows(
     *,
     params: dict[str, Any] | None,
@@ -168,18 +201,11 @@ def build_field_summary_rows(
         value = read_output_location(
             params=params, options=options, location=row.output_location
         )
-        source = None
-        # Stated provenance: field_sources first, else presence in stated_values
-        # (option fields like industry/company_size live in stated_values only).
-        for key in (row.output_key, row.input_name, *row.engine_keys):
-            if sources.get(key) == "stated" or (
-                key in stated_values and stated_values.get(key) is not None
-            ):
-                source = "stated"
-                break
-            if key in sources:
-                source = sources[key]
-                break
+        source = _summary_source(
+            keys=(row.output_key, row.input_name, *row.engine_keys),
+            sources=sources,
+            stated_values=stated_values,
+        )
         rows.append(
             {
                 "input_name": row.input_name,

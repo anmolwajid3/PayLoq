@@ -34,11 +34,15 @@ EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
             "required": [
                 "revenue_monthly_eur",
                 "revenue_annual_eur",
-                "growth_per_month_fraction",
+                "growth_per_month_percent",
                 "starting_cash_eur",
                 "covenant_min_cash_eur",
                 "dso_days",
                 "dpo_days",
+                "dso_weeks",
+                "dpo_weeks",
+                "dso_months",
+                "dpo_months",
                 "one_off_events",
                 "industry",
                 "company_size",
@@ -46,12 +50,15 @@ EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
             "properties": {
                 "revenue_monthly_eur": {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "description": "Monthly revenue only if that monthly figure is written. Never annual/12.",
                 },
                 "revenue_annual_eur": {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "description": "Annual revenue only if that annual figure is written. Never monthly*12.",
                 },
-                "growth_per_month_fraction": {
+                "growth_per_month_percent": {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "description": "Percent figure as written (0.5 for 0.5%). Never the decimal.",
                 },
                 "starting_cash_eur": {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
@@ -59,8 +66,18 @@ EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
                 "covenant_min_cash_eur": {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
                 },
-                "dso_days": {"anyOf": [{"type": "number"}, {"type": "null"}]},
-                "dpo_days": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "dso_days": {
+                    "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "description": "Only when the description states days. Null if weeks or months.",
+                },
+                "dpo_days": {
+                    "anyOf": [{"type": "number"}, {"type": "null"}],
+                    "description": "Only when the description states days. Null if weeks or months.",
+                },
+                "dso_weeks": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "dpo_weeks": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "dso_months": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                "dpo_months": {"anyOf": [{"type": "number"}, {"type": "null"}]},
                 "one_off_events": {
                     "type": "array",
                     "items": {

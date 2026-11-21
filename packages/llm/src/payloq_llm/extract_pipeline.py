@@ -11,7 +11,6 @@ from typing import Any, Callable
 from payloq_llm.assume import apply_assumed_defaults, drop_incomplete_one_off_events
 from payloq_llm.nl_cash_intent import looks_cash_critical
 from payloq_llm.stated_checks import (
-    apply_annual_to_monthly,
     check_growth_bounds,
     check_one_off_events,
     check_stated_values,
@@ -20,6 +19,7 @@ from payloq_llm.stated_checks import (
     map_b_parameters_to_engine,
     normalize_stated_map,
 )
+from payloq_llm.stated_only import apply_derivations, prepare_stated_only_model
 from payloq_schemas.field_map import b_to_engine_from_map
 from payloq_schemas.models import ParametersFromLanguageModel
 from payloq_schemas.scenario_shape_ranges import profile_for_shape
@@ -81,6 +81,16 @@ def finalize_extracted_parameters(
         scenario_shape = "cash_critical"
     parameters = dict(envelope.get("parameters") or {})
     stated = normalize_stated_map(envelope.get("stated") or {}, parameters)
+
+    # TC-ABC item 3: clean before validation.
+    parameters, stated, clean_warnings = clean_extraction_output(
+        parameters, stated, description
+    )
+    # Model output keeps only directly stated fields. Conversions are stripped
+    # and reapplied below with source "derived".
+    parameters, stated, stated_only_warnings = prepare_stated_only_model(
+        parameters, stated, description
+    )
     # Options fields echo request config in field_quotes (H8 stability) but their
     # stated values are kept in stated_values for generic field-map fidelity.
     option_stated_values: dict[str, Any] = {}
@@ -89,25 +99,13 @@ def finalize_extracted_parameters(
             option_stated_values[opt_key] = parameters[opt_key]
         stated.pop(opt_key, None)
 
-    # TC-ABC item 3: clean before validation.
-    parameters, stated, clean_warnings = clean_extraction_output(
-        parameters, stated, description
-    )
-
     stated_result = check_stated_values(
         description=description,
         stated=stated,
         parameters=parameters,
     )
     stated_result.warnings.extend(clean_warnings)
-
-    growth = parameters.get("growth_per_month_fraction")
-    if growth is None:
-        growth = parameters.get("monthly_revenue_growth")
-    g_issue = check_growth_bounds(growth if growth is not None else None)
-    if g_issue is not None and growth is not None:
-        stated_result.issues.append(g_issue)
-        stated_result.ok = False
+    stated_result.warnings.extend(stated_only_warnings)
 
     cleaned_events, _drop = drop_incomplete_one_off_events(parameters.get("one_off_events"))
     parameters["one_off_events"] = cleaned_events
@@ -136,18 +134,40 @@ def finalize_extracted_parameters(
             "warnings": list(stated_result.warnings),
         }, [], stated_result
 
-    parameters, conv_changes = apply_annual_to_monthly(parameters)
+    parameters, derived_records = apply_derivations(parameters)
+    growth = parameters.get("growth_per_month_fraction")
+    if growth is None:
+        growth = parameters.get("monthly_revenue_growth")
+    g_issue = check_growth_bounds(growth if growth is not None else None)
+    if g_issue is not None and growth is not None:
+        stated_result.issues.append(g_issue)
+        stated_result.ok = False
+        return {
+            "scenario_shape": scenario_shape,
+            "scenario_shape_quote": scenario_shape_quote,
+            "stated": stated,
+            "parameters": parameters,
+            "warnings": list(stated_result.warnings),
+        }, [], stated_result
+
     engine = map_b_parameters_to_engine(parameters)
+    b_to_eng = b_to_engine_from_map()
+    derived_keys = {
+        str(key)
+        for rec in derived_records
+        for key in (rec.get("keys") or [rec["field"]])
+    }
 
     stated_values: dict[str, Any] = dict(option_stated_values)
-    b_to_eng = b_to_engine_from_map()
-    for b_name in stated:
-        if b_name in parameters and parameters[b_name] is not None:
-            stated_values[b_name] = parameters[b_name]
+    for b_name in sorted(stated):
+        if parameters.get(b_name) is None or parameters.get(b_name) == "":
+            continue
+        stated_values[b_name] = parameters[b_name]
         eng = b_to_eng.get(b_name, b_name)
-        if eng in engine and engine[eng] is not None:
+        if eng in derived_keys:
+            continue
+        if eng != b_name and engine.get(eng) is not None:
             stated_values[eng] = engine[eng]
-            stated_values[b_name] = engine[eng]
     if "one_off_events" in stated and parameters.get("one_off_events") is not None:
         stated_values["one_off_events"] = parameters.get("one_off_events")
         if engine.get("one_off_events") is not None:
@@ -156,7 +176,14 @@ def finalize_extracted_parameters(
     resolved_industry = parameters.get("industry") or industry
     resolved_size = parameters.get("company_size") or company_size
 
-    sources = {k: "stated" for k in sorted(engine) if engine.get(k) is not None}
+    sources: dict[str, str] = {key: "derived" for key in sorted(derived_keys)}
+    for b_name in sorted(stated):
+        if parameters.get(b_name) is None or parameters.get(b_name) == "":
+            continue
+        sources[b_name] = "stated"
+        eng = b_to_eng.get(b_name, b_name)
+        if eng not in derived_keys:
+            sources[eng] = "stated"
     # Option fields stated in extraction: record provenance for Run summary.
     for opt_key in sorted(option_stated_values):
         opt_val = option_stated_values[opt_key]
@@ -181,7 +208,7 @@ def finalize_extracted_parameters(
         require_starting_cash=False,
         scenario_shape=scenario_shape,
     )
-    changes = list(conv_changes) + list(assume_changes)
+    changes = list(derived_records) + list(assume_changes)
     for w in stated_result.warnings:
         changes.append(
             {
@@ -193,7 +220,8 @@ def finalize_extracted_parameters(
             }
         )
     filled.pop("_assume_meta", None)
-    filled["conversion_notes"] = list(conv_changes)
+    filled["derived_values"] = list(derived_records)
+    filled["conversion_notes"] = list(derived_records)
     filled["llm_model_name"] = llm_model_name
     filled["extraction_seed"] = seed
     filled["field_quotes"] = dict(sorted(engine["field_quotes"].items()))

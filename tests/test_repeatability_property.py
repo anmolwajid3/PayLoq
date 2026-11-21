@@ -51,6 +51,17 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _assert_cash_triangle(out: Path) -> None:
+    """Blocking rule: last history cash == latest cash == last monthly cash."""
+    monthly = json.loads((out / "monthly_reports.json").read_text(encoding="utf-8"))
+    cash = json.loads((out / "cash_and_invoices.json").read_text(encoding="utf-8"))
+    hist_last = float(cash["balance_history"][-1]["balance"])
+    last_monthly = float(monthly["months"][-1]["balance_sheet"]["assets"]["cash"])
+    latest = last_monthly
+    assert abs(hist_last - latest) <= 0.02, (hist_last, latest, last_monthly)
+    assert abs(latest - last_monthly) <= 0.02
+
+
 def _random_envelope(rng: random.Random) -> tuple[str, dict, str, str, int, int, str | None]:
     """Build one random valid description + extraction envelope + run config."""
     seed = rng.randint(1, 50_000)
@@ -74,7 +85,7 @@ def _random_envelope(rng: random.Random) -> tuple[str, dict, str, str, int, int,
         "industry": industry,
         "company_size": size,
         "revenue_monthly_eur": float(rev),
-        "growth_per_month_fraction": None,
+        "growth_per_month_percent": None,
         "starting_cash_eur": None,
         "covenant_min_cash_eur": None,
         "dso_days": None,
@@ -83,8 +94,9 @@ def _random_envelope(rng: random.Random) -> tuple[str, dict, str, str, int, int,
     parts.append(f"Monthly revenue {rev} euro.")
     stated["revenue_monthly_eur"] = parts[-1]
 
+    growth_percent = round(growth * 100.0, 4)
     for key, value, phrase in (
-        ("growth_per_month_fraction", float(growth), f"Growth {growth * 100:.3f}% per month."),
+        ("growth_per_month_percent", float(growth_percent), f"Growth {growth_percent}% per month."),
         ("starting_cash_eur", float(start), f"Starting cash {start} euro."),
         ("covenant_min_cash_eur", float(cov), f"Bank minimum cash {cov} euro."),
         ("dso_days", float(dso), f"DSO {dso} days."),
@@ -273,6 +285,7 @@ def test_repeatability_50_random_descriptions_inprocess_and_subprocess(tmp_path:
                 inp, out, seed=seed, write_xlsx=False, max_seed_attempts=5
             )
             assert outcome.ok, outcome.validation.failing_rule_ids()
+            _assert_cash_triangle(out)
             hashes.append({name: _sha256(out / name) for name in FILES})
 
         inp_sub = _finalize_input(
@@ -289,6 +302,7 @@ def test_repeatability_50_random_descriptions_inprocess_and_subprocess(tmp_path:
         sub_out.mkdir(parents=True, exist_ok=True)
         sub = _run_subprocess(inp_sub, seed, sub_out)
         assert sub["ok"], sub
+        _assert_cash_triangle(sub_out)
         hashes.append(sub["hashes"])
 
         if any(h != hashes[0] for h in hashes):

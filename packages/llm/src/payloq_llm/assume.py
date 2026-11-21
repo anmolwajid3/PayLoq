@@ -285,6 +285,15 @@ def apply_assumed_defaults(
         else:
             sources.setdefault("cost_shares_of_revenue", "stated")
 
+    # Assumed growth is drawn as a fraction. The schema field is the percent figure.
+    if (
+        sources.get("monthly_revenue_growth") == "assumed"
+        and out.get("growth_per_month_percent") in (None, "")
+        and out.get("monthly_revenue_growth") is not None
+    ):
+        out["growth_per_month_percent"] = round(float(out["monthly_revenue_growth"]) * 100.0, 10)
+        sources["growth_per_month_percent"] = "assumed"
+
     if out.get("partly_fixed_costs") is None:
         out["partly_fixed_costs"] = shape in {"weak", "cash_tight", "cash_critical"}
         sources["partly_fixed_costs"] = "assumed"

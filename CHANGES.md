@@ -106,6 +106,24 @@ Same input + seed + code → byte-identical `input.json` / `monthly_reports.json
 | `packages/validate/.../checks.py` | `_check_cash` | Blocking VR-07: last history == latest cash == last monthly cash. |
 | `tests/test_repeatability_property.py` | **new** | 50 random descriptions × 3 in-process + 1 subprocess SHA-256; cash triangle; stale-dir clear. |
 
+## F4. Stated-only model, derived in code
+
+The extraction schema asks only for numbers written in the description. Annual totals, percent-to-decimal growth, and days from weeks or months are computed in code with source `derived` and the formula. Unstated model fields are null. No test-specific inputs.
+
+| File | Change |
+| --- | --- |
+| `packages/llm/.../extraction_schema.py` | Drop `growth_per_month_fraction`. Add `growth_per_month_percent`, `dso_weeks`, `dpo_weeks`, `dso_months`, `dpo_months`. |
+| `packages/llm/.../prompts.py` | Model must not calculate, convert, annualise, or infer. Null if not written. |
+| `packages/llm/.../stated_only.py` | **new** formula table + stated-only cleanup. |
+| `packages/llm/.../extract_pipeline.py` | Strip conversions, derive, record `derived_values` / `field_sources=derived`. |
+| `packages/schemas/.../models.py` | `ParamSource` includes `derived`. Store percent, period counts, `derived_values`. |
+| `packages/schemas/.../field_map.json` | Map matches the schema (web copy updated). Growth row is the written percent (`format: percent`, `numeric_near`). Weeks/months rows use `format: count`. |
+| `packages/llm/.../assume.py` | When growth is assumed, also set `growth_per_month_percent` = fraction × 100 (source `assumed`). |
+| `packages/llm/.../nl_cash_intent.py` | A lone `m` is not millions when it starts the word `month`/`months`. |
+| `packages/llm/.../stated_checks.py` | Event months match `in month N`, not a DSO duration of `N months`. Literal number scan can skip percent/100 and thousands-group fragments. |
+| `tests/test_stated_only_derived.py` | **new** 50 random subsets: unstated model fields null; derived values match formulas. |
+| `tests/test_repeatability_property.py` | Descriptions state the percent, not the decimal. Cash triangle on every in-process and subprocess run. |
+
 ## G. Removals (finish)
 
 | File | Function / symbol | Change |
