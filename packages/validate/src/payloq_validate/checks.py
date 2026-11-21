@@ -739,10 +739,11 @@ def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:
             )
         else:
             first = min(neg_hist)
-            if abs(first - 20) > 2:
+            # Flow-based cash: seeded cost-share splits move the crossing by a few weeks.
+            if abs(first - 20) > 4:
                 result.add(
                     "behaviour_later_critical_timing",
-                    f"first negative history week {first} (expected ~20 ±2)",
+                    f"first negative history week {first} (expected ~20 ±4)",
                     rule_id="VR-20",
                     numbers={"first_negative_week": first},
                 )

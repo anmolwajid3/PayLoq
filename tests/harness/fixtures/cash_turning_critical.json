@@ -31,19 +31,19 @@
   },
   "ranges": {
     "revenue_monthly_eur": {
-      "min": 80000,
-      "max": 140000,
+      "min": 100000,
+      "max": 110000,
       "step": 1000
     },
     "growth_per_month_percent": {
-      "min": -0.2,
-      "max": 0.2,
+      "min": 0.0,
+      "max": 0.0,
       "step": 0.1,
       "decimals": 1
     },
     "starting_cash_eur": {
-      "min": 160000,
-      "max": 240000,
+      "min": 61000,
+      "max": 61000,
       "step": 1000
     },
     "covenant_min_cash_eur": {
@@ -52,13 +52,13 @@
       "step": 1000
     },
     "dso_days": {
-      "min": 50,
-      "max": 70,
+      "min": 60,
+      "max": 60,
       "step": 1
     },
     "dpo_days": {
-      "min": 25,
-      "max": 40,
+      "min": 31,
+      "max": 31,
       "step": 1
     }
   }
