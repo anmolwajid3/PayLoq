@@ -9,7 +9,13 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from payloq_schemas.constants import CORPORATE_TAX_RATE, VAT_RATE_FI
+from payloq_schemas.constants import (
+    CORPORATE_TAX_RATE,
+    FIXED_DEPRECIATION_MONTHLY_EUR,
+    INTEREST_ANNUAL_RATE,
+    LOAN_ANCHOR_EUR,
+    VAT_RATE_FI,
+)
 from payloq_schemas.models import (
     Assets,
     BalanceHistoryPoint,
@@ -102,6 +108,11 @@ def _infer_profile(inp: GeneratorInput) -> str:
                     return mapped
         except ImportError:  # pragma: no cover
             pass
+    if shape == "unspecified":
+        # No stated or assumed shape: custom pack, so no healthy/weak/critical rules
+        # apply. Defaulting to "good" made the validator demand profit the cost
+        # base never guaranteed.
+        return "custom"
     g = inp.parameters_from_language_model.monthly_revenue_growth
     cash = inp.parameters_from_language_model.target_cash_at_end_eur
     if g < -0.005:
@@ -434,7 +445,7 @@ def _generate_months(
     # Opening BS anchors (deterministic, CPU-friendly)
     fixed_assets = 300_000.0
     equity0 = 245_000.0 if profile == "good" else 210_000.0
-    loans = 480_000.0
+    loans = LOAN_ANCHOR_EUR
     # Work order C: starting_cash_eur is authoritative when provided.
     if getattr(params, "starting_cash_eur", None) is not None:
         cash0 = float(params.starting_cash_eur)
@@ -455,8 +466,8 @@ def _generate_months(
     base_personnel = start_rev * shares.personnel
     base_other = start_rev * shares.other
 
-    dep_monthly = 6_000.0
-    interest_annual_rate = 0.045
+    dep_monthly = FIXED_DEPRECIATION_MONTHLY_EUR
+    interest_annual_rate = INTEREST_ANNUAL_RATE
 
     months: list[MonthlyReport] = []
     equity = equity0
@@ -562,7 +573,7 @@ def _generate_months(
         cash = _r(cash_path)
 
         loan_floor = 100_000.0
-        loans = _r(max(loan_floor, 480_000.0 - 5_000.0 * (i + 1)))
+        loans = _r(max(loan_floor, LOAN_ANCHOR_EUR - 5_000.0 * (i + 1)))
         # Equity roll-forward (VR-04 continuity): equity_t = equity_{t-1} + net_result_t.
         # Never absorb a negative BS plug into equity (that broke cash_critical packs).
         equity = _r(

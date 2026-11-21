@@ -18,6 +18,7 @@ from payloq_llm.stated_checks import (
     enforce_required_one_offs,
     map_b_parameters_to_engine,
     normalize_stated_map,
+    reject_ungrounded_one_offs,
 )
 from payloq_llm.stated_only import apply_derivations, prepare_stated_only_model
 from payloq_schemas.field_map import b_to_engine_from_map
@@ -123,6 +124,12 @@ def finalize_extracted_parameters(
     )
     if one_off_req_issues:
         stated_result.issues.extend(one_off_req_issues)
+        stated_result.ok = False
+
+    # Invented one-offs: every extracted one-off must be stated in the description.
+    ungrounded_issues = reject_ungrounded_one_offs(parameters.get("one_off_events"), description)
+    if ungrounded_issues:
+        stated_result.issues.extend(ungrounded_issues)
         stated_result.ok = False
 
     if not stated_result.ok:

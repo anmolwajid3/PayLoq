@@ -14,50 +14,17 @@ Each cell is PASS or the failed check name. Checks: status, consistency, fidelit
 | vague | PASS | PASS | PASS | PASS | PASS |
 | fully_stated | PASS | PASS | PASS | PASS | PASS |
 | partly_stated | PASS | PASS | PASS | PASS | PASS |
-| one_off_inflow | status | PASS | status | status | PASS |
+| one_off_inflow | PASS | PASS | PASS | PASS | PASS |
 | no_one_off | PASS | PASS | PASS | PASS | PASS |
-| annual_revenue | PASS | status | PASS | PASS | status |
+| annual_revenue | PASS | PASS | PASS | PASS | PASS |
 | months_24 | PASS | PASS | PASS | PASS | PASS |
-| finnish | PASS | status | PASS | status | PASS |
+| finnish | PASS | PASS | PASS | PASS | PASS |
 | stub | PASS | — | — | — | — |
 | ollama-unreachable | PASS | — | — | — | — |
 
 ## Failures
 
-### one_off_inflow / seed 1 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### one_off_inflow / seed 3 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### one_off_inflow / seed 42 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### annual_revenue / seed 2 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### annual_revenue / seed 99 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### finnish / seed 2 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
-
-### finnish / seed 42 / status
-- expected: four output files written (run status ok)
-- actual: missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20
-- file: input.json
+No failures.
 
 ## Module-level caches
 
