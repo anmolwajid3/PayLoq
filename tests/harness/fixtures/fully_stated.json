@@ -57,8 +57,8 @@
       "decimals": 1
     },
     "starting_cash_eur": {
-      "min": 40000,
-      "max": 90000,
+      "min": 100000,
+      "max": 130000,
       "step": 1000
     },
     "covenant_min_cash_eur": {

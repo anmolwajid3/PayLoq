@@ -225,35 +225,6 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     receivables = last_bs.assets.receivables
     payables = last_bs.equity_and_liabilities.payables
 
-    # cash_critical (VR-20): ensure the open-purchase cliff can breach cash even when
-    # seasonality shrinks last-month working capital (e.g. hotel winter collapse).
-    if profile == "cash_critical" and payables < last_cash * 1.15 + 5_000:
-        needed = _r(last_cash * 1.25 + 10_000)
-        bump = _r(needed - payables)
-        payables = needed
-        e = months[-1].balance_sheet.equity_and_liabilities
-        a = months[-1].balance_sheet.assets
-        e.payables = payables
-        e.other_current_liabilities = _r(
-            a.total_assets - e.equity - e.loans - e.payables
-        )
-        if e.other_current_liabilities < 0:
-            a.cash = _r(a.cash + e.other_current_liabilities)
-            last_cash = a.cash
-            e.other_current_liabilities = 0.0
-            a.total_assets = _r(a.fixed_assets + a.inventory + a.receivables + a.cash)
-        e.total_equity_and_liabilities = _r(
-            e.equity + e.loans + e.payables + e.other_current_liabilities
-        )
-        if abs(a.total_assets - e.total_equity_and_liabilities) > 0.5:
-            e.other_current_liabilities = _r(
-                a.total_assets - e.equity - e.loans - e.payables
-            )
-            e.total_equity_and_liabilities = _r(
-                e.equity + e.loans + e.payables + e.other_current_liabilities
-            )
-        gen_meta.setdefault("cash_critical_payable_bump_eur", bump)
-
     # Typical weekly cash settlement — keep history wave scale near open-invoice weeks.
     last_rev = abs(months[-1].income_statement.revenue)
     dso_weeks = max(1.0, float(params.days_sales_outstanding) / 7.0)
@@ -275,17 +246,12 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
             settlement_eur = _r(cliff / (PROJECTION_HISTORY_SCALE_RATIO * 0.92))
             gen_meta["cash_critical_history_settlement_eur"] = settlement_eur
 
-    history = _generate_balance_history(
-        as_of=as_of,
-        end_cash=last_cash,
-        start_cash=months[0].balance_sheet.assets.cash,
-        profile=profile,
-        weeks=26,
-        seed=seed,
-        first_month=first_month,
-        one_off_events=one_offs,
-        weekly_flow_eur=weekly_flow,
-        cash_critical_settlement_eur=settlement_eur,
+    month_cash_points = [
+        (_month_end(_add_months(first_month, i)), m.balance_sheet.assets.cash)
+        for i, m in enumerate(months)
+    ]
+    history = _history_from_month_cash(
+        as_of=as_of, weeks=26, month_points=month_cash_points
     )
     # Enforce exact link to last month cash (VR-07)
     history[-1] = BalanceHistoryPoint(
@@ -442,11 +408,13 @@ def _generate_months(
     factors = list(params.monthly_revenue_factors) if params.monthly_revenue_factors else None
     events = list(one_off_events or [])
 
-    # Opening BS anchors (deterministic, CPU-friendly)
-    fixed_assets = 300_000.0
-    equity0 = 245_000.0 if profile == "good" else 210_000.0
-    loans = LOAN_ANCHOR_EUR
-    # Work order C: starting_cash_eur is authoritative when provided.
+    # Opening balance sheet. Cash is the stated/assumed starting cash. Working
+    # capital is calculated from the start revenue. Opening equity is the single
+    # balancing item of the OPENING balance sheet only.
+    fixed_assets0 = 300_000.0
+    loans0 = LOAN_ANCHOR_EUR
+    loan_floor = 100_000.0
+    repay_per_month = 5_000.0
     if getattr(params, "starting_cash_eur", None) is not None:
         cash0 = float(params.starting_cash_eur)
     else:
@@ -457,60 +425,56 @@ def _generate_months(
             "cash_turning_critical_later": 180_000.0,
             "invoices_out_of_balance": 200_000.0,
         }.get(profile, 200_000.0)
-        # Thin winter / covenant stories: keep opening cash on the same scale as target
-        # so history/projection do not look like a healthy 300k+ pack.
-        if profile == "cash_critical" and params.target_cash_at_end_eur <= 60_000:
-            cash0 = min(cash0, max(35_000.0, float(params.target_cash_at_end_eur) * 2.2))
 
-    # Fixed cost bases from start revenue
     base_personnel = start_rev * shares.personnel
     base_other = start_rev * shares.other
-
     dep_monthly = FIXED_DEPRECIATION_MONTHLY_EUR
     interest_annual_rate = INTEREST_ANNUAL_RATE
 
+    recv_prev = _r(start_rev * (params.days_sales_outstanding / 30.0) * vat)
+    pay_prev = _r(
+        start_rev * (shares.materials + shares.services)
+        * (params.days_payables_outstanding / 30.0) * vat
+    )
+    inv_prev = _r(start_rev * shares.materials * 0.40)
+    fa_prev = fixed_assets0
+    loans_prev = loans0
+    cash_prev = _r(cash0)
+    equity_prev = _r(fa_prev + inv_prev + recv_prev + cash_prev - loans_prev - pay_prev)
+
     months: list[MonthlyReport] = []
-    equity = equity0
-    cash = cash0
-    target_end = params.target_cash_at_end_eur
-    # Past one-off events as (month_index_0based, signed_cash_delta)
-    past_event_scars: list[tuple[int, float]] = []
-    fa_boost = 0.0
     gen_meta: dict[str, Any] = {
         "one_off_events_applied": [],
         "ending_cash_note": None,
-        "target_cash_at_end_eur": target_end,
+        "target_cash_at_end_eur": params.target_cash_at_end_eur,
         "starting_cash_eur": cash0,
+        "opening_equity_eur": equity_prev,
+        "balance_imbalance_by_month_eur": [],
+        "cash_method": "indirect_roll_forward",
     }
 
     for i in range(n):
         month_date = _add_months(first_month, i)
         month_index_1based = i + 1
         # Calendar-month seasonality (Jan=0 … Dec=11) when factors provided;
-        # otherwise mild sine wiggle for VR-21.
+        # otherwise a mild sine wiggle for VR-21.
         if factors is not None:
             cal_factor = float(factors[month_date.month - 1])
             seasonal = cal_factor
-            # Ensure ≥5% MoM somewhere when factors are nearly flat
             if i == max(2, n // 3) and abs(cal_factor - 1.0) < 0.02:
                 seasonal *= 0.92
         else:
             from payloq_schemas.constants import REVENUE_NOISE_BAND_FRACTION
 
-            # Work order C: noise only within the configured band around month path.
-            seasonal = 1.0 + REVENUE_NOISE_BAND_FRACTION * math.sin(
-                (i + seed % 7) * 0.9
-            )
+            seasonal = 1.0 + REVENUE_NOISE_BAND_FRACTION * math.sin((i + seed % 7) * 0.9)
             if i == max(2, n // 3):
-                # Keep a deliberate ≥5% MoM kink for VR-21 when no calendar factors.
                 seasonal *= 0.92
-        # revenue_monthly_start_eur / monthly_revenue_start_eur ≡ month 1 revenue (i=0).
+        # revenue_monthly_start_eur ≡ month 1 revenue (i=0).
         revenue = _r(start_rev * ((1.0 + growth) ** i) * seasonal)
 
         materials = _r(revenue * shares.materials)
         services = _r(revenue * shares.services)
         if partly_fixed:
-            # Mix variable with start-level fixed costs → losses when revenue falls
             personnel = _r(0.35 * revenue * shares.personnel + 0.65 * base_personnel)
             other = _r(0.35 * revenue * shares.other + 0.65 * base_other)
         else:
@@ -522,23 +486,25 @@ def _generate_months(
         operating_profit = _r(
             revenue - materials_and_services - personnel - other - depreciation
         )
-        interest_expense = _r(loans * interest_annual_rate / 12.0)
+        interest_expense = _r(loans_prev * interest_annual_rate / 12.0)
         profit_before_tax = _r(operating_profit - interest_expense)
         income_tax = _r(max(0.0, profit_before_tax) * CORPORATE_TAX_RATE)
         net_result = _r(profit_before_tax - income_tax)
 
-        # Working capital from DSO/DPO
+        # Working capital levels from DSO / DPO / inventory rule.
         receivables = _r(revenue * (params.days_sales_outstanding / 30.0) * vat)
         payables = _r(materials_and_services * (params.days_payables_outstanding / 30.0) * vat)
         inventory = _r(materials * 0.40)
 
-        # Fixed assets path + one-off capex (out events increase FA)
+        # One-off events: outflow = capex (adds fixed assets), inflow = loan drawdown.
         month_events = _events_for_month(events, month_index_1based)
+        capex = 0.0
+        draws = 0.0
         for ev in month_events:
-            signed = ev.amount_eur if ev.direction == "inflow" else -ev.amount_eur
-            past_event_scars.append((i, signed))
             if ev.direction == "outflow":
-                fa_boost += ev.amount_eur
+                capex += ev.amount_eur
+            else:
+                draws += ev.amount_eur
             gen_meta["one_off_events_applied"].append(
                 {
                     "month_index": month_index_1based,
@@ -548,52 +514,32 @@ def _generate_months(
                     "label": ev.label,
                 }
             )
+        capex = _r(capex)
+        draws = _r(draws)
 
-        fa = fixed_assets + fa_boost - sum(
-            _r(dep_monthly * (0.99**j)) for j in range(i + 1)
-        )
-        fa = max(50_000.0, _r(fa))
-
-        # Cash path toward target via dynamics (not a hard last_cash == target snap).
-        # One-off events create a full scar at their month that linearly fades to 0
-        # by the final month so parameters still drive ending cash near target.
-        t = i / max(1, n - 1)
-        if profile == "cash_critical":
-            path_shape = t**0.85
-        else:
-            path_shape = t
-        base_path = cash0 + (target_end - cash0) * path_shape
-        scar = 0.0
-        for event_i, signed in past_event_scars:
-            span = max(1, (n - 1) - event_i)
-            # At event month: factor 1.0; at final month: factor 0.0
-            factor = max(0.0, 1.0 - (i - event_i) / span)
-            scar += signed * factor
-        cash_path = base_path + scar
-        cash = _r(cash_path)
-
-        loan_floor = 100_000.0
-        loans = _r(max(loan_floor, LOAN_ANCHOR_EUR - 5_000.0 * (i + 1)))
-        # Equity roll-forward (VR-04 continuity): equity_t = equity_{t-1} + net_result_t.
-        # Never absorb a negative BS plug into equity (that broke cash_critical packs).
-        equity = _r(
-            (equity0 if i == 0 else months[i - 1].balance_sheet.equity_and_liabilities.equity)
+        # Balances from flows (no target steering, no plug).
+        repay = min(repay_per_month, max(0.0, loans_prev - loan_floor))
+        loans = _r(loans_prev - repay + draws)
+        fa = _r(fa_prev + capex - depreciation)
+        # Indirect cash flow: profit + non-cash depreciation − working-capital build
+        # − capex + net borrowing = change in cash.
+        cash = _r(
+            cash_prev
             + net_result
+            + depreciation
+            - (receivables - recv_prev)
+            - (inventory - inv_prev)
+            + (payables - pay_prev)
+            - capex
+            + (loans - loans_prev)
         )
+        # Equity roll-forward: profit retained (no dividends in the pilot).
+        equity = _r(equity_prev + net_result)
+        other_cl = 0.0
 
-        # Plug other current liabilities so BS balances — do NOT drain cash (target
-        # path) and do NOT rewrite equity (continuity). Prefer loan reduction, then
-        # raise fixed assets as a last resort.
-        fa, loans, other_cl = _balance_sheet_plug(
-            fa=fa,
-            inventory=inventory,
-            receivables=receivables,
-            cash=cash,
-            equity=equity,
-            loans=loans,
-            payables=payables,
-            loan_floor=loan_floor,
-        )
+        total_assets = _r(fa + inventory + receivables + cash)
+        total_el = _r(equity + loans + payables + other_cl)
+        gen_meta["balance_imbalance_by_month_eur"].append(_r(total_assets - total_el))
 
         months.append(
             MonthlyReport(
@@ -612,59 +558,78 @@ def _generate_months(
                 ),
                 balance_sheet=BalanceSheet(
                     assets=Assets(
-                        fixed_assets=_r(fa),
+                        fixed_assets=fa,
                         inventory=inventory,
                         receivables=receivables,
                         cash=cash,
-                        total_assets=_r(fa + inventory + receivables + cash),
+                        total_assets=total_assets,
                     ),
                     equity_and_liabilities=EquityAndLiabilities(
                         equity=equity,
                         loans=loans,
                         payables=payables,
                         other_current_liabilities=other_cl,
-                        total_equity_and_liabilities=_r(
-                            equity + loans + payables + other_cl
-                        ),
+                        total_equity_and_liabilities=total_el,
                     ),
                 ),
             )
         )
 
-        # Ensure totals match after construction without touching equity.
-        a = months[-1].balance_sheet.assets
-        e = months[-1].balance_sheet.equity_and_liabilities
-        if abs(a.total_assets - e.total_equity_and_liabilities) > 0.5:
-            fa2, loans2, ocl2 = _balance_sheet_plug(
-                fa=a.fixed_assets,
-                inventory=a.inventory,
-                receivables=a.receivables,
-                cash=a.cash,
-                equity=e.equity,
-                loans=e.loans,
-                payables=e.payables,
-                loan_floor=loan_floor,
-            )
-            a.fixed_assets = fa2
-            a.total_assets = _r(fa2 + a.inventory + a.receivables + a.cash)
-            e.loans = loans2
-            e.other_current_liabilities = ocl2
-            e.total_equity_and_liabilities = _r(
-                e.equity + e.loans + e.payables + e.other_current_liabilities
-            )
+        fa_prev, inv_prev, recv_prev, pay_prev = fa, inventory, receivables, payables
+        loans_prev, cash_prev, equity_prev = loans, cash, equity
 
     final_cash = months[-1].balance_sheet.assets.cash if months else None
     if final_cash is not None:
-        gap = _r(final_cash - target_end)
         gen_meta["ending_cash_eur"] = final_cash
-        gen_meta["ending_cash_vs_target_eur"] = gap
-        gen_meta["ending_cash_note"] = (
-            f"ending_cash_via_dynamics={final_cash} "
-            f"(target={target_end}, delta={gap}); "
-            "parameters drive ending cash — not forced exact equality"
-        )
+        sources = dict(getattr(params, "field_sources", {}) or {})
+        if sources.get("target_cash_at_end_eur") == "stated":
+            gap = _r(final_cash - params.target_cash_at_end_eur)
+            gen_meta["ending_cash_vs_target_eur"] = gap
+            gen_meta["ending_cash_note"] = (
+                f"ending_cash_from_flows={final_cash}; stated target gap={gap}"
+            )
+        else:
+            gen_meta["ending_cash_note"] = f"ending_cash_from_flows={final_cash}"
 
     return months, gen_meta
+
+
+def _history_from_month_cash(
+    *,
+    as_of: date,
+    weeks: int,
+    month_points: list[tuple[date, float]],
+) -> list[BalanceHistoryPoint]:
+    """Weekly balance history interpolated from the month-end cash path.
+
+    The weekly series is derived from the monthly cash (which comes from the
+    flows), not from a separate shaped curve. Dates outside the month range are
+    clamped to the nearest month-end value. The final point is the cash at as_of.
+    """
+    pts = sorted(month_points, key=lambda p: p[0])
+
+    def value_at(d: date) -> float:
+        if d <= pts[0][0]:
+            return float(pts[0][1])
+        if d >= pts[-1][0]:
+            return float(pts[-1][1])
+        for (d0, v0), (d1, v1) in zip(pts, pts[1:]):
+            if d0 <= d <= d1:
+                span = (d1 - d0).days or 1
+                return float(v0) + (float(v1) - float(v0)) * (d - d0).days / span
+        return float(pts[-1][1])
+
+    out: list[BalanceHistoryPoint] = []
+    for week_idx in range(1, weeks + 1):
+        d = as_of - timedelta(days=7 * (weeks - week_idx))
+        out.append(
+            BalanceHistoryPoint(
+                week=week_idx,
+                date=d.isoformat(),
+                balance=_r(value_at(d)),
+            )
+        )
+    return out
 
 
 def _generate_balance_history(

@@ -19,6 +19,7 @@ from payloq_schemas.constants import (
     HEALTHY_MIN_OPERATING_MARGIN,
     INTEREST_ANNUAL_RATE,
     LOAN_ANCHOR_EUR,
+    LOSS_SHAPE_COST_SUM_TARGET,
 )
 
 IndustryKey = Literal[
@@ -433,13 +434,17 @@ def calibrate_cost_shares_for_shape(
     (weak / cash-critical stories are allowed to be loss-making). Stated shares are
     never passed here (the caller calibrates assumed shares only).
     """
-    if (scenario_shape or "").strip().lower() != "healthy":
-        return dict(shares)
+    shape = (scenario_shape or "").strip().lower()
     keys = ("materials", "services", "personnel", "other")
     total = sum(float(shares.get(k) or 0.0) for k in keys)
     if total <= 0:
         return dict(shares)
-    target = healthy_variable_cost_sum(start_revenue_eur)
+    if shape in {"weak", "cash_tight", "cash_critical"}:
+        target = LOSS_SHAPE_COST_SUM_TARGET
+    elif shape == "healthy":
+        target = healthy_variable_cost_sum(start_revenue_eur)
+    else:
+        return dict(shares)
     scale = target / total
     out = dict(shares)
     for k in keys:
