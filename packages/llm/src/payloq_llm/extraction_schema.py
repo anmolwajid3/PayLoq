@@ -39,10 +39,6 @@ EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
                 "covenant_min_cash_eur",
                 "dso_days",
                 "dpo_days",
-                "dso_weeks",
-                "dpo_weeks",
-                "dso_months",
-                "dpo_months",
                 "one_off_events",
                 "industry",
                 "company_size",
@@ -74,10 +70,6 @@ EXTRACTION_JSON_SCHEMA: dict[str, Any] = {
                     "anyOf": [{"type": "number"}, {"type": "null"}],
                     "description": "Only when the description states days. Null if weeks or months.",
                 },
-                "dso_weeks": {"anyOf": [{"type": "number"}, {"type": "null"}]},
-                "dpo_weeks": {"anyOf": [{"type": "number"}, {"type": "null"}]},
-                "dso_months": {"anyOf": [{"type": "number"}, {"type": "null"}]},
-                "dpo_months": {"anyOf": [{"type": "number"}, {"type": "null"}]},
                 "one_off_events": {
                     "type": "array",
                     "items": {

@@ -5,8 +5,6 @@ import type { OllamaModel } from "../api";
 import { useAuth } from "../auth";
 import { t } from "../i18n";
 
-const DEFAULT_INDUSTRY = "metal workshop (machine shop)";
-const DEFAULT_COMPANY_SIZE = "small";
 const FI_DESC_PLACEHOLDER =
   "Pieni konepaja, kassa on kriittinen kolmen viikon päästä.";
 const EN_DESC_PLACEHOLDER =
@@ -26,7 +24,7 @@ export function GeneratePage() {
   const [language, setLanguage] = useState<"fi" | "en">(lang);
   const [months, setMonths] = useState(12);
   const [industry, setIndustry] = useState("");
-  const [companySize, setCompanySize] = useState(DEFAULT_COMPANY_SIZE);
+  const [companySize, setCompanySize] = useState("");
   const [seed, setSeed] = useState(42);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +89,7 @@ export function GeneratePage() {
         llm: "ollama",
         ollama_model: model,
         language,
-        industry: industry.trim() || DEFAULT_INDUSTRY,
+        industry: industry.trim() || "unspecified",
         company_size: companySize.trim(),
         months,
         seed,
@@ -174,7 +172,7 @@ export function GeneratePage() {
           <input
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
-            placeholder={DEFAULT_INDUSTRY}
+            placeholder="e.g. metal workshop, bakery, hotel"
           />
           <span className="field-hint">{t("industryHint", lang)}</span>
         </label>

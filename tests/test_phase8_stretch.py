@@ -102,7 +102,8 @@ def test_chat_demo_custom_question():
     assert result.figures["first_negative_date"] is None
     low = result.answer.lower()
     assert "not show cash going negative" in low or "ei mene negatiiviseksi" in low
-    assert "330000" in result.answer.replace(",", "").replace(" ", "")
+    last_cash = pack.monthly_reports.months[-1].balance_sheet.assets.cash
+    assert f"{last_cash:.2f}" in result.answer
 
 
 def test_suggest_followups_refresh_after_prior_questions():

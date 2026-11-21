@@ -11,7 +11,10 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "eur",
-      "engine_keys": ["monthly_revenue_start_eur", "revenue_monthly_eur"]
+      "engine_keys": [
+        "monthly_revenue_start_eur",
+        "revenue_monthly_eur"
+      ]
     },
     {
       "input_name": "revenue_annual_eur",
@@ -22,7 +25,9 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "eur",
-      "engine_keys": ["revenue_annual_eur"]
+      "engine_keys": [
+        "revenue_annual_eur"
+      ]
     },
     {
       "input_name": "growth_per_month_percent",
@@ -33,7 +38,10 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "percent",
-      "engine_keys": ["growth_per_month_percent", "monthly_revenue_growth"]
+      "engine_keys": [
+        "growth_per_month_percent",
+        "monthly_revenue_growth"
+      ]
     },
     {
       "input_name": "starting_cash_eur",
@@ -44,7 +52,9 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "eur",
-      "engine_keys": ["starting_cash_eur"]
+      "engine_keys": [
+        "starting_cash_eur"
+      ]
     },
     {
       "input_name": "covenant_min_cash_eur",
@@ -55,7 +65,10 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "eur",
-      "engine_keys": ["covenant_min_cash_eur", "target_cash_at_end_eur"]
+      "engine_keys": [
+        "covenant_min_cash_eur",
+        "target_cash_at_end_eur"
+      ]
     },
     {
       "input_name": "dso_days",
@@ -66,7 +79,10 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "days",
-      "engine_keys": ["days_sales_outstanding", "dso_days"]
+      "engine_keys": [
+        "days_sales_outstanding",
+        "dso_days"
+      ]
     },
     {
       "input_name": "dpo_days",
@@ -77,51 +93,10 @@
       },
       "fidelity_rule": "numeric_near",
       "format": "days",
-      "engine_keys": ["days_payables_outstanding", "dpo_days"]
-    },
-    {
-      "input_name": "dso_weeks",
-      "output_location": "parameters_from_language_model.dso_weeks",
-      "display_label": {
-        "en": "DSO (weeks)",
-        "fi": "DSO (viikkoa)"
-      },
-      "fidelity_rule": "numeric_near",
-      "format": "count",
-      "engine_keys": ["dso_weeks"]
-    },
-    {
-      "input_name": "dpo_weeks",
-      "output_location": "parameters_from_language_model.dpo_weeks",
-      "display_label": {
-        "en": "DPO (weeks)",
-        "fi": "DPO (viikkoa)"
-      },
-      "fidelity_rule": "numeric_near",
-      "format": "count",
-      "engine_keys": ["dpo_weeks"]
-    },
-    {
-      "input_name": "dso_months",
-      "output_location": "parameters_from_language_model.dso_months",
-      "display_label": {
-        "en": "DSO (months)",
-        "fi": "DSO (kuukautta)"
-      },
-      "fidelity_rule": "numeric_near",
-      "format": "count",
-      "engine_keys": ["dso_months"]
-    },
-    {
-      "input_name": "dpo_months",
-      "output_location": "parameters_from_language_model.dpo_months",
-      "display_label": {
-        "en": "DPO (months)",
-        "fi": "DPO (kuukautta)"
-      },
-      "fidelity_rule": "numeric_near",
-      "format": "count",
-      "engine_keys": ["dpo_months"]
+      "engine_keys": [
+        "days_payables_outstanding",
+        "dpo_days"
+      ]
     },
     {
       "input_name": "one_off_events",
@@ -132,8 +107,16 @@
       },
       "fidelity_rule": "one_off_events",
       "format": "one_off_events",
-      "components": ["amount_eur", "month_index", "direction"],
-      "engine_keys": ["one_off_events", "special_investment_eur", "special_investment_month"]
+      "components": [
+        "amount_eur",
+        "month_index",
+        "direction"
+      ],
+      "engine_keys": [
+        "one_off_events",
+        "special_investment_eur",
+        "special_investment_month"
+      ]
     },
     {
       "input_name": "industry",
@@ -144,7 +127,9 @@
       },
       "fidelity_rule": "exact_string",
       "format": "text",
-      "engine_keys": ["industry"]
+      "engine_keys": [
+        "industry"
+      ]
     },
     {
       "input_name": "company_size",
@@ -155,7 +140,9 @@
       },
       "fidelity_rule": "exact_string",
       "format": "text",
-      "engine_keys": ["company_size"]
+      "engine_keys": [
+        "company_size"
+      ]
     }
   ]
 }

@@ -72,9 +72,11 @@ def test_healthy_profile_keeps_margin_after_fixed_charges(revenue: float) -> Non
     assert margin > 0.0
 
 
-def test_non_healthy_shapes_are_not_recalibrated() -> None:
+def test_loss_shapes_use_loss_cost_sum_and_unspecified_is_unchanged() -> None:
     shares = {"materials": 0.37, "services": 0.08, "personnel": 0.34, "other": 0.15}
-    for shape in ("weak", "cash_critical", "unspecified"):
-        assert calibrate_cost_shares_for_shape(
-            shares, start_revenue_eur=100_000.0, scenario_shape=shape
-        ) == shares
+    for shape in ("weak", "cash_tight", "cash_critical"):
+        out = calibrate_cost_shares_for_shape(shares, start_revenue_eur=100_000.0, scenario_shape=shape)
+        assert abs(sum(out.values()) - 0.99) < 1e-4
+    assert calibrate_cost_shares_for_shape(
+        shares, start_revenue_eur=100_000.0, scenario_shape="unspecified"
+    ) == shares

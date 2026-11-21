@@ -38,7 +38,7 @@ SCENARIO_SHAPE_RANGES: dict[str, dict[str, tuple[float, float]]] = {
     # Cash trough within ~3 weeks: low opening cash + low covenant/target.
     "cash_critical": {
         "monthly_revenue_growth": (-0.008, 0.004),
-        "starting_cash_eur": (35_000.0, 55_000.0),
+        "starting_cash_eur": (20_000.0, 35_000.0),
         "target_cash_at_end_eur": (5_000.0, 25_000.0),
     },
     "unspecified": {

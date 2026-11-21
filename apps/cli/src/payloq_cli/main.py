@@ -69,7 +69,7 @@ def generate(
         help="Primary language for --from-text (fi|en). Finnish required for PoC.",
     ),
     industry: str = typer.Option(
-        "metal workshop (machine shop)",
+        "unspecified",
         "--industry",
         help="Industry hint passed to the LLM with --from-text.",
     ),
