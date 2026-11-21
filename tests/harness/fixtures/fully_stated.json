@@ -1,0 +1,80 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": {
+    "type": "capex",
+    "direction": "outflow",
+    "amount": {
+      "min": 40000,
+      "max": 120000,
+      "step": 1000
+    },
+    "month": {
+      "min": 2,
+      "max": 6,
+      "step": 1
+    }
+  },
+  "expect": {
+    "cash_shape": null,
+    "broken_receivables": false
+  },
+  "id": "fully_stated",
+  "scenario_shape": "healthy",
+  "scenario_shape_quote": "states every figure",
+  "lead": "A small machine shop states every figure.",
+  "stated_order": [
+    "revenue_monthly_eur",
+    "growth_per_month_percent",
+    "starting_cash_eur",
+    "covenant_min_cash_eur",
+    "dso_days",
+    "dpo_days",
+    "one_off_events"
+  ],
+  "quotes": {
+    "revenue_monthly_eur": "Monthly revenue {revenue_monthly_eur} euro.",
+    "growth_per_month_percent": "Growth {growth_per_month_percent}% per month.",
+    "starting_cash_eur": "Starting cash {starting_cash_eur} euro.",
+    "covenant_min_cash_eur": "Bank minimum cash {covenant_min_cash_eur} euro.",
+    "dso_days": "DSO {dso_days} days.",
+    "dpo_days": "DPO {dpo_days} days.",
+    "one_off_events": "One-off outflow of {one_off_amount_eur} euro in month {one_off_month}."
+  },
+  "ranges": {
+    "revenue_monthly_eur": {
+      "min": 150000,
+      "max": 250000,
+      "step": 1000
+    },
+    "growth_per_month_percent": {
+      "min": 0.3,
+      "max": 1.2,
+      "step": 0.1,
+      "decimals": 1
+    },
+    "starting_cash_eur": {
+      "min": 40000,
+      "max": 90000,
+      "step": 1000
+    },
+    "covenant_min_cash_eur": {
+      "min": 30000,
+      "max": 70000,
+      "step": 1000
+    },
+    "dso_days": {
+      "min": 28,
+      "max": 45,
+      "step": 1
+    },
+    "dpo_days": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    }
+  }
+}

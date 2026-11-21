@@ -1,0 +1,36 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": null,
+  "expect": {
+    "cash_shape": null,
+    "broken_receivables": false
+  },
+  "id": "partly_stated",
+  "scenario_shape": "unspecified",
+  "scenario_shape_quote": "states revenue and the bank minimum only",
+  "lead": "A small machine shop states revenue and the bank minimum only.",
+  "stated_order": [
+    "revenue_monthly_eur",
+    "covenant_min_cash_eur"
+  ],
+  "quotes": {
+    "revenue_monthly_eur": "Monthly revenue {revenue_monthly_eur} euro.",
+    "covenant_min_cash_eur": "Bank minimum cash {covenant_min_cash_eur} euro."
+  },
+  "ranges": {
+    "revenue_monthly_eur": {
+      "min": 120000,
+      "max": 220000,
+      "step": 1000
+    },
+    "covenant_min_cash_eur": {
+      "min": 30000,
+      "max": 80000,
+      "step": 1000
+    }
+  }
+}

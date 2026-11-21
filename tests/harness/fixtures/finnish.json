@@ -1,0 +1,51 @@
+{
+  "language": "fi",
+  "months": 12,
+  "scenario_id": null,
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": null,
+  "expect": {
+    "cash_shape": null,
+    "broken_receivables": false
+  },
+  "id": "finnish",
+  "scenario_shape": "healthy",
+  "scenario_shape_quote": "vakaa kasvu",
+  "lead": "Pieni konepaja, vakaa kasvu.",
+  "stated_order": [
+    "revenue_monthly_eur",
+    "growth_per_month_percent",
+    "starting_cash_eur",
+    "covenant_min_cash_eur"
+  ],
+  "quotes": {
+    "revenue_monthly_eur": "Kuukausiliikevaihto {revenue_monthly_eur} euroa.",
+    "growth_per_month_percent": "Kasvu {growth_per_month_percent}% kuukaudessa.",
+    "starting_cash_eur": "Alkukassa {starting_cash_eur} euroa.",
+    "covenant_min_cash_eur": "Pankin minimikassa {covenant_min_cash_eur} euroa."
+  },
+  "ranges": {
+    "revenue_monthly_eur": {
+      "min": 100000,
+      "max": 220000,
+      "step": 1000
+    },
+    "growth_per_month_percent": {
+      "min": 0.3,
+      "max": 1.2,
+      "step": 0.1,
+      "decimals": 1
+    },
+    "starting_cash_eur": {
+      "min": 120000,
+      "max": 240000,
+      "step": 1000
+    },
+    "covenant_min_cash_eur": {
+      "min": 60000,
+      "max": 140000,
+      "step": 1000
+    }
+  }
+}

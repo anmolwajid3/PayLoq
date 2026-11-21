@@ -1,0 +1,65 @@
+{
+  "language": "en",
+  "months": 12,
+  "scenario_id": "cash_critical",
+  "industry": "metal workshop (machine shop)",
+  "company_size": "small",
+  "one_off": null,
+  "expect": {
+    "cash_shape": "critical_early",
+    "broken_receivables": false
+  },
+  "id": "cash_in_trouble",
+  "scenario_shape": "cash_critical",
+  "scenario_shape_quote": "cash is tight now and critical in three weeks",
+  "lead": "A small machine shop, cash is tight now and critical in three weeks.",
+  "stated_order": [
+    "revenue_monthly_eur",
+    "growth_per_month_percent",
+    "starting_cash_eur",
+    "covenant_min_cash_eur",
+    "dso_days",
+    "dpo_days"
+  ],
+  "quotes": {
+    "revenue_monthly_eur": "Monthly revenue {revenue_monthly_eur} euro.",
+    "growth_per_month_percent": "Growth {growth_per_month_percent}% per month.",
+    "starting_cash_eur": "Starting cash {starting_cash_eur} euro.",
+    "covenant_min_cash_eur": "Bank minimum cash {covenant_min_cash_eur} euro.",
+    "dso_days": "DSO {dso_days} days.",
+    "dpo_days": "DPO {dpo_days} days."
+  },
+  "ranges": {
+    "revenue_monthly_eur": {
+      "min": 140000,
+      "max": 220000,
+      "step": 1000
+    },
+    "growth_per_month_percent": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.1,
+      "decimals": 1
+    },
+    "starting_cash_eur": {
+      "min": 36000,
+      "max": 52000,
+      "step": 1000
+    },
+    "covenant_min_cash_eur": {
+      "min": 8000,
+      "max": 20000,
+      "step": 1000
+    },
+    "dso_days": {
+      "min": 35,
+      "max": 55,
+      "step": 1
+    },
+    "dpo_days": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    }
+  }
+}
