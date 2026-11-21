@@ -139,7 +139,7 @@ def run_from_text(
     text: str,
     llm: str = "ollama",
     language: str = "fi",
-    industry: str = "metal workshop (machine shop)",
+    industry: str = "unspecified",
     company_size: str = "small",
     months: int = 12,
     seed: int = 42,

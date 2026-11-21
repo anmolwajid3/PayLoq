@@ -23,10 +23,6 @@ Code derives annual from monthly, the decimal from a percent, and days from week
     "covenant_min_cash_eur": number | null,
     "dso_days": number | null,
     "dpo_days": number | null,
-    "dso_weeks": number | null,
-    "dpo_weeks": number | null,
-    "dso_months": number | null,
-    "dpo_months": number | null,
     "one_off_events": [
       {"type": string, "amount_eur": number, "month_index": integer,
        "direction": "inflow" | "outflow"}

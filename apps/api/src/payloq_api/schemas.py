@@ -59,9 +59,9 @@ class GenerateFromTextRequest(BaseModel):
     text: str = Field(min_length=3)
     llm: Literal["ollama"] = "ollama"
     language: Literal["fi", "en"] = "fi"
-    industry: str = "metal workshop (machine shop)"
+    industry: str = "unspecified"
     company_size: str = Field(
-        default="small",
+        ...,
         description=(
             "Employee count (e.g. 8, 420, or '12 employees') or label "
             "small/medium/large (case-insensitive; FI: pieni/keskikokoinen/suuri)."

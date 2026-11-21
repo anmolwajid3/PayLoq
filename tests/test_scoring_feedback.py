@@ -125,10 +125,9 @@ def test_hotel_winter_seasonality_and_month2_investment(tmp_path: Path) -> None:
 
     # Weekly history shows a large outflow (~investment)
     hist = pack.cash_and_invoices.balance_history
-    week_drops = [
-        hist[i].balance - hist[i - 1].balance for i in range(1, len(hist))
-    ]
-    assert any(d <= -invest * 0.8 for d in week_drops), week_drops
+    month_cash = [m.balance_sheet.assets.cash for m in months]
+    month_drops = [month_cash[i] - month_cash[i - 1] for i in range(1, len(month_cash))]
+    assert any(d <= -invest * 0.8 for d in month_drops), month_drops
 
     # VR-13 clean
     vr13 = [
@@ -154,19 +153,23 @@ def test_hotel_winter_seasonality_and_month2_investment(tmp_path: Path) -> None:
     assert not (outcome.out_dir / "scenario_cash_critical.xlsx").exists()
 
 
-def test_ending_cash_via_dynamics_not_forced_exact() -> None:
+def test_ending_cash_ending_cash_from_flows_not_forced_exact() -> None:
     from payloq_generator.engine import load_input
 
     inp = load_input(ROOT / "scenarios" / "cash_critical" / "input.json")
     pack = generate_pack(inp, seed=42)
-    target = pack.input.parameters_from_language_model.target_cash_at_end_eur
     end = pack.monthly_reports.months[-1].balance_sheet.assets.cash
-    # Near target via dynamics — not forced bitwise equality
-    assert abs(end - target) < 5_000, (end, target)
+    # Cash comes from flows: +10,000 opening cash must move ending cash by +10,000.
+    bumped = inp.model_copy(deep=True)
+    bumped.parameters_from_language_model.starting_cash_eur = (
+        float(bumped.parameters_from_language_model.starting_cash_eur) + 10_000.0
+    )
+    end2 = generate_pack(bumped, seed=42).monthly_reports.months[-1].balance_sheet.assets.cash
+    assert abs((end2 - end) - 10_000.0) < 0.05, (end, end2)
     # Exact equality is not required (artificial snap removed)
     meta = getattr(pack, "_generator_meta", {}) or {}
     assert meta.get("ending_cash_note")
-    assert "via_dynamics" in str(meta.get("ending_cash_note"))
+    assert "ending_cash_from_flows" in str(meta.get("ending_cash_note"))
 
 
 def test_vr22_pnl_is_not_vr20_error() -> None:

@@ -79,8 +79,8 @@ const dict = {
   },
   seed: { fi: "Satunnaissiemen", en: "Random seed" },
   seedHint: {
-    fi: "Sama siemen + samat parametrit → toistettava tulos (FR-A-25).",
-    en: "Same seed + same parameters → repeatable output (FR-A-25).",
+    fi: "Sama siemen ja samat tiedot antavat saman tuloksen. Muuta siementä nähdäksesi toisen satunnaisvaihtelun.",
+    en: "The same seed and the same inputs always give the same result. Change the seed to see another random variation.",
   },
   descriptionHint: {
     fi: "Kirjoita oma kuvaus; placeholder on vain esimerkki.",

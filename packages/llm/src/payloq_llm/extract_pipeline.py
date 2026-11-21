@@ -72,13 +72,8 @@ def finalize_extracted_parameters(
     scenario_shape_quote = envelope.get("scenario_shape_quote")
     # Code interprets cash-stress cues: upgrade under-classified shapes so the
     # generator profile can produce a falling projection (TC-A).
-    if looks_cash_critical(description) and scenario_shape in {
-        "unspecified",
-        "healthy",
-        "weak",
-        "cash_tight",
-        "",
-    }:
+    # Keyword upgrade only fills an unspecified shape; an explicit model shape stands.
+    if looks_cash_critical(description) and scenario_shape in {"unspecified", ""}:
         scenario_shape = "cash_critical"
     parameters = dict(envelope.get("parameters") or {})
     stated = normalize_stated_map(envelope.get("stated") or {}, parameters)

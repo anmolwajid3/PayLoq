@@ -1061,7 +1061,7 @@ def get_adapter(
 
 def default_options_from_text(
     *,
-    industry: str = "metal workshop (machine shop)",
+    industry: str = "unspecified",
     company_size: str = "small",
     months: int = 12,
     language: str = "fi",
