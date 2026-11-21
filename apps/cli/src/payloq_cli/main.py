@@ -154,6 +154,7 @@ def generate(
             company_size=size_norm,
             months=months,
             language=language,
+            seed=seed,
         )
         try:
             inp = input_from_text(

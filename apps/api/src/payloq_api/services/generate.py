@@ -182,6 +182,7 @@ def run_from_text(
             company_size=company_size,
             months=months,
             language=language,
+            seed=seed,
         )
         inp = input_from_text(
             text=text,
