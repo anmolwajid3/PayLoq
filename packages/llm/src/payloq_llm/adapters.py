@@ -1067,8 +1067,12 @@ def default_options_from_text(
     language: str = "fi",
     scenario_id: str | None = None,
     as_of: str | None = "2026-10-31",
+    seed: int = 42,
 ) -> dict[str, Any]:
+    # One seed must drive every draw: assumed cost shares, starting cash, target
+    # cash, and the generator. Callers must pass the run seed here.
     opts: dict[str, Any] = {
+        "seed": int(seed),
         "industry": industry,
         "company_size": company_size,
         "months": months,
