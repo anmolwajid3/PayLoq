@@ -156,6 +156,22 @@ def render_json() -> dict[str, Any]:
     }
 
 
+def _copy_store(src: Path, name: str) -> None:
+    """Copy one report into the project store when that store is mounted.
+
+    ``pytest -q`` on GitHub Actions loads this hook and has no Cursor store.
+    Creating missing parents would walk up to ``/cursor`` and raise
+    PermissionError from ``pytest_sessionfinish``, aborting the suite.
+    """
+    if not STORE_DOCS.parent.is_dir():
+        return
+    try:
+        STORE_DOCS.mkdir(exist_ok=True)
+        shutil.copy2(src, STORE_DOCS / name)
+    except OSError:
+        return
+
+
 def write_reports() -> str:
     global TERMINAL_TEXT
     markdown = render_markdown()
@@ -166,9 +182,8 @@ def write_reports() -> str:
     REPORT_JSON.write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    STORE_DOCS.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(REPORT_MD, STORE_DOCS / "harness_report.md")
-    shutil.copy2(REPORT_JSON, STORE_DOCS / "harness_report.json")
+    _copy_store(REPORT_MD, "harness_report.md")
+    _copy_store(REPORT_JSON, "harness_report.json")
     if TIER == "live":
         live_rows = [
             {
@@ -183,7 +198,7 @@ def write_reports() -> str:
         LIVE_JSON.write_text(
             json.dumps(live_rows, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
-        shutil.copy2(LIVE_JSON, STORE_DOCS / "harness_live.json")
+        _copy_store(LIVE_JSON, "harness_live.json")
     return TERMINAL_TEXT
 
 
