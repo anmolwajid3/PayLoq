@@ -94,6 +94,18 @@ One config table drives every extraction-schema field → `input.json` location,
 | `packages/llm/.../assume.py` / `stated_checks.map_b_parameters_to_engine` / `models._accept_wo_aliases` | Removed covenant→target_cash mirror. |
 | `tests/test_generic_field_map.py` | Property tests for industry/company_size summary source; covenant≠target when only covenant stated. |
 
+## F3. Generic repeatability
+
+Same input + seed + code → byte-identical `input.json` / `monthly_reports.json` / `cash_and_invoices.json` (in-process and fresh subprocess). No special-case inputs.
+
+| File | Function / symbol | Change |
+| --- | --- | --- |
+| `packages/generator/.../engine.py` | `generate_pack`, `write_pack` | Sorted projection-assumption text; unlink stale data JSON before write (no previous-run file leak). |
+| `packages/llm/.../extract_pipeline.py` | `finalize_extracted_parameters` | Sort `field_sources` / `field_quotes` / `stated_values` for stable `input.json` bytes. |
+| `packages/llm/.../assume.py` | `apply_assumed_defaults` | Sorted provenance + stable cost-share key order. |
+| `packages/validate/.../checks.py` | `_check_cash` | Blocking VR-07: last history == latest cash == last monthly cash. |
+| `tests/test_repeatability_property.py` | **new** | 50 random descriptions × 3 in-process + 1 subprocess SHA-256; cash triangle; stale-dir clear. |
+
 ## G. Removals (finish)
 
 | File | Function / symbol | Change |

@@ -309,7 +309,18 @@ def apply_assumed_defaults(
         sources.setdefault("special_investment_eur", "assumed")
 
     out["scenario_shape"] = shape or "unspecified"
-    out["field_sources"] = sources
+    # Stable key order so input.json hashes do not depend on insertion path.
+    out["field_sources"] = dict(sorted((str(k), v) for k, v in sources.items()))
+    shares_out = out.get("cost_shares_of_revenue")
+    if isinstance(shares_out, dict):
+        out["cost_shares_of_revenue"] = {
+            k: shares_out[k]
+            for k in ("materials", "services", "personnel", "other")
+            if k in shares_out
+        }
+        for k, v in shares_out.items():
+            if k not in out["cost_shares_of_revenue"]:
+                out["cost_shares_of_revenue"][k] = v
     out["_assume_meta"] = {
         "industry_key": drawn.get("industry_key"),
         "size_band": drawn.get("size_band"),

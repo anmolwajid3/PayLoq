@@ -307,15 +307,26 @@ def _check_cash(
                     numbers={"index": i, "delta_days": delta},
                 )
 
-    last_cash = monthly.months[-1].balance_sheet.assets.cash
+    # VR-07 / blocking consistency: last history == latest cash == last monthly cash.
+    # "Latest cash" is the as-of cash position (last monthly BS cash / projection opening).
+    last_monthly_cash = monthly.months[-1].balance_sheet.assets.cash
+    latest_cash = last_monthly_cash
     hist_last = cash.balance_history[-1].balance
-    if not _near(last_cash, hist_last):
+    if not (_near(hist_last, latest_cash) and _near(latest_cash, last_monthly_cash)):
         result.add(
             "cash_vs_history",
-            f"last month cash {last_cash} != last balance history {hist_last}",
+            (
+                f"cash consistency failed: last history {hist_last} != "
+                f"latest cash {latest_cash} != last monthly cash {last_monthly_cash}"
+            ),
             rule_id="VR-07",
-            numbers={"last_month_cash": last_cash, "history_last": hist_last},
+            numbers={
+                "history_last": hist_last,
+                "latest_cash": latest_cash,
+                "last_month_cash": last_monthly_cash,
+            },
         )
+    last_cash = last_monthly_cash
 
     receivables = monthly.months[-1].balance_sheet.assets.receivables
     payables = monthly.months[-1].balance_sheet.equity_and_liabilities.payables

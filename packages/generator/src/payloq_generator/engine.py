@@ -317,9 +317,10 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
     )
 
     currency = inp.options.currency
+    # Sorted keys so assumption text order never depends on dict insertion quirks.
     proj_note = (
         "Balance history is weekly for the past 26 weeks. "
-        + " ".join(PROJECTION_ASSUMPTIONS.values())
+        + " ".join(PROJECTION_ASSUMPTIONS[k] for k in sorted(PROJECTION_ASSUMPTIONS))
     )
     monthly = MonthlyReports(
         meta=ScenarioMeta(
@@ -350,7 +351,9 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         open_invoices=invoices,
         projection_from_open_invoices=projection,
     )
-    gen_meta["projection_assumptions"] = dict(PROJECTION_ASSUMPTIONS)
+    gen_meta["projection_assumptions"] = {
+        k: PROJECTION_ASSUMPTIONS[k] for k in sorted(PROJECTION_ASSUMPTIONS)
+    }
     gen_meta["seed"] = seed
 
     # Stamp pack label on input meta for round-trips (behaviour profile kept in note).
@@ -1042,6 +1045,19 @@ def write_pack(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Never leave previous-run data files in place (VR-30 + repeatability):
+    # a failed write must not keep stale input/monthly/cash JSON for hashing.
+    _DATA_FILES = (
+        "input.json",
+        "monthly_reports.json",
+        "cash_and_invoices.json",
+        "answer_key.json",
+    )
+    for name in _DATA_FILES:
+        stale = out_dir / name
+        if stale.exists():
+            stale.unlink()
 
     answer_key = build_answer_key(pack) if write_data_files else None
     ver = software_version or SOFTWARE_VERSION

@@ -156,16 +156,19 @@ def finalize_extracted_parameters(
     resolved_industry = parameters.get("industry") or industry
     resolved_size = parameters.get("company_size") or company_size
 
-    sources = {k: "stated" for k in engine if engine.get(k) is not None}
+    sources = {k: "stated" for k in sorted(engine) if engine.get(k) is not None}
     # Option fields stated in extraction: record provenance for Run summary.
-    for opt_key, opt_val in option_stated_values.items():
+    for opt_key in sorted(option_stated_values):
+        opt_val = option_stated_values[opt_key]
         if opt_val is not None and opt_val != "":
             sources[opt_key] = "stated"
-    engine["field_sources"] = sources
+    engine["field_sources"] = dict(sorted(sources.items()))
     engine["field_quotes"] = {
-        b_to_eng.get(k, k): v for k, v in stated.items()
+        b_to_eng.get(k, k): v for k, v in sorted(stated.items())
     }
-    engine["stated_values"] = stated_values
+    engine["stated_values"] = {
+        str(k): stated_values[k] for k in sorted(stated_values, key=str)
+    }
     engine["scenario_shape"] = scenario_shape
     engine["scenario_shape_quote"] = scenario_shape_quote
 
@@ -193,15 +196,23 @@ def finalize_extracted_parameters(
     filled["conversion_notes"] = list(conv_changes)
     filled["llm_model_name"] = llm_model_name
     filled["extraction_seed"] = seed
-    filled["field_quotes"] = engine["field_quotes"]
-    filled["stated_values"] = stated_values
+    filled["field_quotes"] = dict(sorted(engine["field_quotes"].items()))
+    filled["stated_values"] = dict(
+        sorted(engine["stated_values"].items(), key=lambda kv: str(kv[0]))
+    )
     filled["scenario_shape"] = scenario_shape
     filled["scenario_shape_quote"] = scenario_shape_quote
     if filled.get("revenue_annual_eur") is None and parameters.get("revenue_annual_eur") is not None:
         filled["revenue_annual_eur"] = parameters.get("revenue_annual_eur")
 
     params = ParametersFromLanguageModel.model_validate(filled)
-    return params.model_dump(), changes, stated_result
+    dumped = params.model_dump()
+    # Re-sort provenance maps after pydantic round-trip (stable input.json bytes).
+    for key in ("field_sources", "field_quotes", "stated_values"):
+        raw = dumped.get(key)
+        if isinstance(raw, dict):
+            dumped[key] = dict(sorted(raw.items(), key=lambda kv: str(kv[0])))
+    return dumped, changes, stated_result
 
 
 def extract_with_grounding_retry(
