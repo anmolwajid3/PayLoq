@@ -94,6 +94,7 @@ def validate_pack(
     _check_invoices(pack.cash_and_invoices, result)
     _check_texts(pack, result)
     _check_behaviour(pack, result)
+    _check_covenant(pack, result)
     if answer_key is not None:
         _check_answer_key(pack, answer_key, result)
     # F.2 Fidelity (blocking): stated values must match output params
@@ -638,6 +639,30 @@ def _behaviour_sid(pack: ScenarioPack) -> str:
     if profile_from_note in presets:
         return profile_from_note  # type: ignore[return-value]
     return sid or "custom"
+
+
+def _check_covenant(pack: ScenarioPack, result: ValidationResult) -> None:
+    """Warning (non-blocking): month-end cash below the stated/assumed bank minimum."""
+    floor = getattr(pack.input.parameters_from_language_model, "covenant_min_cash_eur", None)
+    if floor is None:
+        return
+    below = [
+        (m.month, m.balance_sheet.assets.cash)
+        for m in pack.monthly_reports.months
+        if m.balance_sheet.assets.cash < float(floor)
+    ]
+    if below:
+        first_month, first_cash = below[0]
+        result.add(
+            "cash_below_covenant",
+            (
+                f"Month-end cash is below the bank minimum {float(floor):,.0f} EUR in "
+                f"{len(below)} month(s); first in {first_month} ({first_cash:,.0f} EUR)."
+            ),
+            severity="warning",
+            rule_id="COV-01",
+            numbers={"covenant_min_cash_eur": float(floor), "months_below": len(below)},
+        )
 
 
 def _check_behaviour(pack: ScenarioPack, result: ValidationResult) -> None:

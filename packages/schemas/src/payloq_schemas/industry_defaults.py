@@ -343,7 +343,9 @@ def draw_assumed_defaults(
     Returns flat parameter values plus ``field_sources`` all marked ``assumed``.
     Cost shares are normalized to sum ≈ 0.94 after draw.
     """
-    key = classify_industry(industry, description)
+    # Generic assumptions for every industry. No keyword matching, so a new or
+    # unlisted industry gets exactly the same values. All such values are "assumed".
+    key = "other"
     band = size_band(str(company_size or "small"))
     ranges = _RANGE_TABLE[key][band]
     rng = _seeded_rng(seed, key, band)
