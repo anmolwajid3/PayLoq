@@ -41,6 +41,16 @@ HISTORY_LATE_NEG_WEEK: int = 18
 # Month-1 revenue noise band (work order C): |noise| ≤ this fraction of base revenue.
 REVENUE_NOISE_BAND_FRACTION: float = 0.02
 
+# Fixed charges used by the P&L engine. Shared so assumed cost shares can be
+# calibrated against the same numbers the engine actually books.
+FIXED_DEPRECIATION_MONTHLY_EUR: float = 6_000.0
+LOAN_ANCHOR_EUR: float = 480_000.0
+INTEREST_ANNUAL_RATE: float = 0.045
+
+# A healthy (good) profile must keep this share of revenue as operating profit
+# after fixed charges. Assumed cost shares are calibrated to achieve it.
+HEALTHY_MIN_OPERATING_MARGIN: float = 0.02
+
 # Grounding: stated numeric params must match a description amount within this relative tol.
 GROUNDING_RELATIVE_TOLERANCE: float = 0.05
 GROUNDING_ABSOLUTE_TOLERANCE_EUR: float = 1.0

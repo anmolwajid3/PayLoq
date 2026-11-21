@@ -83,10 +83,10 @@
       "99": "PASS"
     },
     "one_off_inflow": {
-      "1": "status",
+      "1": "PASS",
       "2": "PASS",
-      "3": "status",
-      "42": "status",
+      "3": "PASS",
+      "42": "PASS",
       "99": "PASS"
     },
     "no_one_off": {
@@ -98,10 +98,10 @@
     },
     "annual_revenue": {
       "1": "PASS",
-      "2": "status",
+      "2": "PASS",
       "3": "PASS",
       "42": "PASS",
-      "99": "status"
+      "99": "PASS"
     },
     "months_24": {
       "1": "PASS",
@@ -112,9 +112,9 @@
     },
     "finnish": {
       "1": "PASS",
-      "2": "status",
+      "2": "PASS",
       "3": "PASS",
-      "42": "status",
+      "42": "PASS",
       "99": "PASS"
     },
     "stub": {
@@ -132,67 +132,10 @@
       "99": "—"
     }
   },
-  "failures": [
-    {
-      "scenario": "one_off_inflow",
-      "seed": 1,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "one_off_inflow",
-      "seed": 3,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "one_off_inflow",
-      "seed": 42,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "annual_revenue",
-      "seed": 2,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "annual_revenue",
-      "seed": 99,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "finnish",
-      "seed": 2,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    },
-    {
-      "scenario": "finnish",
-      "seed": 42,
-      "check": "status",
-      "expected": "four output files written (run status ok)",
-      "actual": "missing input.json, monthly_reports.json, cash_and_invoices.json, answer_key.json; call error: Validation failed after seed retries: VR-20",
-      "file": "input.json"
-    }
-  ],
+  "failures": [],
   "summary": {
     "cells": 67,
-    "passed": 60,
-    "failed": 7
+    "passed": 67,
+    "failed": 0
   }
 }

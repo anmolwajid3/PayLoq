@@ -11,6 +11,15 @@ import random
 from typing import Any, Literal
 
 from payloq_schemas.company_size import size_band
+from payloq_schemas.constants import (
+    COST_SHARE_SUM_MAX,
+    COST_SHARE_SUM_MIN,
+    COST_SHARE_SUM_TARGET,
+    FIXED_DEPRECIATION_MONTHLY_EUR,
+    HEALTHY_MIN_OPERATING_MARGIN,
+    INTEREST_ANNUAL_RATE,
+    LOAN_ANCHOR_EUR,
+)
 
 IndustryKey = Literal[
     "manufacturing",
@@ -396,3 +405,46 @@ def range_for(
     key = classify_industry(industry, description)
     band = size_band(str(company_size or "small"))
     return _RANGE_TABLE[key][band].get(field)
+
+
+def healthy_variable_cost_sum(start_revenue_eur: float) -> float:
+    """Sum of variable cost shares that leaves a healthy profile profitable.
+
+    Fixed charges (depreciation + interest on the loan anchor) are a fixed euro
+    amount per month, so they weigh more on a small revenue base. The variable
+    cost sum is lowered as far as the blocking FR-A-11 band allows
+    (COST_SHARE_SUM_MIN) to keep HEALTHY_MIN_OPERATING_MARGIN after fixed charges.
+    """
+    fixed_monthly = FIXED_DEPRECIATION_MONTHLY_EUR + LOAN_ANCHOR_EUR * INTEREST_ANNUAL_RATE / 12.0
+    fixed_ratio = fixed_monthly / max(float(start_revenue_eur), 1.0)
+    target = 1.0 - fixed_ratio - HEALTHY_MIN_OPERATING_MARGIN
+    return min(COST_SHARE_SUM_TARGET, max(COST_SHARE_SUM_MIN, target))
+
+
+def calibrate_cost_shares_for_shape(
+    shares: dict[str, Any],
+    *,
+    start_revenue_eur: float,
+    scenario_shape: str | None,
+) -> dict[str, Any]:
+    """Rescale ASSUMED cost shares so a healthy profile is profitable by construction.
+
+    Only the ``healthy`` shape is calibrated. Other shapes keep the range-table draw
+    (weak / cash-critical stories are allowed to be loss-making). Stated shares are
+    never passed here (the caller calibrates assumed shares only).
+    """
+    if (scenario_shape or "").strip().lower() != "healthy":
+        return dict(shares)
+    keys = ("materials", "services", "personnel", "other")
+    total = sum(float(shares.get(k) or 0.0) for k in keys)
+    if total <= 0:
+        return dict(shares)
+    target = healthy_variable_cost_sum(start_revenue_eur)
+    scale = target / total
+    out = dict(shares)
+    for k in keys:
+        out[k] = round(float(shares.get(k) or 0.0) * scale, 6)
+    # Guard: never leave the FR-A-11 band (the calibration can only land inside it).
+    total_after = sum(float(out[k]) for k in keys)
+    assert COST_SHARE_SUM_MIN - 1e-6 <= total_after <= COST_SHARE_SUM_MAX + 1e-6
+    return out

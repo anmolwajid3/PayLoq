@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from payloq_schemas.industry_defaults import draw_assumed_defaults
+from payloq_schemas.industry_defaults import calibrate_cost_shares_for_shape, draw_assumed_defaults
 from payloq_schemas.scenario_shape_ranges import overlay_shape_on_drawn
 
 
@@ -320,6 +320,16 @@ def apply_assumed_defaults(
     out["scenario_shape"] = shape or "unspecified"
     # Stable key order so input.json hashes do not depend on insertion path.
     out["field_sources"] = dict(sorted((str(k), v) for k, v in sources.items()))
+    if (
+        sources.get("cost_shares_of_revenue") == "assumed"
+        and isinstance(out.get("cost_shares_of_revenue"), dict)
+        and out.get("monthly_revenue_start_eur") is not None
+    ):
+        out["cost_shares_of_revenue"] = calibrate_cost_shares_for_shape(
+            out["cost_shares_of_revenue"],
+            start_revenue_eur=float(out["monthly_revenue_start_eur"]),
+            scenario_shape=shape,
+        )
     shares_out = out.get("cost_shares_of_revenue")
     if isinstance(shares_out, dict):
         out["cost_shares_of_revenue"] = {

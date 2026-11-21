@@ -709,6 +709,54 @@ def enforce_required_one_offs(
     return issues
 
 
+def reject_ungrounded_one_offs(events: Any, description: str) -> list[StatedIssue]:
+    """Every extracted one-off must be a one-off the description states.
+
+    The model has invented inflows (a covenant or a starting balance turned into a
+    one-off, or a made-up amount). A one-off is accepted only when the description
+    states the same amount, month and direction. A description that states no
+    one-off accepts none. Generic: no company, value or phrase is special-cased.
+    """
+    if not isinstance(events, list) or not events:
+        return []
+    required = extract_required_one_offs(description)
+    issues: list[StatedIssue] = []
+
+    def _norm_dir(raw: Any) -> str:
+        s = str(raw or "").strip().lower()
+        if s in {"in", "inflow"}:
+            return "inflow"
+        if s in {"out", "outflow"}:
+            return "outflow"
+        return s
+
+    for i, ev in enumerate(events):
+        if not isinstance(ev, dict):
+            continue
+        try:
+            amt = float(ev.get("amount_eur") or 0)
+            month = int(ev.get("month_index") or 0)
+        except (TypeError, ValueError):
+            continue
+        grounded = any(
+            _near(amt, float(req["amount_eur"]))
+            and month == int(req["month_index"])
+            and _norm_dir(ev.get("direction")) == req["direction"]
+            for req in required
+        )
+        if not grounded:
+            issues.append(
+                StatedIssue(
+                    field=f"one_off_events[{i}]",
+                    message=(
+                        f"one-off {amt:,.0f} EUR in month {month} "
+                        f"({_norm_dir(ev.get('direction'))}) is not stated in the description"
+                    ),
+                )
+            )
+    return issues
+
+
 def apply_annual_to_monthly(parameters: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Derive annual↔monthly (and the other formula-table rows) in code.
 
