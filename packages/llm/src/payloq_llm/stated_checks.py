@@ -41,10 +41,15 @@ _NUMERIC_STATED_FIELDS: frozenset[str] = frozenset(
         "revenue_monthly_eur",
         "revenue_annual_eur",
         "growth_per_month_fraction",
+        "growth_per_month_percent",
         "starting_cash_eur",
         "covenant_min_cash_eur",
         "dso_days",
         "dpo_days",
+        "dso_weeks",
+        "dpo_weeks",
+        "dso_months",
+        "dpo_months",
         "monthly_revenue_start_eur",
         "monthly_revenue_growth",
         "days_sales_outstanding",
@@ -62,12 +67,18 @@ _KNOWN_STATED_FIELDS: frozenset[str] = frozenset(
         "industry",
         "company_size",
         "scenario_shape",
+        "growth_per_month_percent",
+        "dso_weeks",
+        "dpo_weeks",
+        "dso_months",
+        "dpo_months",
     }
 )
 
+# Event month ("in month 5", "kuukaudessa 3"). Not a duration ("2 months" = DSO).
 _MONTH_PATTERNS: tuple[str, ...] = (
-    r"(?:month|kuukaus(?:i|essa)?|kk)\s*(?P<m>\d{1,2})",
-    r"(?P<m>\d{1,2})\.?\s*(?:month|kuukaus)",
+    r"(?:in\s+)?(?:month|kuukaudessa|kuukausi|kk)\s+(?P<m>\d{1,2})\b",
+    r"(?P<m>\d{1,2})\.?\s+kuukau",
 )
 
 _DIR_OUT: tuple[str, ...] = ("outflow", "out-flow", "out flow", "ulosvirtaus", "meno")
@@ -145,12 +156,34 @@ def _parse_grouped_number(raw: str) -> float | None:
         return None
 
 
-def scan_description_numbers(description: str) -> list[float]:
+def _is_grouped_fragment(blob: str, start: int, end: int) -> bool:
+    """True when ``blob[start:end]`` is a piece of ``210,000`` / ``210.000`` / ``65 000``."""
+    before = blob[start - 1] if start else ""
+    after = blob[end : end + 1]
+    if after in ",." and end + 4 <= len(blob) and blob[end + 1 : end + 4].isdigit():
+        return True
+    if before in ",." and start >= 3 and blob[start - 3 : start].isdigit():
+        return True
+    if after == " " and end + 4 <= len(blob) and blob[end + 1 : end + 4].isdigit():
+        return True
+    if before == " " and start >= 3 and blob[start - 3 : start].isdigit():
+        return True
+    return False
+
+
+def scan_description_numbers(
+    description: str,
+    *,
+    include_converted_fraction: bool = True,
+    skip_grouped_fragments: bool = False,
+) -> list[float]:
     """
     Scan the description for all numbers, including
     ``210,000``, ``210.000``, ``65 000``, ``50k``, ``2.4 million``, ``0.5%``.
 
-    Returns normalized numeric values (percents as both percent and fraction).
+    Returns normalized numeric values. Percents are kept as the written figure.
+    The decimal (percent/100) is added only when ``include_converted_fraction``
+    is true — that decimal is a conversion, not a number written in the text.
     """
     blob = description or ""
     found: list[float] = []
@@ -183,17 +216,20 @@ def scan_description_numbers(description: str) -> list[float]:
             n *= 1_000.0
         found.append(n)
 
-    # Percentages: keep both the percent figure and the fraction.
+    # Percentages: the written figure, plus the decimal only for legacy grounding.
     for m in re.finditer(r"([+-]?\d+(?:[.,]\d+)?)\s*%", blob):
         try:
             pct = float(m.group(1).replace(",", "."))
         except ValueError:
             continue
         found.append(pct)
-        found.append(pct / 100.0)
+        if include_converted_fraction:
+            found.append(pct / 100.0)
 
     # Bare day-like / month-like integers (1–120) for DSO/DPO/month_index.
     for m in re.finditer(r"\b(\d{1,3})\b", blob):
+        if skip_grouped_fragments and _is_grouped_fragment(blob, m.start(1), m.end(1)):
+            continue
         try:
             n = float(m.group(1))
         except ValueError:
@@ -674,28 +710,23 @@ def enforce_required_one_offs(
 
 
 def apply_annual_to_monthly(parameters: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """If annual set and monthly null: monthly = annual / 12. Record conversion."""
-    out = dict(parameters)
+    """Derive annual↔monthly (and the other formula-table rows) in code.
+
+    Kept as a wrapper so callers record ``source: derived`` plus the formula.
+    """
+    from payloq_llm.stated_only import apply_derivations
+
+    out, records = apply_derivations(parameters)
     changes: list[dict[str, Any]] = []
-    monthly = out.get("revenue_monthly_eur")
-    if monthly is None:
-        monthly = out.get("monthly_revenue_start_eur")
-    annual = out.get("revenue_annual_eur")
-    if (monthly is None or monthly == "") and annual not in (None, ""):
-        try:
-            annual_f = float(annual)
-        except (TypeError, ValueError):
-            return out, changes
-        monthly_f = round(annual_f / 12.0, 2)
-        out["revenue_monthly_eur"] = monthly_f
-        out["monthly_revenue_start_eur"] = monthly_f
+    for rec in records:
         changes.append(
             {
-                "field": "revenue_monthly_eur",
+                "field": rec["field"],
                 "original": None,
-                "clipped": monthly_f,
-                "message": f"converted revenue_annual_eur={annual_f} / 12 → {monthly_f}",
-                "source": "code_conversion",
+                "clipped": rec["value"],
+                "message": f"derived {rec['formula']} → {rec['value']}",
+                "source": "derived",
+                "formula": rec["formula"],
             }
         )
     return out, changes
@@ -828,5 +859,15 @@ def map_b_parameters_to_engine(parameters: dict[str, Any]) -> dict[str, Any]:
 
     if "revenue_annual_eur" in p:
         out["revenue_annual_eur"] = p.get("revenue_annual_eur")
+
+    for key in (
+        "growth_per_month_percent",
+        "dso_weeks",
+        "dpo_weeks",
+        "dso_months",
+        "dpo_months",
+    ):
+        if p.get(key) is not None:
+            out[key] = p.get(key)
 
     return out

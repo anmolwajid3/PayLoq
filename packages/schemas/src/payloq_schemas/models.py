@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-ParamSource = Literal["stated", "assumed"]
+ParamSource = Literal["stated", "assumed", "derived"]
 
 
 class ScenarioMeta(BaseModel):
@@ -177,8 +177,17 @@ class ParametersFromLanguageModel(BaseModel):
     stated_values: dict[str, Any] = Field(default_factory=dict)
     scenario_shape: str | None = None
     scenario_shape_quote: str | None = None
-    # Optional annual revenue before code conversion to monthly.
+    # Optional annual revenue. Direct when the description states it; otherwise derived.
     revenue_annual_eur: float | None = None
+    # Percent as written (0.5 means 0.5%). The engine fraction is derived (/100).
+    growth_per_month_percent: float | None = None
+    # Direct period counts. Days are derived (*7 or *30) when only weeks or months are stated.
+    dso_weeks: float | None = None
+    dpo_weeks: float | None = None
+    dso_months: float | None = None
+    dpo_months: float | None = None
+    # Code derivations: each item has source "derived", formula, field, and value.
+    derived_values: list[dict[str, Any]] = Field(default_factory=list)
     # Model / extract metadata stamped into input.json
     llm_model_name: str | None = None
     extraction_seed: int | None = None

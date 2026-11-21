@@ -7,8 +7,10 @@ from typing import Any
 
 PARAM_SCHEMA_HINT = """
 Return ONLY a JSON object matching this schema (no markdown, no commentary).
-null if the description does not state the value. NEVER use 0 for an unstated value.
-Never put one number in two fields. Do not calculate. Do not convert annual to monthly.
+Every field the description does not state is null. NEVER use 0 for an unstated value.
+The model returns only numbers written in the description.
+The model never calculates, converts, annualises, or infers.
+Code derives annual from monthly, the decimal from a percent, and days from weeks or months.
 {
   "scenario_shape": "healthy" | "weak" | "cash_tight" | "cash_critical" | "unspecified",
   "scenario_shape_quote": "exact words from the description, or null",
@@ -16,11 +18,15 @@ Never put one number in two fields. Do not calculate. Do not convert annual to m
   "parameters": {
     "revenue_monthly_eur": number | null,
     "revenue_annual_eur": number | null,
-    "growth_per_month_fraction": number | null,
+    "growth_per_month_percent": number | null,
     "starting_cash_eur": number | null,
     "covenant_min_cash_eur": number | null,
     "dso_days": number | null,
     "dpo_days": number | null,
+    "dso_weeks": number | null,
+    "dpo_weeks": number | null,
+    "dso_months": number | null,
+    "dpo_months": number | null,
     "one_off_events": [
       {"type": string, "amount_eur": number, "month_index": integer,
        "direction": "inflow" | "outflow"}
@@ -30,9 +36,13 @@ Never put one number in two fields. Do not calculate. Do not convert annual to m
   }
 }
 HARD RULES:
-- Only list a field in "stated" if the description states it. Quotes are optional
-  evidence; code grounds by numeric value, not quote-string matching.
-- Extract ONLY numbers that appear in the description (after k/M/million/%/€ parsing).
+- Only list a field in "stated" if the description states it. Every other field is null.
+- Return the number that is written. Do not multiply, divide, or change units.
+- revenue_monthly_eur is the monthly figure only. Never annual/12. Null if only annual is written.
+- revenue_annual_eur is the annual figure only. Never monthly*12. Null if only monthly is written.
+- growth_per_month_percent is the percent as written (0.5 for "0.5%"), never the decimal 0.005.
+- dso_days/dpo_days only when the text says days. Weeks go in dso_weeks/dpo_weeks.
+  Months go in dso_months/dpo_months. Do not convert weeks or months into days.
 - If starting_cash_eur is not stated, return null (code will assume it).
 - CAPEX / investment one-offs use direction "outflow".
 - When the description states a one-off with amount, month, and inflow/outflow,
@@ -68,8 +78,8 @@ def parameter_extraction_prompt(
         "You map a short company situation into structured generator parameters for PayLoq.\n"
         "Finnish support is required: read both FI and EN descriptions.\n"
         "Code calculates all financial figures; you only extract stated parameters.\n"
-        "Return null for unstated fields. Never invent defaults or company-specific guesses.\n"
-        "Never use 0 for an unstated value.\n\n"
+        "Return null for every field the description does not state.\n"
+        "Never calculate, convert, annualise, or infer. Never use 0 for an unstated value.\n\n"
         f"Description (FI):\n{description_fi}\n\n"
         f"Description (EN):\n{description_en}\n\n"
         f"Options JSON:\n{json.dumps(options, ensure_ascii=False)}\n\n"
@@ -82,9 +92,12 @@ def parameter_repair_prompt(previous: str, error: str) -> str:
         "Your previous JSON failed PayLoq parameter checks (schema and/or value grounding).\n"
         f"Error:\n{error}\n\n"
         f"Previous response:\n{previous}\n\n"
-        "Return corrected JSON only (section B schema). Use null for unstated fields. "
+        "Return corrected JSON only (section B schema). Use null for every unstated field. "
+        "Do not calculate, convert, annualise, or infer. "
         "Every stated number MUST appear in the description after parsing units "
-        "(k, M, million, %, €). Quotes are optional — do not invent quote text. "
+        "(k, M, million, %, €). Return the written percent, not a decimal; "
+        "do not turn monthly into annual or weeks into days. "
+        "Quotes are optional — do not invent quote text. "
         "If the description states a one-off with amount, month, and direction, "
         "include that event. Do not invent defaults. Do not retry with the same wrong numbers.\n"
     )

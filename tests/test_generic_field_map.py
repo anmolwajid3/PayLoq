@@ -88,12 +88,6 @@ def _random_eur(rng: random.Random, lo: int = 12_000, hi: int = 900_000) -> int:
     return rng.randrange(lo, hi, 100)
 
 
-def _random_growth(rng: random.Random) -> float:
-    # Fraction in (-0.2, 0.2) excluding near-zero noise.
-    raw = rng.uniform(0.001, 0.05)
-    return raw if rng.random() < 0.7 else -raw
-
-
 def _random_days(rng: random.Random) -> int:
     return rng.randint(14, 90)
 
@@ -116,9 +110,8 @@ def _phrase_for_field(input_name: str, value: Any) -> str:
         return f"Monthly revenue {_fmt_int(int(value))} euro."
     if input_name == "revenue_annual_eur":
         return f"Annual revenue {_fmt_int(int(value))} euro."
-    if input_name == "growth_per_month_fraction":
-        pct = float(value) * 100.0
-        return f"Growth {pct:.4g}% per month."
+    if input_name == "growth_per_month_percent":
+        return f"Growth {float(value):.4g}% per month."
     if input_name == "starting_cash_eur":
         return f"Starting cash {_fmt_int(int(value))} euro."
     if input_name == "covenant_min_cash_eur":
@@ -127,6 +120,14 @@ def _phrase_for_field(input_name: str, value: Any) -> str:
         return f"DSO {int(value)} days."
     if input_name == "dpo_days":
         return f"DPO {int(value)} days."
+    if input_name == "dso_weeks":
+        return f"DSO {int(value)} weeks."
+    if input_name == "dpo_weeks":
+        return f"DPO {int(value)} weeks."
+    if input_name == "dso_months":
+        return f"DSO {int(value)} months."
+    if input_name == "dpo_months":
+        return f"DPO {int(value)} months."
     if input_name == "one_off_events":
         ev = value[0]
         return (
@@ -145,8 +146,10 @@ def _random_value(input_name: str, rng: random.Random) -> Any:
         return float(_random_eur(rng))
     if input_name == "revenue_annual_eur":
         return float(_random_eur(rng, 200_000, 4_000_000))
-    if input_name == "growth_per_month_fraction":
-        return _random_growth(rng)
+    if input_name == "growth_per_month_percent":
+        # Written percent. Code derives the fraction (/100), kept inside ±5%/month.
+        pct = round(rng.uniform(0.4, 3.8), 3)
+        return pct if rng.random() < 0.7 else -pct
     if input_name == "starting_cash_eur":
         return float(_random_eur(rng, 10_000, 500_000))
     if input_name == "covenant_min_cash_eur":
@@ -155,6 +158,10 @@ def _random_value(input_name: str, rng: random.Random) -> Any:
         return float(_random_days(rng))
     if input_name == "dpo_days":
         return float(_random_days(rng))
+    if input_name in {"dso_weeks", "dpo_weeks"}:
+        return float(rng.randint(2, 12))
+    if input_name in {"dso_months", "dpo_months"}:
+        return float(rng.randint(1, 3))
     if input_name == "one_off_events":
         return [
             {
@@ -172,18 +179,15 @@ def _random_value(input_name: str, rng: random.Random) -> Any:
 
 
 def _null_parameters() -> dict[str, Any]:
-    return {
-        "revenue_monthly_eur": None,
-        "revenue_annual_eur": None,
-        "growth_per_month_fraction": None,
-        "starting_cash_eur": None,
-        "covenant_min_cash_eur": None,
-        "dso_days": None,
-        "dpo_days": None,
-        "one_off_events": [],
-        "industry": None,
-        "company_size": None,
-    }
+    props = (
+        EXTRACTION_JSON_SCHEMA.get("properties", {})
+        .get("parameters", {})
+        .get("properties", {})
+    )
+    out: dict[str, Any] = {}
+    for name in props:
+        out[name] = [] if name == "one_off_events" else None
+    return out
 
 
 def _envelope_for(
@@ -283,6 +287,10 @@ def _assert_value_at_location(
         assert monthly is not None
         assert float(monthly) == pytest.approx(float(expected) / 12.0, abs=1)
         return
+    if row.fidelity_rule == "percent_over_100":
+        assert actual is not None, row.output_location
+        assert float(actual) == pytest.approx(float(expected) / 100.0, rel=1e-6, abs=1e-9)
+        return
     if isinstance(expected, (int, float)):
         assert actual is not None, row.output_location
         assert float(actual) == pytest.approx(float(expected), abs=1)
@@ -310,12 +318,9 @@ def _assert_label_shows_value(
     if isinstance(expected, (int, float)):
         # Display encodes the number; tolerate formatting.
         raw = str(int(expected)) if float(expected) == int(expected) else str(expected)
-        # Growth shown as percent.
-        if input_name == "growth_per_month_fraction":
-            pct = float(expected) * 100.0
-            assert f"{pct:.4g}" in entry["display"].replace(" ", "") or str(
-                round(pct, 4)
-            ) in entry["display"]
+        if row.fidelity_rule == "percent_over_100":
+            pct = float(expected)
+            assert f"{pct:.4g}" in entry["display"].replace(" ", "")
             return
         assert raw in entry["display"].replace(" ", "").replace(",", "") or raw in entry[
             "display"
@@ -381,7 +386,8 @@ def test_two_fields_do_not_swap() -> None:
     numeric_rows = [
         r
         for r in load_field_map()
-        if r.fidelity_rule == "numeric_near" and r.input_name != "revenue_annual_eur"
+        if r.fidelity_rule in {"numeric_near", "percent_over_100"}
+        and r.input_name != "revenue_annual_eur"
     ]
     for i in range(SWAP_CASES):
         rng = random.Random(_seed(5000, i))
@@ -424,7 +430,8 @@ def test_mutate_output_fails_fidelity_naming_field() -> None:
     numeric_rows = [
         r
         for r in load_field_map()
-        if r.fidelity_rule == "numeric_near" and r.input_name not in {"revenue_annual_eur"}
+        if r.fidelity_rule in {"numeric_near", "percent_over_100"}
+        and r.input_name not in {"revenue_annual_eur"}
     ]
     for i in range(MUTATE_CASES):
         rng = random.Random(_seed(9000, i))
@@ -556,7 +563,7 @@ def test_unstated_field_is_assumed_not_stated() -> None:
         and r.input_name
         in {
             "revenue_monthly_eur",
-            "growth_per_month_fraction",
+            "growth_per_month_percent",
             "starting_cash_eur",
             "covenant_min_cash_eur",
             "dso_days",

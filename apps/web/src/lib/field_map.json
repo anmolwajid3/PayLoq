@@ -25,15 +25,15 @@
       "engine_keys": ["revenue_annual_eur"]
     },
     {
-      "input_name": "growth_per_month_fraction",
-      "output_location": "parameters_from_language_model.monthly_revenue_growth",
+      "input_name": "growth_per_month_percent",
+      "output_location": "parameters_from_language_model.growth_per_month_percent",
       "display_label": {
         "en": "Growth per month",
         "fi": "Kasvu / kk"
       },
       "fidelity_rule": "numeric_near",
-      "format": "fraction",
-      "engine_keys": ["monthly_revenue_growth", "growth_per_month_fraction"]
+      "format": "percent",
+      "engine_keys": ["growth_per_month_percent", "monthly_revenue_growth"]
     },
     {
       "input_name": "starting_cash_eur",
@@ -78,6 +78,50 @@
       "fidelity_rule": "numeric_near",
       "format": "days",
       "engine_keys": ["days_payables_outstanding", "dpo_days"]
+    },
+    {
+      "input_name": "dso_weeks",
+      "output_location": "parameters_from_language_model.dso_weeks",
+      "display_label": {
+        "en": "DSO (weeks)",
+        "fi": "DSO (viikkoa)"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "count",
+      "engine_keys": ["dso_weeks"]
+    },
+    {
+      "input_name": "dpo_weeks",
+      "output_location": "parameters_from_language_model.dpo_weeks",
+      "display_label": {
+        "en": "DPO (weeks)",
+        "fi": "DPO (viikkoa)"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "count",
+      "engine_keys": ["dpo_weeks"]
+    },
+    {
+      "input_name": "dso_months",
+      "output_location": "parameters_from_language_model.dso_months",
+      "display_label": {
+        "en": "DSO (months)",
+        "fi": "DSO (kuukautta)"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "count",
+      "engine_keys": ["dso_months"]
+    },
+    {
+      "input_name": "dpo_months",
+      "output_location": "parameters_from_language_model.dpo_months",
+      "display_label": {
+        "en": "DPO (months)",
+        "fi": "DPO (kuukautta)"
+      },
+      "fidelity_rule": "numeric_near",
+      "format": "count",
+      "engine_keys": ["dpo_months"]
     },
     {
       "input_name": "one_off_events",

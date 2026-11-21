@@ -56,9 +56,17 @@ function formatValue(row: FieldMapRow, value: unknown, lang: Lang): string {
     const n = Number(value);
     return Number.isFinite(n) ? fmtPct(n, lang) : String(value);
   }
+  if (row.format === "percent") {
+    const n = Number(value);
+    return Number.isFinite(n) ? `${fmtNum(n, lang, 1)}%` : String(value);
+  }
   if (row.format === "days") {
     const n = Number(value);
     return Number.isFinite(n) ? `${fmtNum(n, lang, 0)} ${lang === "fi" ? "pv" : "days"}` : String(value);
+  }
+  if (row.format === "count") {
+    const n = Number(value);
+    return Number.isFinite(n) ? fmtNum(n, lang, 0) : String(value);
   }
   if (row.format === "one_off_events") {
     if (!Array.isArray(value) || value.length === 0) return "—";
@@ -84,13 +92,19 @@ export function buildFieldSummaryFromMap(
   return FIELD_MAP.map((row) => {
     const value = readLocation(params, options, row.output_location);
     const label = row.display_label[lang] || row.display_label.en || row.input_name;
+    const keys = [row.output_location.split(".").pop()!, row.input_name, ...(row.engine_keys || [])];
     let source: string | null | undefined;
-    for (const key of [row.output_location.split(".").pop()!, row.input_name, ...(row.engine_keys || [])]) {
-      if (sources[key] != null) {
-        source = sources[key];
+    let sawDerived = false;
+    let sawOther: string | null = null;
+    for (const key of keys) {
+      if (sources[key] === "stated") {
+        source = "stated";
         break;
       }
+      if (sources[key] === "derived") sawDerived = true;
+      else if (sources[key] != null && sawOther == null) sawOther = sources[key];
     }
+    if (source == null) source = sawDerived ? "derived" : sawOther;
     return {
       input_name: row.input_name,
       output_location: row.output_location,
