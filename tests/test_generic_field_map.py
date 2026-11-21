@@ -41,6 +41,18 @@ SWAP_CASES = 40
 MUTATE_CASES = 40
 UNSTATED_CASES = 40
 
+# Outer seed for evidence sweeps (FIELD_MAP_PROP_SEED=1..5).
+import os
+
+_PROP_SEED = int(os.environ.get("FIELD_MAP_PROP_SEED", "0"))
+
+
+def _seed(*parts: int) -> int:
+    base = 0
+    for p in parts:
+        base = base * 1_000_003 + int(p)
+    return base + _PROP_SEED * 17_771
+
 
 def _schema_parameter_names() -> set[str]:
     props = (
@@ -316,7 +328,7 @@ def _assert_label_shows_value(
 def test_each_field_random_stated_reaches_output_and_label(row: Any) -> None:
     failures: list[str] = []
     for i in range(CASES_PER_FIELD):
-        rng = random.Random(1000 + hash(row.input_name) % 10_000 + i)
+        rng = random.Random(_seed(1000, hash(row.input_name) % 10_000, i))
         value = _random_value(row.input_name, rng)
         description = _phrase_for_field(row.input_name, value)
         industry = "services"
@@ -372,7 +384,7 @@ def test_two_fields_do_not_swap() -> None:
         if r.fidelity_rule == "numeric_near" and r.input_name != "revenue_annual_eur"
     ]
     for i in range(SWAP_CASES):
-        rng = random.Random(5000 + i)
+        rng = random.Random(_seed(5000, i))
         a, b = rng.sample(numeric_rows, 2)
         va = _random_value(a.input_name, rng)
         vb = _random_value(b.input_name, rng)
@@ -415,7 +427,7 @@ def test_mutate_output_fails_fidelity_naming_field() -> None:
         if r.fidelity_rule == "numeric_near" and r.input_name not in {"revenue_annual_eur"}
     ]
     for i in range(MUTATE_CASES):
-        rng = random.Random(9000 + i)
+        rng = random.Random(_seed(9000, i))
         row = rng.choice(numeric_rows)
         value = _random_value(row.input_name, rng)
         description = _phrase_for_field(row.input_name, value)
@@ -451,6 +463,89 @@ def test_mutate_output_fails_fidelity_naming_field() -> None:
     assert not failures, f"{len(failures)}/{MUTATE_CASES} failed — {failures[:5]}"
 
 
+def test_industry_and_company_size_stated_show_stated_in_summary() -> None:
+    """When industry/company_size are stated, Run summary source must be 'stated'."""
+    failures: list[str] = []
+    for i in range(CASES_PER_FIELD):
+        rng = random.Random(_seed(20_000, i))
+        industry = str(_random_value("industry", rng))
+        company_size = str(_random_value("company_size", rng))
+        description = (
+            f"{_phrase_for_field('industry', industry)} "
+            f"{_phrase_for_field('company_size', company_size)}"
+        )
+        envelope = _envelope_for(
+            stated_fields={"industry": industry, "company_size": company_size},
+            industry=industry,
+            company_size=company_size,
+        )
+        params, stated_result = _finalize(
+            envelope,
+            description,
+            seed=400 + i + _PROP_SEED,
+            industry=industry,
+            company_size=company_size,
+        )
+        if not stated_result.ok:
+            failures.append(f"case {i}: finalize {stated_result.error_text()}")
+            continue
+        options = _options_for(industry, company_size)
+        summary = build_field_summary_rows(params=params, options=options, lang="en")
+        by_name = {r["input_name"]: r for r in summary}
+        for field_name, expected in (
+            ("industry", industry),
+            ("company_size", company_size),
+        ):
+            row = by_name[field_name]
+            if row.get("source") != "stated":
+                failures.append(
+                    f"case {i}: {field_name} source={row.get('source')!r} "
+                    f"expected 'stated'"
+                )
+            if str(expected) not in str(row.get("display")):
+                failures.append(
+                    f"case {i}: {field_name} display={row.get('display')!r} "
+                    f"missing {expected!r}"
+                )
+    assert not failures, f"{len(failures)}/{CASES_PER_FIELD} failed — {failures[:5]}"
+
+
+def test_covenant_stated_does_not_mirror_into_target_cash() -> None:
+    """Stated covenant only: target_cash must not equal covenant; assumed if present."""
+    failures: list[str] = []
+    for i in range(CASES_PER_FIELD):
+        rng = random.Random(_seed(30_000, i))
+        cov = float(_random_value("covenant_min_cash_eur", rng))
+        description = _phrase_for_field("covenant_min_cash_eur", cov)
+        envelope = _envelope_for(stated_fields={"covenant_min_cash_eur": cov})
+        params, stated_result = _finalize(
+            envelope, description, seed=500 + i + _PROP_SEED
+        )
+        if not stated_result.ok:
+            failures.append(f"case {i}: finalize {stated_result.error_text()}")
+            continue
+        sources = params.get("field_sources") or {}
+        if sources.get("covenant_min_cash_eur") != "stated":
+            failures.append(
+                f"case {i}: covenant source={sources.get('covenant_min_cash_eur')!r}"
+            )
+            continue
+        target = params.get("target_cash_at_end_eur")
+        if target is None:
+            continue
+        if float(target) == float(cov):
+            failures.append(
+                f"case {i}: target_cash {target} equals stated covenant {cov}"
+            )
+            continue
+        if sources.get("target_cash_at_end_eur") != "assumed":
+            failures.append(
+                f"case {i}: target_cash source="
+                f"{sources.get('target_cash_at_end_eur')!r} expected assumed"
+            )
+    assert not failures, f"{len(failures)}/{CASES_PER_FIELD} failed — {failures[:5]}"
+
+
 def test_unstated_field_is_assumed_not_stated() -> None:
     failures: list[str] = []
     assumable = [
@@ -469,7 +564,7 @@ def test_unstated_field_is_assumed_not_stated() -> None:
         }
     ]
     for i in range(UNSTATED_CASES):
-        rng = random.Random(12_000 + i)
+        rng = random.Random(_seed(12_000, i))
         # State one field so finalize succeeds with a grounded description;
         # leave the subject field unstated.
         subject = rng.choice(assumable)
@@ -477,7 +572,9 @@ def test_unstated_field_is_assumed_not_stated() -> None:
         other_val = _random_value(other.input_name, rng)
         description = _phrase_for_field(other.input_name, other_val)
         envelope = _envelope_for(stated_fields={other.input_name: other_val})
-        params, stated_result = _finalize(envelope, description, seed=300 + i)
+        params, stated_result = _finalize(
+            envelope, description, seed=300 + i + _PROP_SEED
+        )
         if not stated_result.ok:
             failures.append(f"case {i}: finalize {stated_result.error_text()}")
             continue

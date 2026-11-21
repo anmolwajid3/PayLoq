@@ -785,7 +785,7 @@ def map_b_parameters_to_engine(parameters: dict[str, Any]) -> dict[str, Any]:
     cov = p.get("covenant_min_cash_eur")
     if cov is not None:
         out["covenant_min_cash_eur"] = cov
-        out["target_cash_at_end_eur"] = cov
+        # Do not copy covenant into target_cash — assume fills target when null.
 
     dso = p.get("dso_days")
     if dso is None:

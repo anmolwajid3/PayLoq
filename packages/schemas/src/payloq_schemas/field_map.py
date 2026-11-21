@@ -162,13 +162,21 @@ def build_field_summary_rows(
     params = dict(params or {})
     options = dict(options or {})
     sources = dict(params.get("field_sources") or {})
+    stated_values = dict(params.get("stated_values") or {})
     rows: list[dict[str, Any]] = []
     for row in load_field_map():
         value = read_output_location(
             params=params, options=options, location=row.output_location
         )
         source = None
+        # Stated provenance: field_sources first, else presence in stated_values
+        # (option fields like industry/company_size live in stated_values only).
         for key in (row.output_key, row.input_name, *row.engine_keys):
+            if sources.get(key) == "stated" or (
+                key in stated_values and stated_values.get(key) is not None
+            ):
+                source = "stated"
+                break
             if key in sources:
                 source = sources[key]
                 break

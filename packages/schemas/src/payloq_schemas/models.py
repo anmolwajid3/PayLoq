@@ -209,10 +209,9 @@ class ParametersFromLanguageModel(BaseModel):
         for alias, canonical in alias_map.items():
             if out.get(canonical) is None and out.get(alias) is not None:
                 out[canonical] = out[alias]
-        # covenant_min_cash_eur ↔ target_cash_at_end_eur
-        if out.get("target_cash_at_end_eur") is None and out.get("covenant_min_cash_eur") is not None:
-            out["target_cash_at_end_eur"] = out["covenant_min_cash_eur"]
-        elif out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
+        # Fill missing covenant from target only. Do NOT copy covenant → target
+        # (stated covenant must not force target_cash equal to it).
+        if out.get("covenant_min_cash_eur") is None and out.get("target_cash_at_end_eur") is not None:
             out["covenant_min_cash_eur"] = out["target_cash_at_end_eur"]
         return out
 
