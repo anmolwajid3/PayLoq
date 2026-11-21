@@ -80,10 +80,19 @@ One config table drives every extraction-schema field → `input.json` location,
 | `packages/schemas/.../field_map.py` | `load_field_map`, `build_field_summary_rows` | Load map; build summary rows; B↔engine helpers from map. |
 | `packages/validate/.../fidelity.py` | `check_fidelity` | Loops **only** over map rows; mismatch / missing output → `error` naming field + stated + output. |
 | `packages/llm/.../extract_pipeline.py` | `finalize_extracted_parameters` | `stated_values` / B→engine from map; keep industry/company_size in `stated_values` for fidelity. |
-| `packages/llm/.../assume.py` | `apply_assumed_defaults` | Covenant↔target mirror sets `field_sources` (`assumed` when unstated). |
+| `packages/llm/.../assume.py` | `apply_assumed_defaults` | Target assumed independently when unstated; **no** covenant→target copy. Target→covenant fill only. |
 | `apps/api/.../generate.py` | `_pack_summary` | Adds `field_summary` from the map. |
 | `apps/web/.../fieldSummary.ts` + RunDetail / PDF / ArtifactViewer | display | Run summary renders every map row under that row’s label only. |
 | `tests/test_generic_field_map.py` | property tests | Random per-field / swap / mutate / unstated cases (no fixed example values). |
+
+### F2 follow-up (evidence round 2)
+
+| File | Change |
+| --- | --- |
+| `packages/schemas/.../field_map.py` | `build_field_summary_rows` marks industry/company_size `stated` via `stated_values` / `field_sources`. |
+| `packages/llm/.../extract_pipeline.py` | Option stated fields recorded in `field_sources`. |
+| `packages/llm/.../assume.py` / `stated_checks.map_b_parameters_to_engine` / `models._accept_wo_aliases` | Removed covenant→target_cash mirror. |
+| `tests/test_generic_field_map.py` | Property tests for industry/company_size summary source; covenant≠target when only covenant stated. |
 
 ## G. Removals (finish)
 

@@ -157,6 +157,10 @@ def finalize_extracted_parameters(
     resolved_size = parameters.get("company_size") or company_size
 
     sources = {k: "stated" for k in engine if engine.get(k) is not None}
+    # Option fields stated in extraction: record provenance for Run summary.
+    for opt_key, opt_val in option_stated_values.items():
+        if opt_val is not None and opt_val != "":
+            sources[opt_key] = "stated"
     engine["field_sources"] = sources
     engine["field_quotes"] = {
         b_to_eng.get(k, k): v for k, v in stated.items()
