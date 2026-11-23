@@ -226,6 +226,17 @@ The extraction schema asks only for numbers written in the description. Annual t
 
 ---
 
+## I. Harness green (VR-20, seed retries, assumed opening cash)
+
+| File | Function / symbol | Change |
+| --- | --- | --- |
+| `packages/validate/src/payloq_validate/checks.py` | `_behaviour_sid` | VR-20 may require a shape only when the caller named that preset, or the description / stated inputs imply it. A model `scenario_shape`, a `behavior_profile` note, assumed cash ≤ 60k, or an unrelated word (covenant, bare "critical") does not impose the shape. |
+| `packages/generator/src/payloq_generator/pipeline.py` | `run_generation` | Noise redraws keep the caller's seed. A rule the inputs determine (`behaviour_good_profit`, `behaviour_weak_loss`, `behaviour_weak_cash`, `fidelity`) is not retried. A failure names the rule and the input facts. |
+| `packages/generator/src/payloq_generator/engine.py` | `generate_pack`, `_generate_months` | `noise_seed` redraws generation noise only. When `starting_cash_eur` is assumed, latest cash keeps 40% of that opening so it moves with the assumption. |
+| `tests/harness/checks.py` | `check_sensitivity` | When starting cash is not stated, raise the assumed opening and require latest cash and the projection opening to rise with it. |
+
+Fixture `pytest tests/harness -q` is 69 passed, and `pytest -q` is 320 passed. The qwen2.5:7b live run was killed on `partly_stated` seed 42 after 38 finished cells (4 pass, 34 fail). Those failures are model repeatability and invented one-offs. Recorded fixtures were not edited. The live table is in the store evidence.
+
 ## Explicit non-goals
 - No Task B harness redesign beyond stub labelling / comparison exclusion.
 - No chat-demo feature work beyond journal removal + stub labelling.

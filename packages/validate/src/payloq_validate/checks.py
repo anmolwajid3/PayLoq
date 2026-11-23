@@ -584,15 +584,10 @@ def _check_texts(pack: ScenarioPack, result: ValidationResult) -> None:
                     )
 
 
-def _behaviour_sid(pack: ScenarioPack) -> str:
-    """Preset id when labelled; else infer from note / params (custom pack labels)."""
-    sid = (
-        pack.input.options.scenario_id
-        or pack.input.meta.scenario
-        or pack.monthly_reports.meta.scenario
-        or ""
-    ).lower()
-    presets = {
+# Caller-chosen pack ids. A model scenario_shape that merely maps onto one of
+# these is not itself a stated input.
+_PRESET_BEHAVIOUR = frozenset(
+    {
         "good",
         "weak",
         "cash_critical",
@@ -600,45 +595,134 @@ def _behaviour_sid(pack: ScenarioPack) -> str:
         "invoices_out_of_balance",
         "test_only_broken",
     }
-    if sid in presets:
-        return sid
-    note = pack.input.meta.note or ""
-    profile_from_note: str | None = None
-    if "behavior_profile=" in note:
-        profile_from_note = note.split("behavior_profile=")[-1].split("|")[0].strip().lower()
-    # Fall back to param / NL heuristics for custom from_text packs.
-    # Prefer cash-stress detection over a stale behavior_profile=good stamp when
-    # the description/params clearly contradict a healthy pack (Run #9).
-    cash = pack.input.parameters_from_language_model.target_cash_at_end_eur
-    growth = pack.input.parameters_from_language_model.monthly_revenue_growth
-    text = f"{pack.input.scenario_description.fi} {pack.input.scenario_description.en}"
-    text_l = text.lower()
-    try:
-        from payloq_llm.nl_cash_intent import looks_cash_critical
-    except ImportError:  # pragma: no cover
-        looks_cash_critical = None  # type: ignore[assignment]
-    cash_stressed = cash <= 60_000 or (
-        looks_cash_critical is not None and looks_cash_critical(text)
-    ) or any(
-        k in text_l
-        for k in (
-            "kriittinen",
-            "critical",
-            "cash tight",
-            "negatiiv",
-            "covenant",
-            "kovenantti",
-            "winter cash",
-            "ohut kassa",
-        )
-    )
-    if growth < -0.005:
-        return "weak"
-    if cash_stressed:
+)
+
+# Wording that states a shape. Bare "critical", "covenant", or "bank" do not:
+# those words also appear on ordinary minimum-cash lines and in unrelated quotes.
+_LATER_PHRASES = (
+    "five months",
+    "5 months",
+    "viiden kuukauden",
+    "in about five months",
+    "critical later",
+    "muuttuu kriittiseksi",
+    "will be critical",
+)
+_NEAR_CASH_PHRASES = (
+    "cash is tight",
+    "cash tight",
+    "tight cash",
+    "tiukka kassa",
+    "kassa tiuk",
+    "tiukalla",
+    "cash critical",
+    "kassakriisi",
+    "critical in three weeks",
+    "critical within weeks",
+    "within weeks",
+    "three weeks",
+    "kolmen viikon",
+    "runs out of cash",
+    "kassa loppuu",
+    "negatiiv",
+    "ohut kassa",
+    "thin cash",
+    "winter cash",
+    "talvikassa",
+    "thin winter",
+    "cash cliff",
+    "kassa romaht",
+    "kriittinen",
+)
+_WEAK_PHRASES = (
+    "falling revenue",
+    "revenue is falling",
+    "weak cash",
+    "a weak cash",
+    "cash is shrinking",
+    "kassa hupenee",
+    "tappioll",
+    "liikevaihto laskee",
+    "heikko",
+)
+_GOOD_PHRASES = (
+    "healthy cash",
+    "hyvä kassa",
+    "hyvä kassatilanne",
+    "terve kassa",
+)
+
+
+def _description_text(pack: ScenarioPack) -> str:
+    desc = pack.input.scenario_description
+    return f"{desc.fi or ''} {desc.en or ''}".lower()
+
+
+def _shape_from_description(text: str) -> str | None:
+    """Shape the description states. Unrelated wording returns None."""
+    later = any(phrase in text for phrase in _LATER_PHRASES)
+    near = any(phrase in text for phrase in _NEAR_CASH_PHRASES)
+    # "critical in about five months" is a later crisis. A three-week line is not.
+    if later and not any(
+        phrase in text for phrase in ("three weeks", "kolmen viikon", "within weeks", "tiukalla nyt")
+    ):
+        return "cash_turning_critical_later"
+    if near or later:
         return "cash_critical"
-    if profile_from_note in presets:
-        return profile_from_note  # type: ignore[return-value]
-    return sid or "custom"
+    if any(phrase in text for phrase in _WEAK_PHRASES):
+        return "weak"
+    if any(phrase in text for phrase in _GOOD_PHRASES):
+        return "good"
+    return None
+
+
+def _shape_from_stated_inputs(pack: ScenarioPack) -> str | None:
+    """Shape implied by values the description stated, not by assumed draws."""
+    params = pack.input.parameters_from_language_model
+    sources = dict(params.field_sources or {})
+    growth_stated = sources.get("growth_per_month_percent") == "stated" or sources.get(
+        "monthly_revenue_growth"
+    ) in {"stated", "derived"}
+    if growth_stated and float(params.monthly_revenue_growth or 0.0) < -0.005:
+        return "weak"
+    return None
+
+
+def _stamped_profile(pack: ScenarioPack) -> str:
+    shape = (
+        getattr(pack.input.parameters_from_language_model, "scenario_shape", None) or ""
+    ).strip().lower()
+    if not shape:
+        return ""
+    try:
+        from payloq_schemas.scenario_shape_ranges import profile_for_shape
+    except ImportError:  # pragma: no cover
+        return ""
+    return profile_for_shape(shape)
+
+
+def _behaviour_sid(pack: ScenarioPack) -> str:
+    """Shape VR-20 may require.
+
+    A preset id the caller set (and that the model shape did not merely stamp)
+    is a stated input. A shape label, a behavior_profile note, a low assumed
+    cash figure, or an unrelated word does not impose the shape.
+    """
+    sid = (pack.input.options.scenario_id or "").strip().lower()
+    stamped = _stamped_profile(pack)
+    implied = _shape_from_description(_description_text(pack)) or _shape_from_stated_inputs(pack)
+    explicit = sid if sid in _PRESET_BEHAVIOUR else ""
+    if explicit and explicit != stamped:
+        return explicit
+    if explicit and explicit == stamped:
+        if implied == explicit:
+            return explicit
+        if implied:
+            return implied
+        return "custom"
+    if implied:
+        return implied
+    return "custom"
 
 
 def _check_covenant(pack: ScenarioPack, result: ValidationResult) -> None:

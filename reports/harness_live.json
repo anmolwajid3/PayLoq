@@ -1,0 +1,1280 @@
+{
+  "tier": "live",
+  "command": "pytest tests/harness --live",
+  "model": "qwen2.5:7b",
+  "status": "partial-killed",
+  "note": "Killed while partly_stated seed 42 was still in its second generation. 38 cells finished (4 pass, 34 fail). One cell has run A only. Later scenarios were not started. Fixtures were not edited. Rescored from /tmp/pytest-of-ubuntu/pytest-3 with harness.checks.evaluate_case.",
+  "log": "/tmp/harness-live.log",
+  "artifacts": "/tmp/pytest-of-ubuntu/pytest-3",
+  "pytest_marks": ".FFFFFFFFFFFFFFFFFFFFFFFFFF....FFFFFFFF",
+  "summary": {
+    "finished": 38,
+    "passed": 4,
+    "failed": 34,
+    "killed": 1,
+    "not_run_scenario_cells": 26
+  },
+  "table": {
+    "good": {
+      "1": "repeatability",
+      "2": "fidelity, repeatability",
+      "3": "repeatability",
+      "42": "repeatability",
+      "99": "repeatability"
+    },
+    "weak": {
+      "1": "repeatability",
+      "2": "repeatability",
+      "3": "repeatability",
+      "42": "repeatability",
+      "99": "repeatability"
+    },
+    "cash_in_trouble": {
+      "1": "repeatability",
+      "2": "repeatability",
+      "3": "repeatability",
+      "42": "repeatability",
+      "99": "fidelity, repeatability"
+    },
+    "invoices_out_of_balance": {
+      "1": "fidelity, repeatability",
+      "2": "fidelity, repeatability",
+      "3": "repeatability",
+      "42": "repeatability",
+      "99": "repeatability"
+    },
+    "cash_turning_critical": {
+      "1": "repeatability",
+      "2": "repeatability",
+      "3": "repeatability",
+      "42": "fidelity, repeatability",
+      "99": "repeatability"
+    },
+    "vague": {
+      "1": "repeatability",
+      "2": "PASS",
+      "3": "PASS",
+      "42": "PASS",
+      "99": "PASS"
+    },
+    "fully_stated": {
+      "1": "repeatability",
+      "2": "repeatability",
+      "3": "repeatability",
+      "42": "repeatability",
+      "99": "repeatability"
+    },
+    "partly_stated": {
+      "1": "fidelity, repeatability",
+      "2": "fidelity, repeatability",
+      "3": "fidelity, repeatability",
+      "42": "KILLED",
+      "99": "NOT RUN"
+    },
+    "one_off_inflow": {
+      "1": "NOT RUN",
+      "2": "NOT RUN",
+      "3": "NOT RUN",
+      "42": "NOT RUN",
+      "99": "NOT RUN"
+    },
+    "no_one_off": {
+      "1": "NOT RUN",
+      "2": "NOT RUN",
+      "3": "NOT RUN",
+      "42": "NOT RUN",
+      "99": "NOT RUN"
+    },
+    "annual_revenue": {
+      "1": "NOT RUN",
+      "2": "NOT RUN",
+      "3": "NOT RUN",
+      "42": "NOT RUN",
+      "99": "NOT RUN"
+    },
+    "months_24": {
+      "1": "NOT RUN",
+      "2": "NOT RUN",
+      "3": "NOT RUN",
+      "42": "NOT RUN",
+      "99": "NOT RUN"
+    },
+    "finnish": {
+      "1": "NOT RUN",
+      "2": "NOT RUN",
+      "3": "NOT RUN",
+      "42": "NOT RUN",
+      "99": "NOT RUN"
+    },
+    "stub": {
+      "1": "NOT RUN",
+      "2": "—",
+      "3": "—",
+      "42": "—",
+      "99": "—"
+    },
+    "ollama-unreachable": {
+      "1": "NOT RUN",
+      "2": "—",
+      "3": "—",
+      "42": "—",
+      "99": "—"
+    }
+  },
+  "cells": [
+    {
+      "scenario": "good",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_good_1_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A c7ebe4fa180fec638b65a741ec10ca43134f02f7d696f5ec8fd16efaf9713223 run B c312891e5d636f94ce43b80844b156561f57d32f66ab1711887cb03004a42176",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 0b295b5a4afc9eedcd6f8d22bf2219122cf7658a07bb1931100fdc9dfbf3323d run B f04f1101e429eda2e8d9420a31ff6351d06e418b48c5ab4645090c492517fb21",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and steady growth.\",\n  \"stated\": {\n    \"Monthly revenue 234000 euro\": \"Monthly revenue 234000 euro\",\n    \"Growth 0.9% per month\": \"Growth 0.9% per month\",\n    \"Starting cash 268000 euro\": \"Starting cash 268000 euro\",\n    \"Bank minimum cash 144000 euro\": \"Bank minimum cash 144000 euro\",\n    \"DSO 49 days\": \"DSO 49 days\",\n    \"DPO 37 days\": \"DPO 37 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 234000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.9,\n    \"starting_cash_eur\": 268000,\n    \"covenant_min_cash_eur\": 144000,\n    \"dso_days\": 49,\n    \"dpo_days\": 37,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 144000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "good",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_good_2_0",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'inflow', 'amount_eur': 179000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in parameters field_sources, one_off_events",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'inflow', 'amount_eur': 179000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 2c460017b9a398126b19d4fa7abb9fc75d42b383d68e0a3e13826d6763d003e1 run B 36d6d263a7ba9a3fa5cd7646e70f55d9523678b4e84dc3696c1a6b111322304a",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "monthly_reports.json sha256 identical across two runs",
+          "actual": "run A e367bd4eb97859d2460ee5888d1c68f4cdbf94b1289e8991350746c8da228d81 run B 6f17d2620b1f686b459bde5d76edf02806b30198ca3719e022cf6e5513ee381c",
+          "file": "monthly_reports.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A c6042f07e9bcc6bd43ba8b79feef999de992a215b7ccabd8bd50cb98e1c0a5db run B e91031c73fff3022ca7a1f8f65da48b265e3d73371e0e697c9d28b46fb24fbcc",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A b5223386cfbd60392ee661a3ba65f0f8603e990c3dd44d59a81369d74a1541bc run B 28fc1a9c2614d1035a92cbb661a3b79b5e0444b7fc686a6dea41a618a6e884f1",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and steady growth.\",\n  \"stated\": {\n    \"Monthly revenue 179000 euro\": \"Monthly revenue 179000 euro\",\n    \"Growth 1.1% per month\": \"Growth 1.1% per month\",\n    \"Starting cash 188000 euro\": \"Starting cash 188000 euro\",\n    \"Bank minimum cash 109000 euro\": \"Bank minimum cash 109000 euro\",\n    \"DSO 37 days\": \"DSO 37 days\",\n    \"DPO 41 days\": \"DPO 41 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 179000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.1,\n    \"starting_cash_eur\": 188000,\n    \"covenant_min_cash_eur\": 109000,\n    \"dso_days\": 37,\n    \"dpo_days\": 41,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 179000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "good",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_good_3_0",
+      "reason": "two runs differ in parameters field_sources, one_off_events",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A b7f4256553f170ee0589b61605277bb41938388f9b657dce7e4e4da2efc51004 run B 026c5484e991e85da719f431dec587fa20205bb2fffd5c7eae5e793b7b63883c",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "monthly_reports.json sha256 identical across two runs",
+          "actual": "run A b4ef101e5d0c21c4a903ffa4a536ddd2b6f70f8b6ea8ad16b5a6b2b951d5344c run B 8dcb55498f8bc5d020d3de0552b08f924c2645192c6b406b7520d594dd818212",
+          "file": "monthly_reports.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 38e76713b95a2064653c4733a8dc038158a65b52f1d426574d7524d30cf2e65c run B f472548a96ac1ce0082ae5c9243e669a9e6eb9be989e9344fa33a8a69a059361",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A 869d0819b82a32395340690aad1de9b7a9930eec13555e1a0c70f34a9f084f6c run B b779db0b838d08d994bf21a219645912acc1b923b6f4b633722042d803aaab38",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and steady growth.\",\n  \"stated\": {\n    \"Monthly revenue 134000 euro\": \"Monthly revenue 134000 euro\",\n    \"Growth 0.5% per month\": \"Growth 0.5% per month\",\n    \"Starting cash 283000 euro\": \"Starting cash 283000 euro\",\n    \"Bank minimum cash 147000 euro\": \"Bank minimum cash 147000 euro\",\n    \"DSO 28 days\": \"DSO 28 days\",\n    \"DPO 45 days\": \"DPO 45 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 134000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.5,\n    \"starting_cash_eur\": 283000,\n    \"covenant_min_cash_eur\": 147000,\n    \"dso_days\": 28,\n    \"dpo_days\": 45,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 147000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "good",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_good_42_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A f154aba764fd7c3b64a8f88742a37c2c902d043663c9311cced3c92e2d2fc525 run B 7b499ac3b81225143c894fe69c6c453363e91e0edb7786ddd7e95e053b306f8e",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 3e882698e2ab143f4efb6812a9b86820e5ef78f9661503e9530b88ff14c9ce40 run B 982a92c295677aa524306381c81823b17c84f2cd626f2f2a99245d220c6713df",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and steady growth.\",\n  \"stated\": {\n    \"Monthly revenue 192000 euro\": \"Monthly revenue 192000 euro\",\n    \"Growth 1.0% per month\": \"Growth 1.0% per month\",\n    \"Starting cash 230000 euro\": \"Starting cash 230000 euro\",\n    \"Bank minimum cash 131000 euro\": \"Bank minimum cash 131000 euro\",\n    \"DSO 47 days\": \"DSO 47 days\",\n    \"DPO 37 days\": \"DPO 37 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 192000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.0,\n    \"starting_cash_eur\": 230000,\n    \"covenant_min_cash_eur\": 131000,\n    \"dso_days\": 47,\n    \"dpo_days\": 37,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 0,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "good",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_good_99_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A dda57e2347d7430943e14e2a27615a4ef8b6ecc8c2a7f2b262e3f1cbc57b3632 run B 32c47092de0c721d5ab84b52e66f46a2054277f755464661b929645bb57d3066",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A a05f9a0116d7e9d126ec7f9f1d0c9321798b9a791c52d900cc13442a5a215498 run B c1c09610fa7f5679c81f62d6e90ff2932165cfa995930578e3bb435540d0b572",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and steady growth.\",\n  \"stated\": {\n    \"Monthly revenue 168000 euro\": \"Monthly revenue 168000 euro\",\n    \"Growth 1.3% per month\": \"Growth 1.3% per month\",\n    \"Starting cash 207000 euro\": \"Starting cash 207000 euro\",\n    \"Bank minimum cash 143000 euro\": \"Bank minimum cash 143000 euro\",\n    \"DSO 46 days\": \"DSO 46 days\",\n    \"DPO 26 days\": \"DPO 26 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 168000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.3,\n    \"starting_cash_eur\": 207000,\n    \"covenant_min_cash_eur\": 143000,\n    \"dso_days\": 46,\n    \"dpo_days\": 26,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 207000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "weak",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_weak_1_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 5af2afa81c57dc3ca3cc0d9d450d51eadd8f84ea54be927213a539abc911863f run B 3bbed444e51e3c5a5139d488a7c455ade4398bf2a5351e1edc335ebae7e88f60",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 7d47987f1e15f99da35e2c33b27c97ab6547e1c5672286202f4385c39fe636a2 run B 0d81bcd992e57a92a96bc44a8324b8d651094569c9d346fca9582cae6441547e",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"weak\",\n  \"scenario_shape_quote\": \"A small machine shop with falling revenue and a weak cash position.\",\n  \"stated\": {\n    \"Monthly revenue 153000 euro\": \"Monthly revenue 153000 euro\",\n    \"Growth -0.9% per month\": \"Growth -0.9% per month\",\n    \"Starting cash 121000 euro\": \"Starting cash 121000 euro\",\n    \"Bank minimum cash 65000 euro\": \"Bank minimum cash 65000 euro\",\n    \"DSO 56 days\": \"DSO 56 days\",\n    \"DPO 33 days\": \"DPO 33 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 153000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.9,\n    \"starting_cash_eur\": 121000,\n    \"covenant_min_cash_eur\": 65000,\n    \"dso_days\": 56,\n    \"dpo_days\": 33,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 0,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "weak",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_weak_2_0",
+      "reason": "two runs differ in parameters field_sources, one_off_events",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 692f25a30e028ad4af6ecea3a913f7d56862e7d33725ea675c69ea5bc7bca247 run B 0470e4ed8ef6ad3ea4f4a7e69effbdc765269fc78f18a3b0fd6f7debf663af6b",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "monthly_reports.json sha256 identical across two runs",
+          "actual": "run A 832e62669b8800193749d2e3ea5b2f9b90295d4572ef45cfe7220bd1c0bf561a run B f75a086c8fd5b62bad11eacfa2d28c646692586400d5bafb9ff98d64b7138546",
+          "file": "monthly_reports.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 6874f6109e286d3935aadad2a5302f4073d05d46d2b4dac120695ff1747abaec run B c274ad83a0a7d59bb9f0f1dcacdd4c00369e4cb7ee4a5e5096009c11cac908b1",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A 9b36a0c950043f8f05adb6914cbf22cd1babb8e82704a9b0da248fe404c30002 run B 5652633447596e759df3383cfaabfd23da0bbf2035e993bf1e59faa7715ecc1f",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"weak\",\n  \"scenario_shape_quote\": \"A small machine shop with falling revenue and a weak cash position.\",\n  \"stated\": {\n    \"Monthly revenue 127000 euro\": \"Monthly revenue 127000 euro\",\n    \"Growth -0.4% per month\": \"Growth -0.4% per month\",\n    \"Starting cash 139000 euro\": \"Starting cash 139000 euro\",\n    \"Bank minimum cash 84000 euro\": \"Bank minimum cash 84000 euro\",\n    \"DSO 63 days\": \"DSO 63 days\",\n    \"DPO 42 days\": \"DPO 42 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 127000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.4,\n    \"starting_cash_eur\": 139000,\n    \"covenant_min_cash_eur\": 84000,\n    \"dso_days\": 63,\n    \"dpo_days\": 42,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 0,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "weak",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_weak_3_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 49a347aefb2c345de1db1bfdd41efa3a59d89cba087d6e8fbf8b1fcff24b33aa run B c87189d220e120e6e39d278d244e139cf108e477d4cd6787706939c38179c74c",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A cce2c2c836f8078b6634a11c87a67d2cdae0ea98abfdc350748bd5a6c23a69da run B 0575cead125793059241e63324ce760e0cbbb3c233076adb9c89c2154a8308a9",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"weak\",\n  \"scenario_shape_quote\": \"A small machine shop with falling revenue and a weak cash position.\",\n  \"stated\": {\n    \"Monthly revenue 129000 euro\": \"Monthly revenue 129000 euro\",\n    \"Growth -1.0% per month\": \"Growth -1.0% per month\",\n    \"Starting cash 77000 euro\": \"Starting cash 77000 euro\",\n    \"Bank minimum cash 66000 euro\": \"Bank minimum cash 66000 euro\",\n    \"DSO 44 days\": \"DSO 44 days\",\n    \"DPO 30 days\": \"DPO 30 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 129000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -1.0,\n    \"starting_cash_eur\": 77000,\n    \"covenant_min_cash_eur\": 66000,\n    \"dso_days\": 44,\n    \"dpo_days\": 30,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 77000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "weak",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_weak_42_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A a5513e01c40a214c9975705f2eeefc164d7e9eace6d0224cec55134277982c99 run B 7292d528be535dd9a74cde2163a709afa66c9f2ebbb165a811eae6a0ac7536a5",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 6cfd23d3921fb84513cd8ad07c093482513ff2966b310b3a245881d48fdeab7d run B c40bab5c3240fb842d87971b3276b23880a7952dbd9f3b8fe44f66088a917271",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"weak\",\n  \"scenario_shape_quote\": \"A small machine shop with falling revenue and a weak cash position.\",\n  \"stated\": {\n    \"Monthly revenue 119000 euro\": \"Monthly revenue 119000 euro\",\n    \"Growth -0.6% per month\": \"Growth -0.6% per month\",\n    \"Starting cash 123000 euro\": \"Starting cash 123000 euro\",\n    \"Bank minimum cash 84000 euro\": \"Bank minimum cash 84000 euro\",\n    \"DSO 68 days\": \"DSO 68 days\",\n    \"DPO 30 days\": \"DPO 30 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 119000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.6,\n    \"starting_cash_eur\": 123000,\n    \"covenant_min_cash_eur\": 84000,\n    \"dso_days\": 68,\n    \"dpo_days\": 30,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 123000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      },\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 84000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "weak",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_weak_99_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 7009298b8010258f8b8d87831f59686ed6205fcd1a9baddaf8b599fcf2eec562 run B cc01af7cd6e1ba5c643d7ad5f82e139c3f8ebd1fbff16a30c99d1b03b21a5f58",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A b902bdb7a4dd77c93642dd059c20bedc097e0a294c91e74276eca06b076b0785 run B 1022558168e67b0dfc5fd89301a0fa661c893167d1237ed886067059c2e5e05f",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"weak\",\n  \"scenario_shape_quote\": \"A small machine shop with falling revenue and a weak cash position.\",\n  \"stated\": {\n    \"Monthly revenue 72000 euro\": \"Monthly revenue 72000 euro\",\n    \"Growth -1.6% per month\": \"Growth -1.6% per month\",\n    \"Starting cash 111000 euro\": \"Starting cash 111000 euro\",\n    \"Bank minimum cash 44000 euro\": \"Bank minimum cash 44000 euro\",\n    \"DSO 59 days\": \"DSO 59 days\",\n    \"DPO 44 days\": \"DPO 44 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 72000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -1.6,\n    \"starting_cash_eur\": 111000,\n    \"covenant_min_cash_eur\": 44000,\n    \"dso_days\": 59,\n    \"dpo_days\": 44,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 44000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_in_trouble",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_in_tro0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A d4ef688a62db82d687802cf8c0c48c027fc89debe8f42c447ee7c9ccf4390157 run B 2f1d10dd2908c0c3539c57a7a178be2f1b6edc6ef6e12f8693e5e9505c7d33d0",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 7f29a02cedd5ec955a0609c04058b7d4c4b3787a08408d5d55cef8b7c24f5976 run B 60c4f66efaace917b2778f7fa4ac06ad248387b531eba5aa784d06884d76ed02",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"Monthly revenue 161000 euro\": \"Monthly revenue 161000 euro\",\n    \"Growth 0.4% per month\": \"Growth 0.4% per month\",\n    \"Starting cash 43000 euro\": \"Starting cash 43000 euro\",\n    \"Bank minimum cash 14000 euro\": \"Bank minimum cash 14000 euro\",\n    \"DSO 50 days\": \"DSO 50 days\",\n    \"DPO 25 days\": \"DPO 25 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 161000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.4,\n    \"starting_cash_eur\": 43000,\n    \"covenant_min_cash_eur\": 14000,\n    \"dso_days\": 50,\n    \"dpo_days\": 25,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 43000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      },\n      {\n        \"type\": \"covenant_min_cash\",\n        \"amount_eur\": 14000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_in_trouble",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_in_tro1",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 6650bc60abe0d39616de877fa123bb1b509472e61981d254e9cdb1ebce1e39c9 run B e088d1f7b0c44f5a4fae0cf0da5343baae2a3c3601143dc68cdc7636a963b9cb",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A ac010d7f9e6c964bba8b2d672670f26c4c429e01e1fe88625ad68bc227379caf run B 33a24ab5b1d1e3a5d17ef86f904d8909741995b7ab3ebdcf4f3297bdafadbf7c",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"Monthly revenue 183000 euro\": \"Monthly revenue 183000 euro\",\n    \"Growth 0.4% per month\": \"Growth 0.4% per month\",\n    \"Starting cash 50000 euro\": \"Starting cash 50000 euro\",\n    \"Bank minimum cash 19000 euro\": \"Bank minimum cash 19000 euro\",\n    \"DSO 39 days\": \"DSO 39 days\",\n    \"DPO 28 days\": \"DPO 28 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 183000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.4,\n    \"starting_cash_eur\": 50000,\n    \"covenant_min_cash_eur\": 19000,\n    \"dso_days\": 39,\n    \"dpo_days\": 28,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 50000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      },\n      {\n        \"type\": \"covenant_min_cash\",\n        \"amount_eur\": 19000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_in_trouble",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_in_tro2",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A e016d3ab7dfccf6464514260591e060ba1329b925f3a40e9c598aa5d15cc7f36 run B c714dcada4864d1a164a533f4ed54c0f5e1a757c967793b953c8691244b89299",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 8b3778949ea89aab55f75b1465bd4fbd265dbaefdf8c36ee677662d734a0bdcc run B 6d880e466e1fc6eb7ffc4a28aa852319c1a4b6b48aacae504d0ec3635e2372e8",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"Monthly revenue 208000 euro\": \"Monthly revenue 208000 euro\",\n    \"Growth 0.1% per month\": \"Growth 0.1% per month\",\n    \"Starting cash 46000 euro\": \"Starting cash 46000 euro\",\n    \"Bank minimum cash 13000 euro\": \"Bank minimum cash 13000 euro\",\n    \"DSO 54 days\": \"DSO 54 days\",\n    \"DPO 32 days\": \"DPO 32 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 208000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.1,\n    \"starting_cash_eur\": 46000,\n    \"covenant_min_cash_eur\": 13000,\n    \"dso_days\": 54,\n    \"dpo_days\": 32,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 46000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      },\n      {\n        \"type\": \"covenant_min_cash\",\n        \"amount_eur\": 13000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_in_trouble",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_in_tro3",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 5f3ef04c2c5f5bdd92e1a7155662641b2355237bcde3796e9f7121ccecdeb0dc run B 49816764a3ecfe9f508d38e859b31ac09a01e429bd8d1a68ef74fa549cd68736",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A feb7f0eb601fa238db501d15b3d975b6fcb7db4952704ef70d72680f593cf303 run B ef2c5d19186253866c200c62e1c863a454b9b78ba2d59061587e1afc4ab610a5",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"Monthly revenue 192000 euro\": \"Monthly revenue 192000 euro\",\n    \"Growth -0.4% per month\": \"Growth -0.4% per month\",\n    \"Starting cash 50000 euro\": \"Starting cash 50000 euro\",\n    \"Bank minimum cash 19000 euro\": \"Bank minimum cash 19000 euro\",\n    \"DSO 53 days\": \"DSO 53 days\",\n    \"DPO 29 days\": \"DPO 29 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 192000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.4,\n    \"starting_cash_eur\": 50000,\n    \"covenant_min_cash_eur\": 19000,\n    \"dso_days\": 53,\n    \"dpo_days\": 29,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"starting_cash\",\n        \"amount_eur\": 50000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_in_trouble",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_in_tro4",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'inflow', 'amount_eur': 171000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in parameters field_sources, one_off_events, special_investment_eur, special_investment_month",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'inflow', 'amount_eur': 171000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 6c0d8c12e9979ec57614955b204423ab25e8cec4ff419ccc3c4696cca9a4d9e5 run B f4f5e1947cd02a039ededc120c148f771aacc92428500e4b091dec8add29f05d",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "monthly_reports.json sha256 identical across two runs",
+          "actual": "run A ea59684b1675cf1da1cb4624296d28491d61ec92692b0cf267766cb1899d510b run B 1eab0f5395c120b263515a459b742b4e460a34108749bac46f4891e2705a8b8d",
+          "file": "monthly_reports.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 1f4080ccc28900eaa087c57741e3a9990d56affc784a3713838e05d9840dd456 run B b08d002ae62b6fe1a99ad8b6a8fed3751ffaa1862cba74be9a11f38b88228fc4",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A f2fd16300875905a94d190145f3a11a413eb07bdbf46f9aaf94b979656d4cd5c run B 67096e19343dee9cfd424e60a4a0c429acfb00f19fc7579417fadd9d071e973b",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"Monthly revenue 171000 euro\": \"Monthly revenue 171000 euro\",\n    \"Growth -0.3% per month\": \"Growth -0.3% per month\",\n    \"Starting cash 48000 euro\": \"Starting cash 48000 euro\",\n    \"Bank minimum cash 9000 euro\": \"Bank minimum cash 9000 euro\",\n    \"DSO 39 days\": \"DSO 39 days\",\n    \"DPO 35 days\": \"DPO 35 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 171000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.3,\n    \"starting_cash_eur\": 48000,\n    \"covenant_min_cash_eur\": 9000,\n    \"dso_days\": 39,\n    \"dpo_days\": 35,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 171000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "invoices_out_of_balance",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_invoices_ou0",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'inflow', 'amount_eur': 217000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'inflow', 'amount_eur': 217000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A b05924dcbdfe04409694a460756c9dece7bf72909a9bee7e9347fb3174bcc2e0 run B 0d0fde0484c9a3b523d876dd88a78e03f9fa9069abde228a004b3bfd374856fd",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A ff49ea96547d3c8d8a9df2f55f230f12b045082dcf797f3a801af00132f0ba4b run B 0d41658cdb8a76412a96f83920672009a240c15b620fd21c76030f7b35873f17",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and open invoices that do not tie.\",\n  \"stated\": {\n    \"Monthly revenue 217000 euro\": \"Monthly revenue 217000 euro\",\n    \"Growth 0.3% per month\": \"Growth 0.3% per month\",\n    \"Starting cash 260000 euro\": \"Starting cash 260000 euro\",\n    \"Bank minimum cash 142000 euro\": \"Bank minimum cash 142000 euro\",\n    \"DSO 43 days\": \"DSO 43 days\",\n    \"DPO 22 days\": \"DPO 22 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 217000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.3,\n    \"starting_cash_eur\": 260000,\n    \"covenant_min_cash_eur\": 142000,\n    \"dso_days\": 43,\n    \"dpo_days\": 22,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 217000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "invoices_out_of_balance",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_invoices_ou1",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'inflow', 'amount_eur': 238000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'inflow', 'amount_eur': 238000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A edf7ae71291069fd002840efb840f6877da27c68a398ba80f397b2fb69776087 run B 13a14cf7874375879429ae58f6308e8b637ebb433fbc35daacc0c8fc5f762a37",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 64be6509a082bf02fd91990a56d84090d92b0752200407dca22dade2a2523084 run B 5882d5d55dac623a0da287118f742396675a888243981551320e71056b8ab544",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and open invoices that do not tie.\",\n  \"stated\": {\n    \"Monthly revenue 238000 euro\": \"Monthly revenue 238000 euro\",\n    \"Growth 1.1% per month\": \"Growth 1.1% per month\",\n    \"Starting cash 182000 euro\": \"Starting cash 182000 euro\",\n    \"Bank minimum cash 132000 euro\": \"Bank minimum cash 132000 euro\",\n    \"DSO 36 days\": \"DSO 36 days\",\n    \"DPO 31 days\": \"DPO 31 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 238000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.1,\n    \"starting_cash_eur\": 182000,\n    \"covenant_min_cash_eur\": 132000,\n    \"dso_days\": 36,\n    \"dpo_days\": 31,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 238000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "invoices_out_of_balance",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_invoices_ou2",
+      "reason": "two runs differ in parameters field_sources, one_off_events",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A a4f17732808fd35b4acfa8d9979c58351e79cad072b813e8dfa2890befebf0cc run B e42c3c22a7d80fea8fba5ab719b166a3b567dcaf221c716835af7b9d2ae66c11",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "monthly_reports.json sha256 identical across two runs",
+          "actual": "run A 15d10bb1c5d7f36db34911fbca3a58785ed91d04fafc74a37a6ee38c42ef23be run B c7138d6150af674eac48f1651c1516d6bfa78b01052249e60f91013c60d350cb",
+          "file": "monthly_reports.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A e0f38930ecfd849ff3c16ba267a1dbfe535edc3d4f278718dc0cb0d975b03f04 run B 56e884112e246f7ad404f97c16e7feef18685112486271fac4f38e41bb4fc13c",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A 88a3720f09cfcc32c7832341f2599344275ce26b96182fce9dae3dc23dd73875 run B f5476f71a827a669309875324fd2d0ed5e556e832a3505218c0ce72ed508437d",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and open invoices that do not tie.\",\n  \"stated\": {\n    \"Monthly revenue 160000 euro\": \"Monthly revenue 160000 euro\",\n    \"Growth 0.8% per month\": \"Growth 0.8% per month\",\n    \"Starting cash 256000 euro\": \"Starting cash 256000 euro\",\n    \"Bank minimum cash 91000 euro\": \"Bank minimum cash 91000 euro\",\n    \"DSO 43 days\": \"DSO 43 days\",\n    \"DPO 26 days\": \"DPO 26 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 160000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.8,\n    \"starting_cash_eur\": 256000,\n    \"covenant_min_cash_eur\": 91000,\n    \"dso_days\": 43,\n    \"dpo_days\": 26,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 256000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "invoices_out_of_balance",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_invoices_ou3",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 82022dd9aaf60365e0b374d5d9651d639ec56152f00bf0e7eb27e5e43fc286e7 run B f2ff5b2c6682c463431a2beea0b4aafdd2ca1acd0b26748442db4cc66fa27047",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A acd84e30285be77966fc1d185b5ae6eee60980a1fa6ac55f18b39f978ada0cb5 run B dc4a2421b4a3c3f105a1b2f86de6e4a28231786befaa8b099942c8a7264fef9c",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and open invoices that do not tie.\",\n  \"stated\": {\n    \"Monthly revenue 123000 euro\": \"Monthly revenue 123000 euro\",\n    \"Growth 0.6% per month\": \"Growth 0.6% per month\",\n    \"Starting cash 225000 euro\": \"Starting cash 225000 euro\",\n    \"Bank minimum cash 146000 euro\": \"Bank minimum cash 146000 euro\",\n    \"DSO 33 days\": \"DSO 33 days\",\n    \"DPO 26 days\": \"DPO 26 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 123000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.6,\n    \"starting_cash_eur\": 225000,\n    \"covenant_min_cash_eur\": 146000,\n    \"dso_days\": 33,\n    \"dpo_days\": 26,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 225000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      },\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 146000,\n        \"month_index\": 0,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "invoices_out_of_balance",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_invoices_ou4",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 0f59fd57ebdaec4dab2b705cc62b4e38df8dfba8ceafe69ebb709dfed58dca43 run B 98a2c48d2804fb8f06ea8851913967589e58436b9596d22e0c676d611109ae80",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 5f42dec979819b1aed92e9039d59b3e51df574e45a6a8789ed717b6c3df8de9f run B 7fffd9547a9c7a3e7b1f3420cc8cb223a70b76db4da633abd74c210bc5067acb",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"healthy\",\n  \"scenario_shape_quote\": \"A small machine shop with a healthy cash position and open invoices that do not tie.\",\n  \"stated\": {\n    \"Monthly revenue 122000 euro\": \"Monthly revenue 122000 euro\",\n    \"Growth 0.6% per month\": \"Growth 0.6% per month\",\n    \"Starting cash 260000 euro\": \"Starting cash 260000 euro\",\n    \"Bank minimum cash 97000 euro\": \"Bank minimum cash 97000 euro\",\n    \"DSO 37 days\": \"DSO 37 days\",\n    \"DPO 21 days\": \"DPO 21 days\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 122000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.6,\n    \"starting_cash_eur\": 260000,\n    \"covenant_min_cash_eur\": 97000,\n    \"dso_days\": 37,\n    \"dpo_days\": 21,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 260000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_turning_critical",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_turnin0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 7132e63d66fbe5ee00bee54df483a3bc90861f444c9fc81b80f407f91ce53397 run B 58d67624952d586ab600e30cced26dc9d4a41741e1d1bf8f0c7a09a50ab11d05",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 38732152344c061e28fbec4d17785ce2af48f8e91f37239fe4a55d20c968dc6c run B bbe965fad042c278ec2ce8d19730a5cdf7c518d7027204c0a6ddfac423cbaa2b",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"Cash is fine for now but will be critical in about five months.\",\n  \"stated\": {\n    \"Sales are stable, but customers pay later and later\": \"Sales are stable, but customers pay later and later.\",\n    \"Cash is fine for now but will be critical in about five months\": \"Cash is fine for now but will be critical in about five months.\",\n    \"Monthly revenue 115000 euro\": \"Monthly revenue 115000 euro.\",\n    \"Growth -0.1% per month\": \"Growth -0.1% per month.\",\n    \"Starting cash 228000 euro\": \"Starting cash 228000 euro.\",\n    \"Bank minimum cash 20000 euro\": \"Bank minimum cash 20000 euro.\",\n    \"DSO 65 days\": \"DSO 65 days.\",\n    \"DPO 36 days\": \"DPO 36 days.\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 115000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.1,\n    \"starting_cash_eur\": 228000,\n    \"covenant_min_cash_eur\": 20000,\n    \"dso_days\": 65,\n    \"dpo_days\": 36,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 115000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_turning_critical",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_turnin1",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 8976e7d769304cc2b82ae53b7b272de697ae22fb310ddff957c797f241ddc838 run B 7b0509d882ea0962606cfeb97cb7101cd4b42a6f76b83275064ba80541a42206",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 77f7fdeb35d9247c4e88d63e2bbf122e408aced792e44768e4b87b2888aba3ba run B d086977d214f31fc7a6828ffe78e925903a41d566763152c5b0e3ced051fa609",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"Cash is fine for now but will be critical in about five months.\",\n  \"stated\": {\n    \"Sales are stable, but customers pay later and later\": \"Sales are stable, but customers pay later and later.\",\n    \"Cash is fine for now but will be critical in about five months\": \"Cash is fine for now but will be critical in about five months.\",\n    \"Monthly revenue 124000 euro\": \"Monthly revenue 124000 euro.\",\n    \"Growth -0.1% per month\": \"Growth -0.1% per month.\",\n    \"Starting cash 222000 euro\": \"Starting cash 222000 euro.\",\n    \"Bank minimum cash 9000 euro\": \"Bank minimum cash 9000 euro.\",\n    \"DSO 57 days\": \"DSO 57 days.\",\n    \"DPO 26 days\": \"DPO 26 days.\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 124000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": -0.1,\n    \"starting_cash_eur\": 222000,\n    \"covenant_min_cash_eur\": 9000,\n    \"dso_days\": 57,\n    \"dpo_days\": 26,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 124000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_turning_critical",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_turnin2",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A bb32c1e75fa30e37d07731951262467916ce4efb9a2017bd2291ba3e996641fe run B 8d3473f6644ca577a567dc796b558d7abae61052c4efd96a006e91771eb9dada",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 425bea2bf7342e7ce3554082eb945d4a974c980a55cd91a1f682cdb11fecd7c4 run B 985b0b678d20be3d1b22a79dde4568ea791b1f436def58f35fbc21d27b6ab4b9",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"Cash is fine for now but will be critical in about five months.\",\n  \"stated\": {\n    \"Sales are stable, but customers pay later and later\": \"Sales are stable, but customers pay later and later.\",\n    \"Cash is fine for now but will be critical in about five months\": \"Cash is fine for now but will be critical in about five months.\",\n    \"Monthly revenue 98000 euro\": \"Monthly revenue 98000 euro.\",\n    \"Growth 0.2% per month\": \"Growth 0.2% per month.\",\n    \"Starting cash 187000 euro\": \"Starting cash 187000 euro.\",\n    \"Bank minimum cash 16000 euro\": \"Bank minimum cash 16000 euro.\",\n    \"DSO 55 days\": \"DSO 55 days.\",\n    \"DPO 33 days\": \"DPO 33 days.\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 98000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.2,\n    \"starting_cash_eur\": 187000,\n    \"covenant_min_cash_eur\": 16000,\n    \"dso_days\": 55,\n    \"dpo_days\": 33,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 98000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_turning_critical",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_turnin3",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'inflow', 'amount_eur': 125000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'inflow', 'amount_eur': 125000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A deb2b148a7d8636d9570321254ce465e9012379ee4a68ba031ed491f2cdef8c2 run B d451390d9c44d597753702815a7b707f4bad151b973d8b4df41bc50d5c303341",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 3033f26a5805a122a8a57dd41d1a9ad55f6afb25e37cc4fd83accad325982979 run B dd98bbc4241abc48a8e875a3dbf9c6c85585f021dc12a88968f09bac5b2c7ec7",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"Cash is fine for now but will be critical in about five months.\",\n  \"stated\": {\n    \"Sales are stable, but customers pay later and later\": \"Sales are stable, but customers pay later and later.\",\n    \"Cash is fine for now but will be critical in about five months\": \"Cash is fine for now but will be critical in about five months.\",\n    \"Monthly revenue 125000 euro\": \"Monthly revenue 125000 euro.\",\n    \"Growth 0.1% per month\": \"Growth 0.1% per month.\",\n    \"Starting cash 174000 euro\": \"Starting cash 174000 euro.\",\n    \"Bank minimum cash 12000 euro\": \"Bank minimum cash 12000 euro.\",\n    \"DSO 57 days\": \"DSO 57 days.\",\n    \"DPO 31 days\": \"DPO 31 days.\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 125000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.1,\n    \"starting_cash_eur\": 174000,\n    \"covenant_min_cash_eur\": 12000,\n    \"dso_days\": 57,\n    \"dpo_days\": 31,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 125000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "cash_turning_critical",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_cash_turnin4",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A af55b46449badd1eeb821b0226a9a66feaf6048eb8ae494cb248d815128510c5 run B 64caf0ba4587033d82576f0681b334617e21d7db08239c7852f71d5d10f8698c",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 19a4c84b9b16af806504289d81ff77c326227375546467ae09ca51a0e43815f6 run B 152e2e7a0d40abc16b931c8919b3adc196ff87e1ae24a6c9f418c123ca3e92dd",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"Cash is fine for now but will be critical in about five months.\",\n  \"stated\": {\n    \"Sales are stable, but customers pay later and later\": \"Sales are stable, but customers pay later and later.\",\n    \"Cash is fine for now but will be critical in about five months\": \"Cash is fine for now but will be critical in about five months.\",\n    \"Monthly revenue 106000 euro\": \"Monthly revenue 106000 euro.\",\n    \"Growth 0.2% per month\": \"Growth 0.2% per month.\",\n    \"Starting cash 201000 euro\": \"Starting cash 201000 euro.\",\n    \"Bank minimum cash 19000 euro\": \"Bank minimum cash 19000 euro.\",\n    \"DSO 65 days\": \"DSO 65 days.\",\n    \"DPO 29 days\": \"DPO 29 days.\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 106000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.2,\n    \"starting_cash_eur\": 201000,\n    \"covenant_min_cash_eur\": 19000,\n    \"dso_days\": 65,\n    \"dpo_days\": 29,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"inflow\",\n        \"amount_eur\": 106000,\n        \"month_index\": 0,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "vague",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_vague_1_0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 2450b8758f81b01f6af9cbf73905722c72e6f89a66ae71e0c2723d094a59a610 run B 203ec209b780ed72fc8bb17ea0b48e9cfae1a4940d9731b5e0e1e9417fe44f04",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A cce9b7032eb881aabe2dc91e1c3db5f478025a61935e8222c4ed18411c0003ea run B 217133038f76ef3edc416f15818bc12a80a952898aeec5d0c80b13f34fdfc06b",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"industry\": \"A small machine shop\",\n    \"company_size\": \"small\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": null,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": null,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"cash\",\n        \"amount_eur\": -1,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "vague",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "PASS",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_vague_2_0",
+      "reason": "",
+      "failures": [],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"industry\": \"A small machine shop\",\n    \"company_size\": \"small\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": null,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": null,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"cash\",\n        \"amount_eur\": -1,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "vague",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "PASS",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_vague_3_0",
+      "reason": "",
+      "failures": [],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"industry\": \"A small machine shop\",\n    \"company_size\": \"small\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": null,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": null,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"cash\",\n        \"amount_eur\": -1,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "vague",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "PASS",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_vague_42_0",
+      "reason": "",
+      "failures": [],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"industry\": \"A small machine shop\",\n    \"company_size\": \"small\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": null,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": null,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"cash\",\n        \"amount_eur\": -1,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "vague",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "PASS",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_vague_99_0",
+      "reason": "",
+      "failures": [],
+      "raw_json": "{\n  \"scenario_shape\": \"cash_critical\",\n  \"scenario_shape_quote\": \"cash is tight now and critical in three weeks\",\n  \"stated\": {\n    \"industry\": \"A small machine shop\",\n    \"company_size\": \"small\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": null,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": null,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"cash\",\n        \"amount_eur\": -1,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "fully_stated",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_fully_state0",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 22df49408f77a76c3fb8c1444b878fcf7092d88405b96d364536b4a02704e684 run B 100c15d7ce3302d11f545e5f492beb6b10a359bca66b733e89f62d091da20a64",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A ff69e7377eaea9f177beeeea9ee36bca457dc97968d758af9e65add9ccf2235e run B ffb96c44c0ba44e239a08cbdb0b492257c3612ed7ce9558ff654762966f357b1",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 155000 euro\": \"Monthly revenue 155000 euro\",\n    \"Growth 1.2% per month\": \"Growth 1.2% per month\",\n    \"Starting cash 81000 euro\": \"Starting cash 81000 euro\",\n    \"Bank minimum cash 42000 euro\": \"Bank minimum cash 42000 euro\",\n    \"DSO 36 days\": \"DSO 36 days\",\n    \"DPO 37 days\": \"DPO 37 days\",\n    \"One-off outflow of 49000 euro in month 3\": \"One-off outflow of 49000 euro in month 3\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 155000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.2,\n    \"starting_cash_eur\": 81000,\n    \"covenant_min_cash_eur\": 42000,\n    \"dso_days\": 36,\n    \"dpo_days\": 37,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 49000,\n        \"month_index\": 3,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "fully_stated",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_fully_state1",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 15d79da92ddc77d2edf50935132bd20679935582f2b2683064ec489bb70e89b0 run B d6b7035a9b9f503a46296a54b339db33f1a246dc587bb8046113c4a749604852",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A be6663193085608ddd65eaa8ba4dc9680e8342f508c0801ebc4fbe48e09980a1 run B 8494201f4f3765da9387ec04f88667485e001d779d4d6cece2e8b437f70efc11",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 232000 euro\": \"Monthly revenue 232000 euro\",\n    \"Growth 0.5% per month\": \"Growth 0.5% per month\",\n    \"Starting cash 83000 euro\": \"Starting cash 83000 euro\",\n    \"Bank minimum cash 51000 euro\": \"Bank minimum cash 51000 euro\",\n    \"DSO 41 days\": \"DSO 41 days\",\n    \"DPO 21 days\": \"DPO 21 days\",\n    \"One-off outflow of 109000 euro in month 4\": \"One-off outflow of 109000 euro in month 4\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 232000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.5,\n    \"starting_cash_eur\": 83000,\n    \"covenant_min_cash_eur\": 51000,\n    \"dso_days\": 41,\n    \"dpo_days\": 21,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 109000,\n        \"month_index\": 4,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "fully_stated",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_fully_state2",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A e8c5896d49512f3ee74ad30aa5d522b25078f1f06507bb8414936edf02abd9f9 run B 03923af8825a6736c7289771250ff7443e7f2719350123d85f2f3cde6bf99841",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 3b69cb60b5173902b60bf0c5f96d76be26f2d4a2688adaa47b9ebd141b4a1505 run B b7336b07e9f7a1a13761bc5cd2637aa2249ed7204e096de06e634a010d8359d7",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 233000 euro\": \"Monthly revenue 233000 euro\",\n    \"Growth 0.4% per month\": \"Growth 0.4% per month\",\n    \"Starting cash 66000 euro\": \"Starting cash 66000 euro\",\n    \"Bank minimum cash 47000 euro\": \"Bank minimum cash 47000 euro\",\n    \"DSO 40 days\": \"DSO 40 days\",\n    \"DPO 27 days\": \"DPO 27 days\",\n    \"One-off outflow of 87000 euro in month 2\": \"One-off outflow of 87000 euro in month 2\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 233000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.4,\n    \"starting_cash_eur\": 66000,\n    \"covenant_min_cash_eur\": 47000,\n    \"dso_days\": 40,\n    \"dpo_days\": 27,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 87000,\n        \"month_index\": 2,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "fully_stated",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_fully_state3",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A c9b3107c3a2ffe94eba80db1ffaf61667ab5c7c9ad1b9773aa8a9d51ff4b3a1a run B b485a2bddddbf822f4c540d0a45ef846f5ac3024708d84c0d1943cf0d50284e4",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 983c62f951ef69aa660b480562bd2d8af45eb1636758c5b7783c3df6fc795c83 run B af1a60a5ec2afef5717157ccd21020524f36888d730e5253b363bf983e78a1e1",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 193000 euro\": \"Monthly revenue 193000 euro\",\n    \"Growth 0.7% per month\": \"Growth 0.7% per month\",\n    \"Starting cash 40000 euro\": \"Starting cash 40000 euro\",\n    \"Bank minimum cash 47000 euro\": \"Bank minimum cash 47000 euro\",\n    \"DSO 34 days\": \"DSO 34 days\",\n    \"DPO 36 days\": \"DPO 36 days\",\n    \"One-off outflow of 46000 euro in month 2\": \"One-off outflow of 46000 euro in month 2\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 193000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 0.7,\n    \"starting_cash_eur\": 40000,\n    \"covenant_min_cash_eur\": 47000,\n    \"dso_days\": 34,\n    \"dpo_days\": 36,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 46000,\n        \"month_index\": 2,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "fully_stated",
+      "seed": 99,
+      "model": "qwen2.5:7b",
+      "status": "repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_fully_state4",
+      "reason": "two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A e8d0d301491ee8bab6d1ccfa20227b322e649b809bed0a00702cde7fbef35782 run B dbdd5d6375e99939ca612be5dc9533cdbbdf2092a6f748c7a35725aa502c38a2",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 92ccc712a9cb9230dc3ff9314dc4d1b33adaf4fe33e84de8139c3b701becfec6 run B 7cb11da6b267e7ccc8b751ec98619b20cadd0a73e62c2b14256f2122a3530101",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 249000 euro\": \"Monthly revenue 249000 euro\",\n    \"Growth 1.0% per month\": \"Growth 1.0% per month\",\n    \"Starting cash 50000 euro\": \"Starting cash 50000 euro\",\n    \"Bank minimum cash 59000 euro\": \"Bank minimum cash 59000 euro\",\n    \"DSO 38 days\": \"DSO 38 days\",\n    \"DPO 23 days\": \"DPO 23 days\",\n    \"One-off outflow of 97000 euro in month 6\": \"One-off outflow of 97000 euro in month 6\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 249000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": 1.0,\n    \"starting_cash_eur\": 50000,\n    \"covenant_min_cash_eur\": 59000,\n    \"dso_days\": 38,\n    \"dpo_days\": 23,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"outflow\",\n        \"amount_eur\": 97000,\n        \"month_index\": 6,\n        \"direction\": \"outflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "partly_stated",
+      "seed": 1,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_partly_stat0",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'bank minimum cash', 'amount_eur': 58000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in parameters field_quotes",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'bank minimum cash', 'amount_eur': 58000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A d24902a137bf830a68f5082782d99f102226153b030a81938eb149b506ff46ca run B 2072ed1db904006a582acb9dc26452e3724b8efafc1d3950505e572b0935ff42",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 73c63f63aab9aacae3fb2a2ce9d7c2e2953d9e69b2a9617b8b3ef1d0466613fd run B 400d978d8431b83e7c5b8a22ec8c193fbbf6f1ab95acdf23c0d352c637346fe1",
+          "file": "cash_and_invoices.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "answer_key.json sha256 identical across two runs",
+          "actual": "run A 6286cde6cf366908306f31a2903fad79e388606ac581f2c72f241007ca6114ed run B 252847066d011e51dea5ef6e8fe3060e914c4eb4c030c96fc29c594518e294f6",
+          "file": "answer_key.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 191000 euro\": \"Monthly revenue 191000 euro\",\n    \"Bank minimum cash 58000 euro\": \"Bank minimum cash 58000 euro\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 191000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": 58000,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"Bank minimum cash\",\n        \"amount_eur\": 58000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "partly_stated",
+      "seed": 2,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_partly_stat1",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'bank minimum cash', 'amount_eur': 47000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'bank minimum cash', 'amount_eur': 47000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A 9b13135b50a88924dc84dbdb5956cb62596a63fe8a570bb372af45c4ed9b13a2 run B ab65bb9f03fd424a51f71bd6b54cb304c8d6fa90c68d965a7c3bfcb209254c22",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 392bc9f02cc3345916d3acc976b373833623811bd56917783e1a016b11ed2ba7 run B a81bd91525b4e7c4ee007d3dbb49284f3bce97af515ad59ed864b47d60648c4d",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 196000 euro\": \"Monthly revenue 196000 euro\",\n    \"Bank minimum cash 47000 euro\": \"Bank minimum cash 47000 euro\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 196000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": 47000,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"Bank minimum cash\",\n        \"amount_eur\": 47000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "partly_stated",
+      "seed": 3,
+      "model": "qwen2.5:7b",
+      "status": "fidelity, repeatability",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_partly_stat2",
+      "reason": "model added a one-off the text does not state: one_off_events [{'type': 'bank minimum cash', 'amount_eur': 33000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]; two runs differ in invoice counterparties and descriptions",
+      "failures": [
+        {
+          "check": "fidelity",
+          "expected": "no one-off events",
+          "actual": "one_off_events [{'type': 'bank minimum cash', 'amount_eur': 33000.0, 'month_index': 1, 'direction': 'inflow', 'label': None}]",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "input.json sha256 identical across two runs",
+          "actual": "run A c6a8fd8b79b6ac603ef8b885c460d6e74854fa2590fdbc1d979a83dffd883743 run B 6e06f18981851bead7ee2942ec9a375c240ac0ad262b2355568627704725152a",
+          "file": "input.json"
+        },
+        {
+          "check": "repeatability",
+          "expected": "cash_and_invoices.json sha256 identical across two runs",
+          "actual": "run A 64480c76b01f8a54e1654a378dce89aee6ebaa59de64324af51d5e9b7c967d74 run B 782d66e6512747131c2ee47957a6e194b8b011e83192cdcd2abe5d53ee8f7819",
+          "file": "cash_and_invoices.json"
+        }
+      ],
+      "raw_json": "{\n  \"scenario_shape\": \"unspecified\",\n  \"scenario_shape_quote\": null,\n  \"stated\": {\n    \"Monthly revenue 137000 euro\": \"Monthly revenue 137000 euro\",\n    \"Bank minimum cash 33000 euro\": \"Bank minimum cash 33000 euro\"\n  },\n  \"parameters\": {\n    \"revenue_monthly_eur\": 137000,\n    \"revenue_annual_eur\": null,\n    \"growth_per_month_percent\": null,\n    \"starting_cash_eur\": null,\n    \"covenant_min_cash_eur\": 33000,\n    \"dso_days\": null,\n    \"dpo_days\": null,\n    \"dso_weeks\": null,\n    \"dpo_weeks\": null,\n    \"dso_months\": null,\n    \"dpo_months\": null,\n    \"one_off_events\": [\n      {\n        \"type\": \"Bank minimum cash\",\n        \"amount_eur\": 33000,\n        \"month_index\": 1,\n        \"direction\": \"inflow\"\n      }\n    ],\n    \"industry\": \"metal workshop (machine shop)\",\n    \"company_size\": \"small\"\n  }\n}"
+    },
+    {
+      "scenario": "partly_stated",
+      "seed": 42,
+      "model": "qwen2.5:7b",
+      "status": "KILLED",
+      "dir": "/tmp/pytest-of-ubuntu/pytest-3/test_scenario_seed_partly_stat3",
+      "reason": "killed before run B finished; not scored",
+      "failures": [],
+      "raw_json": null
+    },
+    {
+      "scenario": "partly_stated",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 1,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 2,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 3,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 42,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "one_off_inflow",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "no_one_off",
+      "seed": 1,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "no_one_off",
+      "seed": 2,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "no_one_off",
+      "seed": 3,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "no_one_off",
+      "seed": 42,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "no_one_off",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 1,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 2,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 3,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 42,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "annual_revenue",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "months_24",
+      "seed": 1,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "months_24",
+      "seed": 2,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "months_24",
+      "seed": 3,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "months_24",
+      "seed": 42,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "months_24",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "finnish",
+      "seed": 1,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "finnish",
+      "seed": 2,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "finnish",
+      "seed": 3,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "finnish",
+      "seed": 42,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    },
+    {
+      "scenario": "finnish",
+      "seed": 99,
+      "model": null,
+      "status": "NOT RUN",
+      "raw_json": null,
+      "failures": []
+    }
+  ]
+}
