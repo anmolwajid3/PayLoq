@@ -112,7 +112,10 @@ export function GeneratePage() {
       .finally(() => setLoadingModels(false));
   }, []);
 
+  const installedNames = models.map((m) => m.name);
+
   function toggleCompare(tag: string) {
+    if (!tagInstalled(installedNames, tag)) return;
     setCompareSelected((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
@@ -143,8 +146,12 @@ export function GeneratePage() {
     setBusy(true);
     setError(null);
     try {
+      const installed = models.map((m) => m.name);
       const compareTags = Array.from(
-        new Set([model, ...compareSelected.filter(Boolean)]),
+        new Set([
+          model,
+          ...compareSelected.filter((tag) => tag && tagInstalled(installed, tag)),
+        ]),
       );
       const run = await api.generateFromText({
         text: text.trim(),
@@ -169,10 +176,14 @@ export function GeneratePage() {
   }
 
   const descPlaceholder = language === "en" ? EN_DESC_PLACEHOLDER : FI_DESC_PLACEHOLDER;
-  const installedNames = models.map((m) => m.name);
+  // Always show the size-ladder shortlist (incl. qwen) plus every pulled model.
+  // Unpulled shortlist tags stay visible with a pull hint so non-llama options are not hidden.
   const compareChoices = Array.from(
-    new Set([...shortlist, ...installedNames.filter((n) => shortlist.some((s) => n.includes(s.split(":")[0])))]),
-  ).filter((tag) => tagInstalled(installedNames, tag));
+    new Set([
+      ...shortlist,
+      ...installedNames.filter((n) => !n.toLowerCase().includes("stub")),
+    ]),
+  );
 
   return (
     <div>
@@ -241,17 +252,43 @@ export function GeneratePage() {
             <legend>{t("compareModels", lang)}</legend>
             <span className="field-hint">{t("compareModelsHint", lang)}</span>
             <div className="compare-checks">
-              {compareChoices.map((tag) => (
-                <label key={tag} className="compare-check">
-                  <input
-                    type="checkbox"
-                    checked={compareSelected.includes(tag)}
-                    onChange={() => toggleCompare(tag)}
-                  />
-                  <span>{tag}</span>
-                </label>
-              ))}
+              {compareChoices.map((tag) => {
+                const installed = tagInstalled(installedNames, tag);
+                return (
+                  <label
+                    key={tag}
+                    className={`compare-check${installed ? "" : " compare-check-missing"}`}
+                    title={
+                      installed
+                        ? tag
+                        : `${t("notPulled", lang)} — ollama pull ${tag}`
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={installed && compareSelected.includes(tag)}
+                      disabled={!installed}
+                      onChange={() => toggleCompare(tag)}
+                    />
+                    <span>
+                      {tag}
+                      {!installed && (
+                        <span className="muted"> ({t("notPulled", lang)})</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
+            {compareChoices.some((tag) => !tagInstalled(installedNames, tag)) && (
+              <span className="field-hint">
+                {t("comparePullHint", lang)}{" "}
+                <code>
+                  ollama pull{" "}
+                  {compareChoices.find((tag) => !tagInstalled(installedNames, tag))}
+                </code>
+              </span>
+            )}
           </fieldset>
         )}
         <label>
