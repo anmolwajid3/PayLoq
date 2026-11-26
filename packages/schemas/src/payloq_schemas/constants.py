@@ -98,7 +98,8 @@ FORBIDDEN_TEXT_WORDS: frozenset[str] = frozenset(
     }
 )
 
-# Loss-making shapes (weak, cash_tight, cash_critical): variable cost sum just below
-# the consistency ceiling, so fixed charges leave an operating loss and cash is
-# driven by the flows. Must stay below 1.0 (consistency rule).
+# Loss-making shapes (weak, cash_tight): variable cost sum just below the
+# consistency ceiling, so fixed charges leave an operating loss. cash_critical is
+# NOT in this set — work-order intent is profitable ops with cash stress from
+# payment timing. Must stay below 1.0 (consistency rule).
 LOSS_SHAPE_COST_SUM_TARGET: float = 0.99

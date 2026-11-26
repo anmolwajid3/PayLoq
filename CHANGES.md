@@ -237,6 +237,19 @@ The extraction schema asks only for numbers written in the description. Annual t
 
 Fixture `pytest tests/harness -q` is 69 passed, and `pytest -q` is 320 passed. The qwen2.5:7b live run was killed on `partly_stated` seed 42 after 38 finished cells (4 pass, 34 fail). Those failures are model repeatability and invented one-offs. Recorded fixtures were not edited. The live table is in the store evidence.
 
+## J. Run #57 work-order gaps (cash-critical timing, history scale, judge)
+
+| File | Change |
+| --- | --- |
+| `packages/schemas/.../industry_defaults.py` | Assumed `cash_critical` cost shares calibrate to a **profitable** sum (like healthy); only `weak`/`cash_tight` stay loss-making. |
+| `packages/generator/.../engine.py` | cash_critical bumps open payables so the week-3 cliff still breaches cash after profitable ops; history uses settlement pulse again (no start-cash headroom shrink) so VR-08 scale matches the projection. |
+| `apps/api/.../model_compare.py` | Judge is a **separate** pulled model (never the pack tag); skip if only the pack tag exists; cap generous judge scores when code finds ungrounded amounts. |
+| `packages/llm/.../text_sanitize.py` | Strip leading `2.` paste enumeration from scenario text. |
+| `apps/web/.../exportRunPdf.ts` | Comparison total column header `Comp` (jsPDF had no Σ glyph). |
+| `tests/test_run57_workorder_cash_critical.py` | **new** — profitable P&L, history scale, judge ≠ pack, paste strip. |
+
+Compare still scores every shortlist model on the **same** code pack / parameter key / figures.
+
 ## Explicit non-goals
 - No Task B harness redesign beyond stub labelling / comparison exclusion.
 - No chat-demo feature work beyond journal removal + stub labelling.

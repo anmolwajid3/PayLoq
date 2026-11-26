@@ -1114,7 +1114,9 @@ def input_from_text(
     if isinstance(adapter, FallbackAdapter):
         # Unwrap: Task A must not succeed via stub.
         adapter = adapter.primary
-    text = text.strip()
+    from payloq_llm.text_sanitize import normalize_scenario_description
+
+    text = normalize_scenario_description(text)
     if not text:
         raise ValueError(
             "Description is missing. Please write one or two sentences."
@@ -1122,7 +1124,7 @@ def input_from_text(
 
     if language == "fi":
         description_fi = text
-        description_en = (description_en or text).strip()
+        description_en = normalize_scenario_description(description_en or text)
     else:
         description_en = text
         description_fi = text

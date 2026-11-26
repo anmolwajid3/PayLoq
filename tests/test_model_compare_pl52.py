@@ -8,6 +8,7 @@ import pytest
 
 from payloq_api.services.model_compare import (
     resolve_compare_models,
+    resolve_judge_model,
     run_model_comparison,
     score_model_on_pack,
 )
@@ -38,6 +39,14 @@ def test_resolve_compare_models_includes_primary_and_dedupes() -> None:
     assert tags[0] == "qwen2.5:7b"
     assert tags.count("qwen2.5:3b") == 1
     assert "stub" not in tags
+
+
+def test_resolve_judge_model_skips_pack_self_judge() -> None:
+    assert resolve_judge_model(
+        pulled=["qwen2.5:7b", "llama3.2:3b"],
+        pack_model="qwen2.5:7b",
+    ) == "llama3.2:3b"
+    assert resolve_judge_model(pulled=["qwen2.5:7b"], pack_model="qwen2.5:7b") is None
 
 
 def test_score_stub_on_preset_pack(tmp_path: Path) -> None:
