@@ -121,11 +121,22 @@ def finalize_extracted_parameters(
         stated_result.issues.extend(one_off_req_issues)
         stated_result.ok = False
 
-    # Invented one-offs: every extracted one-off must be stated in the description.
+    # Invented one-offs: drop ungrounded events with a warning instead of aborting
+    # the whole Generate run (models often mistype revenue as a one-off inflow).
+    # Required stated one-offs still hard-fail above via enforce_required_one_offs.
     ungrounded_issues = reject_ungrounded_one_offs(parameters.get("one_off_events"), description)
     if ungrounded_issues:
-        stated_result.issues.extend(ungrounded_issues)
-        stated_result.ok = False
+        drop_fields = {issue.field for issue in ungrounded_issues}
+        events = parameters.get("one_off_events") or []
+        kept: list[Any] = []
+        for i, ev in enumerate(events):
+            field = f"one_off_events[{i}]"
+            if field in drop_fields:
+                continue
+            kept.append(ev)
+        parameters["one_off_events"] = kept
+        for issue in ungrounded_issues:
+            stated_result.warnings.append(f"dropped invented {issue.field}: {issue.message}")
 
     if not stated_result.ok:
         return {

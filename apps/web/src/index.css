@@ -368,6 +368,9 @@ textarea {
   margin-top: 0.6rem;
 }
 
+.compare-check-missing {
+  opacity: 0.55;
+}
 .compare-check {
   display: inline-flex;
   align-items: center;

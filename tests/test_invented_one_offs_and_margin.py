@@ -6,6 +6,7 @@ import random
 
 import pytest
 
+from payloq_llm.extract_pipeline import finalize_extracted_parameters
 from payloq_llm.stated_checks import reject_ungrounded_one_offs
 from payloq_schemas.constants import (
     COST_SHARE_SUM_MAX,
@@ -53,6 +54,46 @@ def test_wrong_month_or_direction_is_rejected() -> None:
     assert reject_ungrounded_one_offs([_ev(40000, 5)], STATED_INFLOW)
     assert reject_ungrounded_one_offs([_ev(40000, 2, "outflow")], STATED_INFLOW)
     assert reject_ungrounded_one_offs([_ev(40000, 2)], STATED_INFLOW) == []
+
+
+def test_finalize_drops_revenue_mistyped_as_one_off_run59() -> None:
+    """Run #59: qwen mistyped monthly revenue as a one-off inflow — drop, do not abort."""
+    desc = (
+        "Monthly revenue 1,200,000 euro. Growth 0.5% per month. "
+        "Starting cash 800,000 euro. DSO 35 days. DPO 40 days."
+    )
+    envelope = {
+        "scenario_shape": "unspecified",
+        "scenario_shape_quote": None,
+        "stated": {
+            "revenue_monthly_eur": "Monthly revenue 1,200,000 euro",
+            "growth_per_month_fraction": "Growth 0.5% per month",
+            "starting_cash_eur": "Starting cash 800,000 euro",
+            "dso_days": "DSO 35 days",
+            "dpo_days": "DPO 40 days",
+        },
+        "parameters": {
+            "revenue_monthly_eur": 1_200_000,
+            "starting_cash_eur": 800_000,
+            "growth_per_month_fraction": 0.005,
+            "dso_days": 35,
+            "dpo_days": 40,
+            "one_off_events": [_ev(1_200_000, 1, "inflow")],
+            "industry": None,
+            "company_size": None,
+        },
+    }
+    params, _changes, check = finalize_extracted_parameters(
+        envelope,
+        desc,
+        industry="unspecified",
+        company_size="medium",
+        seed=42,
+        months=12,
+    )
+    assert check.ok, check.error_text()
+    assert params.get("one_off_events") in ([], None) or params["one_off_events"] == []
+    assert any("dropped invented" in w for w in check.warnings)
 
 
 @pytest.mark.parametrize("revenue", [80_000.0, 100_000.0, 150_000.0, 250_000.0])
