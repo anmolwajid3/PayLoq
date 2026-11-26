@@ -147,7 +147,14 @@ def run_from_text(
     ollama_model: str | None = None,
     ollama_host: str | None = None,
     save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
 ) -> GenerationRun:
+    from payloq_api.services.model_compare import (
+        resolve_compare_models,
+        run_model_comparison,
+    )
+
     resolved_model = (
         (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
         if llm == "ollama"
@@ -171,10 +178,11 @@ def run_from_text(
             raise ValueError(
                 "From-text generation requires Ollama (local model)."
             )
+        host = ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST
         adapter = get_adapter(
             "ollama",
             model=resolved_model or DEFAULT_OLLAMA_MODEL,
-            host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
+            host=host,
             timeout_s=settings.ollama_timeout,
         )
         opts = default_options_from_text(
@@ -221,6 +229,41 @@ def run_from_text(
         else:
             run.status = "error"
             run.error_message = outcome.error_message or "Generated pack failed validation"
+
+        # PL-52: score shortlist on the same code-owned pack (best-effort; never fail the run).
+        if (
+            compare
+            and outcome.ok
+            and pack is not None
+            and compare_models != []
+        ):
+            try:
+                tags = resolve_compare_models(
+                    requested=compare_models,
+                    primary=resolved_model,
+                    host=host,
+                    available_only=True,
+                )
+                if tags:
+                    run_model_comparison(
+                        pack=pack,
+                        text=text,
+                        language=language,
+                        options=opts,
+                        models=tags,
+                        pack_model=resolved_model,
+                        host=host,
+                        timeout_s=settings.ollama_timeout,
+                        out_dir=out_dir,
+                    )
+            except Exception as cmp_exc:  # noqa: BLE001
+                # Persist a soft note; pack artifacts remain the source of truth.
+                note = f"model compare skipped: {cmp_exc}"
+                run.llm_fallback_note = (
+                    f"{run.llm_fallback_note}; {note}"
+                    if run.llm_fallback_note
+                    else note
+                )
 
         if save_as_slug and outcome.ok and pack is not None:
             scenario = Scenario(

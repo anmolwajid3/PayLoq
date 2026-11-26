@@ -101,6 +101,9 @@ def test_llm_models_endpoint(client: TestClient):
     assert "qwen2.5:7b" in body["recommended"]
     # UI must never need stub here — recommended tags are Ollama-only.
     assert all("stub" not in t for t in body["recommended"])
+    assert "compare_shortlist" in body
+    assert "qwen2.5:3b" in body["compare_shortlist"]
+    assert all("stub" not in t for t in body["compare_shortlist"])
 
 
 def test_generate_from_text_rejects_stub(client: TestClient):

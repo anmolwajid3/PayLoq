@@ -70,6 +70,30 @@ export type Run = {
   from_text: string | null;
   created_at: string;
   artifacts: string[];
+  comparison?: ModelComparison | null;
+};
+
+export type ModelComparisonRow = {
+  model: string;
+  parameter_score: number | null;
+  reading_score: number | null;
+  mom_score: number | null;
+  interpretation_score: number | null;
+  fi_quality_score: number | null;
+  fi_band?: string;
+  latency_ms?: number;
+  composite_score?: number;
+  interpretation_answer?: string;
+  notes?: string;
+};
+
+export type ModelComparison = {
+  version?: number;
+  pack_model?: string;
+  recommended_model?: string | null;
+  models: ModelComparisonRow[];
+  skipped?: { model: string; reason: string }[];
+  shortlist_default?: string[];
 };
 
 function authHeaders(): HeadersInit {
@@ -151,6 +175,8 @@ export async function generateFromText(body: {
   company_size: string;
   months: number;
   seed: number;
+  compare?: boolean;
+  compare_models?: string[];
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
@@ -173,6 +199,7 @@ export type OllamaModelsResponse = {
   models: OllamaModel[];
   error: string | null;
   recommended: string[];
+  compare_shortlist?: string[];
 };
 
 export async function listLlmModels() {

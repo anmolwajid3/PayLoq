@@ -57,6 +57,10 @@ When Ollama is down, `skip_unavailable` (default **on**) skips live cells; stub 
 
 Seeded Task B scorecard (human-readable + Mac commands): Project store `docs/task-b-seeded-scorecard.md`; committed copies under `reports/task-b-*`.
 
+### PL-52 — per Generate compare
+
+`POST /api/generate/from-text` accepts `compare` (default true) and `compare_models` (default Mac winners: `qwen2.5:3b`, `llama3.2:3b`, `qwen2.5:7b`). After the pack is built, each selected model is scored on the **same** code figures; results land in `comparison.json` on the run and in the Run detail UI.
+
 ## CLI
 
 ```bash

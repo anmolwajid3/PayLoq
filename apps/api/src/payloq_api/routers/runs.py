@@ -32,8 +32,9 @@ from payloq_api.services.chat import (
     suggestions_for_run,
 )
 from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
+from payloq_api.services.model_compare import load_comparison
 from payloq_llm.adapters import list_ollama_models
-from payloq_llm.defaults import UI_SUGGESTED_OLLAMA_TAGS
+from payloq_llm.defaults import DEFAULT_COMPARE_MODELS, UI_SUGGESTED_OLLAMA_TAGS
 
 router = APIRouter(tags=["runs"])
 
@@ -56,6 +57,7 @@ def _run_out(run: GenerationRun) -> RunOut:
         from_text=run.from_text,
         created_at=run.created_at,
         artifacts=artifacts_for_run(run),
+        comparison=load_comparison(run.artifact_dir),
     )
 
 
@@ -124,6 +126,8 @@ def generate_from_text(
         ollama_model=body.ollama_model,
         ollama_host=body.ollama_host,
         save_as_slug=body.save_as_slug,
+        compare=body.compare,
+        compare_models=body.compare_models,
     )
     return _run_out(run)
 
@@ -141,6 +145,7 @@ def llm_models(
         models=[OllamaModelOut(**m) for m in (payload.get("models") or [])],
         error=payload.get("error"),
         recommended=list(UI_SUGGESTED_OLLAMA_TAGS),
+        compare_shortlist=list(DEFAULT_COMPARE_MODELS),
     )
 
 

@@ -10,17 +10,25 @@ const FI_DESC_PLACEHOLDER =
 const EN_DESC_PLACEHOLDER =
   "Small machine shop; cash is critical within three weeks.";
 
+const FALLBACK_SHORTLIST = ["qwen2.5:3b", "llama3.2:3b", "qwen2.5:7b"];
+
+function tagInstalled(names: string[], tag: string): boolean {
+  if (names.includes(tag)) return true;
+  if (!tag.includes(":") && names.includes(`${tag}:latest`)) return true;
+  return false;
+}
+
 export function GeneratePage() {
   const { lang } = useAuth();
   const navigate = useNavigate();
-  // Empty by default — example text lives in the placeholder so it is clearly editable.
   const [text, setText] = useState("");
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [modelsAvailable, setModelsAvailable] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [recommended, setRecommended] = useState<string[]>([]);
+  const [shortlist, setShortlist] = useState<string[]>(FALLBACK_SHORTLIST);
   const [model, setModel] = useState("");
-  // Scenario language follows UI language; user can still override.
+  const [compareSelected, setCompareSelected] = useState<string[]>([]);
   const [language, setLanguage] = useState<"fi" | "en">(lang);
   const [months, setMonths] = useState(12);
   const [industry, setIndustry] = useState("");
@@ -43,13 +51,28 @@ export function GeneratePage() {
         setModelsAvailable(res.available);
         setModelsError(res.error);
         setRecommended(res.recommended || []);
+        const sl = res.compare_shortlist?.length
+          ? res.compare_shortlist
+          : FALLBACK_SHORTLIST;
+        setShortlist(sl);
         const names = res.models.map((m) => m.name);
         const preferred =
           names.find((n) => n === "qwen2.5:7b" || n.startsWith("qwen2.5:7b")) ||
           names.find((n) => n.includes("qwen2.5:7b")) ||
+          names.find((n) => n.includes("qwen2.5:3b")) ||
           names[0] ||
           "";
         setModel(preferred);
+        const defaults = sl.filter((tag) => tagInstalled(names, tag));
+        const withPrimary =
+          preferred && !defaults.includes(preferred)
+            ? [preferred, ...defaults]
+            : defaults.length
+              ? defaults
+              : preferred
+                ? [preferred]
+                : [];
+        setCompareSelected(withPrimary);
       })
       .catch((e) => {
         setModels([]);
@@ -58,6 +81,12 @@ export function GeneratePage() {
       })
       .finally(() => setLoadingModels(false));
   }, []);
+
+  function toggleCompare(tag: string) {
+    setCompareSelected((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -84,6 +113,9 @@ export function GeneratePage() {
     setBusy(true);
     setError(null);
     try {
+      const compareTags = Array.from(
+        new Set([model, ...compareSelected.filter(Boolean)]),
+      );
       const run = await api.generateFromText({
         text: text.trim(),
         llm: "ollama",
@@ -93,6 +125,8 @@ export function GeneratePage() {
         company_size: companySize.trim(),
         months,
         seed,
+        compare: true,
+        compare_models: compareTags,
       });
       navigate(`/runs/${run.id}`);
     } catch (err) {
@@ -103,6 +137,10 @@ export function GeneratePage() {
   }
 
   const descPlaceholder = language === "en" ? EN_DESC_PLACEHOLDER : FI_DESC_PLACEHOLDER;
+  const installedNames = models.map((m) => m.name);
+  const compareChoices = Array.from(
+    new Set([...shortlist, ...installedNames.filter((n) => shortlist.some((s) => n.includes(s.split(":")[0])))]),
+  ).filter((tag) => tagInstalled(installedNames, tag));
 
   return (
     <div>
@@ -128,7 +166,13 @@ export function GeneratePage() {
           {t("ollamaModel", lang)}
           <select
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setModel(next);
+              setCompareSelected((prev) =>
+                next && !prev.includes(next) ? [next, ...prev] : prev,
+              );
+            }}
             aria-label={t("ollamaModel", lang)}
             disabled={loadingModels || models.length === 0}
             required
@@ -160,6 +204,24 @@ export function GeneratePage() {
             </span>
           )}
         </label>
+        {compareChoices.length > 0 && (
+          <fieldset className="compare-fieldset">
+            <legend>{t("compareModels", lang)}</legend>
+            <span className="field-hint">{t("compareModelsHint", lang)}</span>
+            <div className="compare-checks">
+              {compareChoices.map((tag) => (
+                <label key={tag} className="compare-check">
+                  <input
+                    type="checkbox"
+                    checked={compareSelected.includes(tag)}
+                    onChange={() => toggleCompare(tag)}
+                  />
+                  <span>{tag}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <label>
           {t("language", lang)}
           <select value={language} onChange={(e) => setLanguage(e.target.value as "fi" | "en")}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../api";
 import type { Run } from "../api";
@@ -15,6 +15,11 @@ function normText(s: string | null | undefined): string {
   return (s || "").trim().replace(/\s+/g, " ");
 }
 
+function fmtScore(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  return n.toFixed(2);
+}
+
 export function RunDetailPage() {
   const { id = "" } = useParams();
   const { lang } = useAuth();
@@ -23,6 +28,7 @@ export function RunDetailPage() {
   const [jsonName, setJsonName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [expandedAnswer, setExpandedAnswer] = useState<string | null>(null);
 
   useEffect(() => {
     const runId = Number(id);
@@ -142,6 +148,91 @@ export function RunDetailPage() {
             )}
 
             {soft.length > 0 && <SoftWarnings warnings={soft} lang={lang} />}
+
+            {run.comparison?.models && run.comparison.models.length > 0 && (
+              <div className="panel">
+                <h3>{t("comparison", lang)}</h3>
+                <p className="muted">
+                  {t("packModel", lang)}: <code>{run.comparison.pack_model || run.llm_model}</code>
+                  {run.comparison.recommended_model && (
+                    <>
+                      {" · "}
+                      {t("recommended", lang)}:{" "}
+                      <strong className="badge-recommended">
+                        {run.comparison.recommended_model}
+                      </strong>
+                    </>
+                  )}
+                </p>
+                <div className="table-wrap">
+                  <table className="data-table compact">
+                    <thead>
+                      <tr>
+                        <th>{t("ollamaModel", lang)}</th>
+                        <th className="num">{t("colParam", lang)}</th>
+                        <th className="num">{t("colRead", lang)}</th>
+                        <th className="num">{t("colMom", lang)}</th>
+                        <th className="num">{t("colInterp", lang)}</th>
+                        <th>{t("colFi", lang)}</th>
+                        <th className="num">{t("colLatency", lang)}</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {run.comparison.models.map((row) => {
+                        const isRec = row.model === run.comparison?.recommended_model;
+                        const open = expandedAnswer === row.model;
+                        return (
+                          <Fragment key={row.model}>
+                            <tr className={isRec ? "row-recommended" : undefined}>
+                              <td>
+                                <code>{row.model}</code>
+                                {isRec && (
+                                  <span className="pill-recommended">{t("recommended", lang)}</span>
+                                )}
+                              </td>
+                              <td className="num">{fmtScore(row.parameter_score)}</td>
+                              <td className="num">{fmtScore(row.reading_score)}</td>
+                              <td className="num">{fmtScore(row.mom_score)}</td>
+                              <td className="num">{fmtScore(row.interpretation_score)}</td>
+                              <td>{row.fi_band || fmtScore(row.fi_quality_score)}</td>
+                              <td className="num">
+                                {row.latency_ms != null
+                                  ? `${Math.round(row.latency_ms)} ms`
+                                  : "—"}
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-small"
+                                  onClick={() =>
+                                    setExpandedAnswer(open ? null : row.model)
+                                  }
+                                >
+                                  {open ? t("hideAnswer", lang) : t("showAnswer", lang)}
+                                </button>
+                              </td>
+                            </tr>
+                            {open && (
+                              <tr>
+                                <td colSpan={8}>
+                                  <pre className="compare-answer">
+                                    {row.interpretation_answer || "—"}
+                                  </pre>
+                                  {row.notes ? (
+                                    <p className="muted">{row.notes}</p>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {showFromText && (
               <div className="panel">

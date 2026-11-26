@@ -76,6 +76,18 @@ class GenerateFromTextRequest(BaseModel):
         default=None,
         description="If set, also persist a Scenario row from the generated input.",
     )
+    # PL-52: multi-model compare on every NL generate (default shortlist when null).
+    compare: bool = Field(
+        default=True,
+        description="When true, score compare_models on the same pack and attach comparison.",
+    )
+    compare_models: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Ollama tags to compare. Null = Mac-winner shortlist "
+            "(qwen2.5:3b, llama3.2:3b, qwen2.5:7b) plus primary. Empty list skips."
+        ),
+    )
 
     @field_validator("company_size")
     @classmethod
@@ -145,6 +157,10 @@ class OllamaModelsResponse(BaseModel):
         default_factory=list,
         description="Suggested CPU-friendly tags to pull if missing.",
     )
+    compare_shortlist: list[str] = Field(
+        default_factory=list,
+        description="Default PL-52 Generate compare tags (Mac Task B winners).",
+    )
 
 
 class ValidationIssueOut(BaseModel):
@@ -170,6 +186,10 @@ class RunOut(BaseModel):
     from_text: Optional[str]
     created_at: datetime
     artifacts: list[str] = Field(default_factory=list)
+    comparison: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="PL-52 multi-model compare payload (from comparison.json when present).",
+    )
 
 
 class HealthOut(BaseModel):

@@ -94,6 +94,14 @@ UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
     "llama3.2:3b",
 ]
 
+# PL-52 default Generate compare shortlist (Mac Task B winners + Task A default).
+# Order: interpret/FI · figure reading · param extract.
+DEFAULT_COMPARE_MODELS: list[str] = [
+    "qwen2.5:3b",
+    "llama3.2:3b",
+    "qwen2.5:7b",
+]
+
 
 def recommended_ollama_tags(*, include_optional: bool = True) -> list[str]:
     """Ollama tags from the CPU shortlist (excludes stub)."""

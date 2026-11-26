@@ -19,7 +19,19 @@ Scope: Task A generator + Task B seeded scorecard (PL-51). Chat demo labelling r
 | `reports/task-b/*` | Seeded scorecard JSON/CSV/MD + spotcheck from cloud live batch `93b544893573` (stub excluded; Mac still owns full ladder + judge). |
 | `tests/test_benchmark_stub.py` | Matrix expects finance tier + stronger judge model. |
 
-Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inventory `docs/task-b-gap.md`). PL-52 API/UI sketch only — no compare UI in this PR.
+Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inventory `docs/task-b-gap.md`).
+
+## Task B — Per-input model comparison (PL-52)
+
+| File | Change |
+| --- | --- |
+| `packages/llm/.../defaults.py` | `DEFAULT_COMPARE_MODELS` = Mac winners `qwen2.5:3b`, `llama3.2:3b`, `qwen2.5:7b`. |
+| `apps/api/.../services/model_compare.py` | **new** — score shortlist on one code-built pack; write `comparison.json` + `compare_answers/`. |
+| `apps/api/.../services/generate.py` | `run_from_text(..., compare=, compare_models=)` runs compare after a successful pack. |
+| `apps/api/.../schemas.py` / `routers/runs.py` | Request fields + `RunOut.comparison`; `/llm/models` returns `compare_shortlist`. |
+| `apps/web/.../Generate.tsx` | Multi-select compare checkboxes (defaults = shortlist ∩ installed). |
+| `apps/web/.../RunDetail.tsx` | Comparison table + recommended badge + expandable answers. |
+| `tests/test_model_compare_pl52.py` | Unit tests for shortlist + stub scoring on a preset pack. |
 
 ---
 
