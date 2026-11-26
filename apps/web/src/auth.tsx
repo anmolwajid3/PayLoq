@@ -70,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Best-effort: discard session-only company uploads on the API.
+    void api.logout().catch(() => undefined);
     localStorage.removeItem("payloq_token");
     localStorage.removeItem("payloq_user");
     setToken(null);

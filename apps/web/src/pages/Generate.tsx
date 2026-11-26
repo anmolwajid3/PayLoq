@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as api from "../api";
-import type { OllamaModel } from "../api";
+import type { OllamaModel, Run } from "../api";
 import { useAuth } from "../auth";
 import { t } from "../i18n";
 
@@ -26,6 +26,8 @@ function tagInstalled(names: string[], tag: string): boolean {
 export function GeneratePage() {
   const { lang } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromRun = (location.state as { fromRun?: Run } | null)?.fromRun;
   const [text, setText] = useState("");
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [modelsAvailable, setModelsAvailable] = useState(false);
@@ -46,6 +48,29 @@ export function GeneratePage() {
   useEffect(() => {
     setLanguage(lang);
   }, [lang]);
+
+  useEffect(() => {
+    if (!fromRun) return;
+    const opts = (fromRun.pack_summary?.options || {}) as Record<string, unknown>;
+    const params = (fromRun.pack_summary?.parameters || {}) as Record<string, unknown>;
+    const desc =
+      fromRun.from_text ||
+      fromRun.pack_summary?.description?.en ||
+      fromRun.pack_summary?.description?.fi ||
+      "";
+    setText(desc);
+    if (fromRun.llm_model) setModel(fromRun.llm_model);
+    const langOpt = String(opts.language || fromRun.pack_summary?.language || lang);
+    if (langOpt === "fi" || langOpt === "en") setLanguage(langOpt);
+    if (typeof opts.months === "number") setMonths(opts.months);
+    if (typeof opts.industry === "string") setIndustry(opts.industry);
+    const size =
+      (typeof opts.company_size === "string" && opts.company_size) ||
+      (typeof params.company_size === "string" && params.company_size) ||
+      "";
+    if (size) setCompanySize(size);
+    if (typeof fromRun.seed === "number") setSeed(fromRun.seed);
+  }, [fromRun, lang]);
 
   useEffect(() => {
     setLoadingModels(true);

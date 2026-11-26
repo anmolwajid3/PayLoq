@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
+import { CompanyDataPage } from "./pages/CompanyData";
 import { GeneratePage } from "./pages/Generate";
 import { HomePage } from "./pages/Home";
 import { LoginPage } from "./pages/Login";
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/scenarios" element={<ScenariosPage />} />
         <Route path="/scenarios/:slug" element={<ScenarioDetailPage />} />
         <Route path="/generate" element={<GeneratePage />} />
+        <Route path="/company-data" element={<CompanyDataPage />} />
         <Route path="/runs" element={<RunsPage />} />
         <Route path="/runs/:id" element={<RunDetailPage />} />
       </Route>

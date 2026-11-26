@@ -98,6 +98,31 @@ def get_run(
     return _run_out(run)
 
 
+@router.delete("/runs/{run_id}")
+def delete_run(
+    run_id: int,
+    _: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict[str, bool]:
+    """Remove a generation run row (and best-effort artifact directory)."""
+    import shutil
+
+    run = session.get(GenerationRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    artifact = run.artifact_dir
+    session.delete(run)
+    session.commit()
+    if artifact:
+        try:
+            path = Path(artifact)
+            if path.is_dir() and "run_" in path.name:
+                shutil.rmtree(path, ignore_errors=True)
+        except Exception:  # noqa: BLE001
+            pass
+    return {"deleted": True}
+
+
 @router.post("/generate/preset", response_model=RunOut)
 def generate_preset(
     body: GeneratePresetRequest,

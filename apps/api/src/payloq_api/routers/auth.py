@@ -39,3 +39,11 @@ def login(
 @router.get("/me", response_model=UserOut)
 def me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
     return UserOut(username=user.username, display_name=user.display_name)
+
+
+@router.post("/logout")
+def logout(user: Annotated[User, Depends(get_current_user)]) -> dict[str, bool]:
+    """Clear session-only company uploads for this user (PL-56)."""
+    from payloq_api.services.session_upload import clear_session
+
+    return {"cleared_company_data": clear_session(user.username)}

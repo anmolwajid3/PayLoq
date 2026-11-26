@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from payloq_api.config import Settings, get_settings
 from payloq_api.db import init_db
-from payloq_api.routers import auth, runs, scenarios
+from payloq_api.routers import auth, company_data, runs, scenarios
 from payloq_api.schemas import HealthOut
 from payloq_api.seed import seed
 
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(scenarios.router, prefix="/api")
 app.include_router(runs.router, prefix="/api")
+app.include_router(company_data.router, prefix="/api")
 
 
 @app.get("/api/health", response_model=HealthOut)

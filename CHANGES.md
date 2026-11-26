@@ -55,6 +55,26 @@ Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inve
 | `apps/api/.../generate.py` + preset router | Preset compare + optional background (PL-55). |
 | Project `docs/task-b-followons.md` | Gap map + order. |
 
+## PL-56 session company upload (stacked PR)
+
+| File | Change |
+| --- | --- |
+| `apps/api/.../session_upload.py` | In-memory session store; parse xlsx/csv/json; TTL; clear on logout. |
+| `apps/api/.../routers/company_data.py` | Upload / session / situation-report / chat. |
+| `apps/api/.../routers/auth.py` | `POST /auth/logout` clears company session. |
+| `apps/web/.../CompanyData.tsx` | Upload UI, report, chat, discard, chat PDF. |
+| `tests/test_session_upload.py` | Parse + API session smoke. |
+
+## PL-57 Runs / Scenarios table UX (+ situation-report fix)
+
+| File | Change |
+| --- | --- |
+| `company_data.py` | `CompanyReportRequest` — situation report no longer requires `question`. |
+| `routers/runs.py` | `DELETE /runs/{id}` removes row + artifact dir. |
+| `apps/web/.../Runs.tsx` | Table + search/status/source filters + pagination; Open / Edit&regenerate / PDF / Delete. |
+| `apps/web/.../Scenarios.tsx` | Table + filters + pagination; Open / Generate / PDF. |
+| `Generate.tsx` | Prefills from `location.state.fromRun` for edit & regenerate. |
+
 ---
 
 ## Labelling rules (Option A)

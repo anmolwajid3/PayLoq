@@ -157,6 +157,74 @@ export async function login(username: string, password: string) {
   });
 }
 
+export async function logout() {
+  return request<{ cleared_company_data: boolean }>("/api/auth/logout", {
+    method: "POST",
+    body: "{}",
+  });
+}
+
+export type CompanySession = {
+  username: string;
+  created_at: number;
+  expires_at: number;
+  ttl_remaining_s: number;
+  filenames: string[];
+  notes: string[];
+  model: string | null;
+  has_figures: boolean;
+  figure_summary: Record<string, unknown>;
+  situation_report: string | null;
+  chat: { role: string; content: string; at: number }[];
+};
+
+export async function getCompanySession() {
+  return request<CompanySession>("/api/company-data/session");
+}
+
+export async function discardCompanySession() {
+  return request<{ cleared: boolean }>("/api/company-data/session", {
+    method: "DELETE",
+  });
+}
+
+export async function uploadCompanyFiles(files: File[]) {
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f);
+  const token = localStorage.getItem("payloq_token");
+  const res = await fetch(`${API_BASE}/api/company-data/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<CompanySession>;
+}
+
+export async function companySituationReport(body: {
+  language: "fi" | "en";
+  ollama_model?: string;
+}) {
+  return request<{ answer: string; model: string | null; session: CompanySession }>(
+    "/api/company-data/situation-report",
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export async function companyChat(body: {
+  question: string;
+  language: "fi" | "en";
+  ollama_model?: string;
+}) {
+  return request<{ answer: string; model: string | null; session: CompanySession }>(
+    "/api/company-data/chat",
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
 export async function me() {
   return request<{ username: string; display_name: string }>("/api/auth/me");
 }
@@ -169,12 +237,16 @@ export async function getScenario(slug: string) {
   return request<Scenario>(`/api/scenarios/${encodeURIComponent(slug)}`);
 }
 
-export async function listRuns() {
-  return request<Run[]>("/api/runs");
+export async function listRuns(limit = 50) {
+  return request<Run[]>(`/api/runs?limit=${limit}`);
 }
 
 export async function getRun(id: number) {
   return request<Run>(`/api/runs/${id}`);
+}
+
+export async function deleteRun(id: number) {
+  return request<{ deleted: boolean }>(`/api/runs/${id}`, { method: "DELETE" });
 }
 
 export async function generatePreset(

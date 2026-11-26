@@ -18,6 +18,9 @@ export function Layout() {
           <NavLink to="/generate" className={({ isActive }) => (isActive ? "active" : "")}>
             {t("generate", lang)}
           </NavLink>
+          <NavLink to="/company-data" className={({ isActive }) => (isActive ? "active" : "")}>
+            {t("companyData", lang)}
+          </NavLink>
           <NavLink to="/runs" className={({ isActive }) => (isActive ? "active" : "")}>
             {t("runs", lang)}
           </NavLink>
