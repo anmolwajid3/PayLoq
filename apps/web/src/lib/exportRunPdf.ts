@@ -471,7 +471,7 @@ export function buildRunPdf(run: Run, lang: Lang): jsPDF {
           t("colInterp", lang),
           t("colJudge", lang),
           t("colFi", lang),
-          "Σ",
+          "Comp",
         ],
       ],
       body: cmp.models.map((row) => [

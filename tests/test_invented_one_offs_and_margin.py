@@ -74,9 +74,22 @@ def test_healthy_profile_keeps_margin_after_fixed_charges(revenue: float) -> Non
 
 def test_loss_shapes_use_loss_cost_sum_and_unspecified_is_unchanged() -> None:
     shares = {"materials": 0.37, "services": 0.08, "personnel": 0.34, "other": 0.15}
-    for shape in ("weak", "cash_tight", "cash_critical"):
+    for shape in ("weak", "cash_tight"):
         out = calibrate_cost_shares_for_shape(shares, start_revenue_eur=100_000.0, scenario_shape=shape)
         assert abs(sum(out.values()) - 0.99) < 1e-4
     assert calibrate_cost_shares_for_shape(
         shares, start_revenue_eur=100_000.0, scenario_shape="unspecified"
     ) == shares
+
+
+def test_cash_critical_assumed_costs_are_profitable_like_healthy() -> None:
+    shares = {"materials": 0.37, "services": 0.08, "personnel": 0.34, "other": 0.15}
+    revenue = 210_000.0
+    critical = calibrate_cost_shares_for_shape(
+        shares, start_revenue_eur=revenue, scenario_shape="cash_critical"
+    )
+    healthy = calibrate_cost_shares_for_shape(
+        shares, start_revenue_eur=revenue, scenario_shape="healthy"
+    )
+    assert abs(sum(critical.values()) - sum(healthy.values())) < 1e-6
+    assert sum(critical.values()) < 0.99

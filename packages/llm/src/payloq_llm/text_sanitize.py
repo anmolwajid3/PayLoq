@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from payloq_llm.invoice_text_defaults import default_invoice_texts
 from payloq_schemas.models import InvoiceDescriptiveTexts
 from payloq_schemas.text_rules import (
@@ -12,6 +14,20 @@ from payloq_schemas.text_rules import (
 # Long blobs are usually the raw NL description pasted into a line field.
 _MAX_DESC_LEN = 80
 _MAX_COUNTERPARTY_LEN = 60
+
+# Paste dumps often keep a list index ("2. Monthly revenue…").
+_LEADING_ENUM = re.compile(r"^\s*\d+[\.)]\s+")
+
+
+def normalize_scenario_description(text: str) -> str:
+    """Strip leading enumeration prefixes from pasted scenario text."""
+    cleaned = (text or "").strip()
+    while True:
+        nxt = _LEADING_ENUM.sub("", cleaned, count=1).lstrip()
+        if nxt == cleaned:
+            break
+        cleaned = nxt
+    return cleaned
 
 
 def _looks_like_pasted_description(text: str, *, nl_blobs: tuple[str, ...]) -> bool:

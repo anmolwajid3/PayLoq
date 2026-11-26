@@ -19,9 +19,12 @@ def judge_prompt(
     return (
         "You are scoring a virtual-accountant answer on synthetic PayLoq figures.\n"
         "Score ONLY these axes from 0.0 to 1.0:\n"
-        "- factual: uses numbers present in Figures JSON\n"
+        "- factual: uses numbers present in Figures JSON AND names the real cash driver\n"
         "- understandable: clear short language (FI or EN)\n"
         "- no_invented_causes: does not invent unsupported external causes\n"
+        "If the answer cites MoM revenue / a number not in Figures / a side effect "
+        "while purchase outflows or open-invoice weeks dominate the cash move, "
+        "score factual and no_invented_causes at most 0.4.\n"
         "Return ONLY JSON: "
         '{"factual":0-1,"understandable":0-1,"no_invented_causes":0-1,'
         '"overall":0-1,"notes":"..."}\n\n'

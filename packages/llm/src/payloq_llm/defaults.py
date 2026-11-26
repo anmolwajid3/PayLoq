@@ -107,7 +107,15 @@ DEFAULT_COMPARE_MODELS: list[str] = [
 DEFAULT_COMPARE_FINANCE_MODEL = "FableForge-AI/nexus-finance:q4_k_m"
 
 # LLM-as-judge for interpretation (Generate compare + PDF). Never stubbed.
+# Prefer a model that is NOT the pack model (work-order: separate fourth model).
 DEFAULT_JUDGE_MODEL = "qwen2.5:7b"
+# Fallback order when the preferred judge equals the pack model or is missing.
+JUDGE_FALLBACK_MODELS: list[str] = [
+    "llama3.2:3b",
+    "qwen2.5:3b",
+    "llama3.2:1b",
+    "qwen2.5:0.5b",
+]
 
 
 def recommended_ollama_tags(*, include_optional: bool = True) -> list[str]:

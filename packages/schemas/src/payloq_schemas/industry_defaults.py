@@ -430,20 +430,21 @@ def calibrate_cost_shares_for_shape(
     start_revenue_eur: float,
     scenario_shape: str | None,
 ) -> dict[str, Any]:
-    """Rescale ASSUMED cost shares so a healthy profile is profitable by construction.
+    """Rescale ASSUMED cost shares for the scenario shape.
 
-    Only the ``healthy`` shape is calibrated. Other shapes keep the range-table draw
-    (weak / cash-critical stories are allowed to be loss-making). Stated shares are
-    never passed here (the caller calibrates assumed shares only).
+    - ``healthy`` / ``cash_critical`` → profitable variable-cost sum (VR-22 /
+      work-order: cash-critical stress comes from payment timing, not a loss).
+    - ``weak`` / ``cash_tight`` → loss-making cost sum.
+    Stated shares are never passed here (the caller calibrates assumed shares only).
     """
     shape = (scenario_shape or "").strip().lower()
     keys = ("materials", "services", "personnel", "other")
     total = sum(float(shares.get(k) or 0.0) for k in keys)
     if total <= 0:
         return dict(shares)
-    if shape in {"weak", "cash_tight", "cash_critical"}:
+    if shape in {"weak", "cash_tight"}:
         target = LOSS_SHAPE_COST_SUM_TARGET
-    elif shape == "healthy":
+    elif shape in {"healthy", "cash_critical"}:
         target = healthy_variable_cost_sum(start_revenue_eur)
     else:
         return dict(shares)

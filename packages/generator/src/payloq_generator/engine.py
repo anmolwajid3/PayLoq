@@ -232,16 +232,72 @@ def generate_pack(
     last_cash = last_bs.assets.cash
     receivables = last_bs.assets.receivables
     payables = last_bs.equity_and_liabilities.payables
+    last_rev = abs(months[-1].income_statement.revenue)
+
+    # cash_critical must stay profitable (VR-22) while still going cash-negative from
+    # payment timing (VR-20). After a profitable path, ending cash can sit above a
+    # modest payable cliff once week-1 sales land — bump open purchases so the
+    # clustered week-3 cliff still breaches cash.
+    if profile == "cash_critical":
+        early_inflow_est = max(abs(receivables) * 0.30, last_rev * 0.15)
+        need_payables = _r(last_cash + early_inflow_est + 12_000.0)
+        if payables < need_payables:
+            payables = need_payables
+            last_m = months[-1]
+            fa_b, loans_b, other_cl_b = _balance_sheet_plug(
+                fa=last_m.balance_sheet.assets.fixed_assets,
+                inventory=last_m.balance_sheet.assets.inventory,
+                receivables=last_m.balance_sheet.assets.receivables,
+                cash=last_cash,
+                equity=last_m.balance_sheet.equity_and_liabilities.equity,
+                loans=last_m.balance_sheet.equity_and_liabilities.loans,
+                payables=payables,
+            )
+            total_assets = _r(
+                fa_b
+                + last_m.balance_sheet.assets.inventory
+                + last_m.balance_sheet.assets.receivables
+                + last_cash
+            )
+            total_el = _r(
+                last_m.balance_sheet.equity_and_liabilities.equity
+                + loans_b
+                + payables
+                + other_cl_b
+            )
+            months[-1] = last_m.model_copy(
+                update={
+                    "balance_sheet": last_m.balance_sheet.model_copy(
+                        update={
+                            "assets": last_m.balance_sheet.assets.model_copy(
+                                update={
+                                    "fixed_assets": fa_b,
+                                    "total_assets": total_assets,
+                                }
+                            ),
+                            "equity_and_liabilities": last_m.balance_sheet.equity_and_liabilities.model_copy(
+                                update={
+                                    "loans": loans_b,
+                                    "payables": payables,
+                                    "other_current_liabilities": other_cl_b,
+                                    "total_equity_and_liabilities": total_el,
+                                }
+                            ),
+                        }
+                    )
+                }
+            )
+            gen_meta["cash_critical_payables_bump_eur"] = payables
+            last_bs = months[-1].balance_sheet
 
     # Typical weekly cash settlement — keep history wave scale near open-invoice weeks.
-    last_rev = abs(months[-1].income_statement.revenue)
     dso_weeks = max(1.0, float(params.days_sales_outstanding) / 7.0)
     wc_weekly = (abs(receivables) + abs(payables)) / max(dso_weeks, 4.0)
     weekly_flow = max(10_000.0, last_rev / 3.2, wc_weekly * 0.55)
     # cash_critical clusters supplier dues into ~one projection week (VR-20 cliff).
     # When that cliff would exceed VR-08's history-scale ratio, punch one mid-window
     # settlement step (rebounds next week) so max history delta stays in range —
-    # without inventing CAPEX or driving early history negative.
+    # without inventing CAPEX.
     settlement_eur = 0.0
     if profile == "cash_critical" and abs(payables) > 1.0:
         from payloq_schemas.constants import PROJECTION_HISTORY_SCALE_RATIO
@@ -254,13 +310,29 @@ def generate_pack(
             settlement_eur = _r(cliff / (PROJECTION_HISTORY_SCALE_RATIO * 0.92))
             gen_meta["cash_critical_history_settlement_eur"] = settlement_eur
 
-    month_cash_points = [
-        (_month_end(_add_months(first_month, i)), m.balance_sheet.assets.cash)
-        for i, m in enumerate(months)
-    ]
-    history = _history_from_month_cash(
-        as_of=as_of, weeks=26, month_points=month_cash_points
-    )
+    # cash_critical: weekly history must show supplier-scale settlements (VR-08 /
+    # work-order), not a smooth month-end polyline that cannot match the payable cliff.
+    if profile == "cash_critical" or settlement_eur > 0.0:
+        history = _generate_balance_history(
+            as_of=as_of,
+            end_cash=last_cash,
+            start_cash=months[0].balance_sheet.assets.cash,
+            profile=profile,
+            weeks=26,
+            seed=noise,
+            first_month=first_month,
+            one_off_events=one_offs,
+            weekly_flow_eur=weekly_flow,
+            cash_critical_settlement_eur=settlement_eur,
+        )
+    else:
+        month_cash_points = [
+            (_month_end(_add_months(first_month, i)), m.balance_sheet.assets.cash)
+            for i, m in enumerate(months)
+        ]
+        history = _history_from_month_cash(
+            as_of=as_of, weeks=26, month_points=month_cash_points
+        )
     # Enforce exact link to last month cash (VR-07)
     history[-1] = BalanceHistoryPoint(
         week=len(history),
@@ -687,14 +759,13 @@ def _generate_balance_history(
             event_by_week[w] = event_by_week.get(w, 0.0) + signed
 
     # Mid-window settlement pulse for cash_critical vs large payable cliff (VR-08).
+    # Do not shrink the pulse to starting-cash headroom: that left history smooth
+    # while the projection cliff was 100× larger (Run #57). Mid-window may dip;
+    # week 1 stays on the base path (settle_w ≥ 8).
     settlement = max(0.0, float(cash_critical_settlement_eur))
     if settlement > 0.0:
-        # Keep the punched week solvent so first_negative stays in projection.
-        headroom = max(0.0, float(start_cash) - 12_000.0)
-        settlement = min(settlement, headroom) if headroom > 0 else 0.0
-        if settlement > 0.0:
-            settle_w = min(weeks - 3, max(8, 10 + (seed % 6)))
-            event_by_week[settle_w] = event_by_week.get(settle_w, 0.0) - settlement
+        settle_w = min(weeks - 3, max(8, 10 + (seed % 6)))
+        event_by_week[settle_w] = event_by_week.get(settle_w, 0.0) - settlement
 
     flow = max(5_000.0, float(weekly_flow_eur))
     points: list[BalanceHistoryPoint] = []
