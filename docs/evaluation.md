@@ -44,14 +44,18 @@ Official config: [`benchmarks/matrix.cpu.json`](../benchmarks/matrix.cpu.json)
 
 | Tier | Model | Notes |
 | --- | --- | --- |
-| baseline | `stub` | Always works (CI / offline) |
-| recommended | `llama3.2:1b` | Default CPU-friendly live model |
-| optional | `llama3.2:3b` | Larger step-up when Desktop has headroom |
-| optional | `qwen2.5:3b` | Second size for multilingual / FI probes |
+| baseline | `stub` | Always works (CI / offline); excluded from comparisons |
+| size ladder | `llama3.2:1b` | ~1B general |
+| size ladder | `llama3.2:3b` | ~3B general |
+| size ladder | `qwen2.5:3b` | ~3B multilingual / FI probes |
+| recommended | `qwen2.5:7b` | Task A default; optional stronger judge |
+| finance | `FableForge-AI/nexus-finance:q4_k_m` | Open finance-tuned (~1.5B); FI band separate |
 
-Minimal example (stub + recommended only): [`benchmarks/matrix.example.json`](../benchmarks/matrix.example.json).
+Minimal example (stub + sizes + finance): [`benchmarks/matrix.example.json`](../benchmarks/matrix.example.json).
 
-When Ollama is down, `skip_unavailable` (default **on**) skips live cells; stub still runs.
+When Ollama is down, `skip_unavailable` (default **on**) skips live cells; stub still runs. Judge (when `--judge`) is skipped the same way — never stubbed as a judge.
+
+Seeded Task B scorecard (human-readable + Mac commands): Project store `docs/task-b-seeded-scorecard.md`; committed copies under `reports/task-b-*`.
 
 ## CLI
 
@@ -76,10 +80,25 @@ cd /d C:\Users\anmol\Desktop\PayLoq & ollama pull llama3.2:1b & uv run payloq be
 ```
 
 ```bat
-cd /d C:\Users\anmol\Desktop\PayLoq & ollama pull llama3.2:1b & ollama pull llama3.2:3b & ollama pull qwen2.5:3b & uv run payloq bench --config benchmarks\matrix.cpu.json --out runs\benchmark_cpu
+cd /d C:\Users\anmol\Desktop\PayLoq & ollama pull llama3.2:1b & ollama pull llama3.2:3b & ollama pull qwen2.5:3b & ollama pull qwen2.5:7b & ollama pull FableForge-AI/nexus-finance:q4_k_m & uv run payloq bench --config benchmarks\matrix.cpu.json --out runs\benchmark_cpu --judge
 ```
 
 Ollama install steps: [ollama-windows.md](ollama-windows.md).
+
+## Mac one-liners (Compose Ollama — `~/Desktop/PayLoq`)
+
+Full Task B live matrix + judge (see also [ollama-mac.md](ollama-mac.md) and Project store `docs/task-b-seeded-scorecard.md`):
+
+```bash
+cd ~/Desktop/PayLoq && git pull origin main && docker compose --profile ollama up --build -d
+until curl -sf http://127.0.0.1:11434/api/tags >/dev/null; do sleep 2; done
+docker compose --profile ollama exec ollama ollama pull llama3.2:1b
+docker compose --profile ollama exec ollama ollama pull llama3.2:3b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:3b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:7b
+docker compose --profile ollama exec ollama ollama pull FableForge-AI/nexus-finance:q4_k_m
+PAYLOQ_OLLAMA_TIMEOUT=600 uv run payloq bench --config benchmarks/matrix.cpu.json --out runs/benchmark_task_b_mac --seed 42 --judge --spotcheck
+```
 
 ## Graders (code)
 

@@ -10,30 +10,31 @@
       "id": "ollama:llama3.2:1b",
       "adapter": "ollama",
       "model": "llama3.2:1b",
-      "tier": "recommended",
-      "fallback_stub": true,
+      "tier": "size_ladder",
+      "fallback_stub": false,
       "size_hint": "~1B"
     },
     {
-      "id": "ollama:llama3.2:3b",
+      "id": "ollama:qwen2.5:7b",
       "adapter": "ollama",
-      "model": "llama3.2:3b",
-      "tier": "optional",
-      "fallback_stub": true,
-      "size_hint": "~3B"
+      "model": "qwen2.5:7b",
+      "tier": "recommended",
+      "fallback_stub": false,
+      "size_hint": "~7B"
     },
     {
-      "id": "ollama:finance-tuned-slot",
+      "id": "ollama:FableForge-AI/nexus-finance:q4_k_m",
       "adapter": "ollama",
-      "model": "REPLACE_WITH_FINANCE_TUNED_TAG",
+      "model": "FableForge-AI/nexus-finance:q4_k_m",
       "tier": "finance_tuned_if_available",
       "fallback_stub": false,
-      "notes": "FR-B-02: set model to an openly available finance-tuned Ollama tag when available; keep skip_unavailable true."
+      "size_hint": "~1.5B finance-tuned",
+      "notes": "Open finance-tuned Ollama tag (nexus-finance). Keep skip_unavailable true."
     }
   ],
   "judge": {
     "enabled": false,
     "adapter": "ollama",
-    "model": "llama3.2:1b"
+    "model": "qwen2.5:7b"
   }
 }

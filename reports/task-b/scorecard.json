@@ -1,0 +1,86 @@
+{
+  "batch_id": "93b544893573",
+  "by_model": [
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "n": 5,
+      "avg_parameter": 0.06817999999999999,
+      "avg_reading": 0.3333333333333333,
+      "avg_mom": 1.0,
+      "avg_interpretation": 0.4000000000000001,
+      "avg_fi_quality": 0.0,
+      "avg_judge": null,
+      "avg_latency_ms": 1624906.7210000001,
+      "tokens_total": 9070,
+      "cost_eur": 0.04505016,
+      "fi_band": "low"
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "n": 5,
+      "avg_parameter": 0.06817999999999999,
+      "avg_reading": 0.33236666666666664,
+      "avg_mom": 1.0,
+      "avg_interpretation": 0.9333333333333332,
+      "avg_fi_quality": 0.75,
+      "avg_judge": null,
+      "avg_latency_ms": 1185516.1138,
+      "tokens_total": 10808,
+      "cost_eur": 0.03303682,
+      "fi_band": "high"
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "n": 5,
+      "avg_parameter": 0.06817999999999999,
+      "avg_reading": 0.11113333333333332,
+      "avg_mom": 0.0,
+      "avg_interpretation": 0.4000000000000001,
+      "avg_fi_quality": 0.0,
+      "avg_judge": null,
+      "avg_latency_ms": 5.9518,
+      "tokens_total": 0,
+      "cost_eur": 1.6e-07,
+      "fi_band": "low"
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "n": 5,
+      "avg_parameter": 0.06817999999999999,
+      "avg_reading": 0.11113333333333332,
+      "avg_mom": 0.0,
+      "avg_interpretation": 0.4000000000000001,
+      "avg_fi_quality": 0.0,
+      "avg_judge": null,
+      "avg_latency_ms": 5.6814,
+      "tokens_total": 0,
+      "cost_eur": 1.5e-07,
+      "fi_band": "low"
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "n": 5,
+      "avg_parameter": 0.06817999999999999,
+      "avg_reading": 0.11113333333333332,
+      "avg_mom": 0.0,
+      "avg_interpretation": 0.4000000000000001,
+      "avg_fi_quality": 0.0,
+      "avg_judge": null,
+      "avg_latency_ms": 6.4422,
+      "tokens_total": 0,
+      "cost_eur": 1.7000000000000001e-07,
+      "fi_band": "low"
+    }
+  ],
+  "skipped_models": [],
+  "fi_band_legend": {
+    "high": "≥ 0.75 — clear Finnish markers on FI prompts",
+    "mid": "0.40–0.75 — partial FI / mixed language",
+    "low": "< 0.40 — EN-only or little Finnish on FI prompts",
+    "n/a": "no FI-band score (skipped / EN prompt only)"
+  },
+  "notes": {
+    "fi_band": "FI quality is a separate band; EN-only answers on FI prompts get a low fi_quality_score without failing the main interpretation rubric.",
+    "stub_baseline": "stub, not a model — excluded from comparisons"
+  }
+}

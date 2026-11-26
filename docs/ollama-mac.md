@@ -24,9 +24,21 @@ Pull models into the Compose Ollama service:
 ```bash
 docker compose --profile ollama exec ollama ollama pull llama3.2:1b
 docker compose --profile ollama exec ollama ollama pull qwen2.5:0.5b
-# optional larger:
-# docker compose --profile ollama exec ollama ollama pull llama3.2:3b
+# Task B / size ladder (+ finance-tuned):
+docker compose --profile ollama exec ollama ollama pull llama3.2:3b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:3b
+docker compose --profile ollama exec ollama ollama pull qwen2.5:7b
+docker compose --profile ollama exec ollama ollama pull FableForge-AI/nexus-finance:q4_k_m
 docker compose --profile ollama exec ollama ollama list
+```
+
+Task B seeded scorecard (after pulls):
+
+```bash
+PAYLOQ_OLLAMA_TIMEOUT=600 uv run payloq bench \
+  --config benchmarks/matrix.cpu.json \
+  --out runs/benchmark_task_b_mac \
+  --seed 42 --judge --spotcheck
 ```
 
 Confirm the timeout env on `api` (expect `600`):

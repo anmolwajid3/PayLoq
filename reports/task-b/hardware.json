@@ -1,0 +1,9 @@
+{
+  "platform": "Linux-6.12.113+-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "processor": "x86_64",
+  "machine": "x86_64",
+  "note": "CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
+  "peak_rss_mb": 35.09,
+  "gpu_note": "not measured (CPU-first PoC)"
+}

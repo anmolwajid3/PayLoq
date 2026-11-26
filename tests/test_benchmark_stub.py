@@ -253,6 +253,7 @@ def test_skip_ollama_when_unavailable(tmp_path: Path) -> None:
     skipped = result.summary["skipped_models"]
     assert len(skipped) == 1
     assert skipped[0]["model"] == "ollama:llama3.2:1b"
+    assert "not pulled" in skipped[0]["reason"] or "not reachable" in skipped[0]["reason"]
     assert (out / "scorecard.json").exists()
 
 
@@ -264,10 +265,18 @@ def test_matrix_cpu_config_loads() -> None:
 
     cfg = load_matrix_config(path)
     assert cfg.skip_unavailable is True
-    assert len(cfg.models) == 4
+    assert len(cfg.models) >= 5
     assert cfg.models[1].model == "llama3.2:1b"
+    assert any(m.tier == "finance_tuned" for m in cfg.models)
+    assert any(
+        m.model and "nexus-finance" in m.model for m in cfg.models
+    )
+    assert cfg.judge.model == "qwen2.5:7b"
     example = load_matrix_config(root / "benchmarks" / "matrix.example.json")
-    assert any(m.tier == "finance_tuned_if_available" for m in example.models)
+    assert any(
+        m.tier in {"finance_tuned", "finance_tuned_if_available"}
+        for m in example.models
+    )
 
 
 def test_grade_parameters_binary_share() -> None:

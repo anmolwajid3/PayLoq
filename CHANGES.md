@@ -1,9 +1,25 @@
-# CHANGES — Pilot generator work-order fix (Task A)
+# CHANGES — Pilot generator work-order fix (Task A) + Task B seed
 
 Source: `internal/pilot-generator-fix-prompt.md` + `docs/payloq-pilot-work-order.pdf`.
 PDF conflict check: none found (journal is §4 optional; schema may evolve; fidelity/consistency are code checks). No `OPEN_QUESTIONS.md`.
 
-Scope: Task A generator only. Benchmark (Task B) and chat demo kept, with **labelling rules** only (Option A). Journal deleted. One-off direction canonicalized to `inflow|outflow`.
+Scope: Task A generator + Task B seeded scorecard (PL-51). Chat demo labelling rules (Option A) unchanged. Journal deleted. One-off direction canonicalized to `inflow|outflow`.
+
+---
+
+## Task B — Seeded multi-model scorecard (PL-51)
+
+| File | Change |
+| --- | --- |
+| `benchmarks/matrix.cpu.json` | Size ladder (`llama3.2:1b/3b`, `qwen2.5:3b`) + recommended `qwen2.5:7b` + finance `FableForge-AI/nexus-finance:q4_k_m`. Judge model → `qwen2.5:7b`. Live cells `fallback_stub: false`. |
+| `benchmarks/matrix.example.json` | Same finance tag + judge; no placeholder `REPLACE_WITH_…`. |
+| `packages/benchmark/.../config.py` | Ollama `ModelSpec` / CLI tokens default `fallback_stub=False` (no stub-contaminated scorecard cells). |
+| `packages/benchmark/.../runner.py` | Skip LLM judge when Ollama unavailable (never stub-as-judge). Skip ollama cells when the **tag is not pulled** (host-up alone is not enough). |
+| `docs/evaluation.md` | CPU shortlist table + Task B artifact pointers. |
+| `reports/task-b/*` | Seeded scorecard JSON/CSV/MD + spotcheck from cloud live batch `93b544893573` (stub excluded; Mac still owns full ladder + judge). |
+| `tests/test_benchmark_stub.py` | Matrix expects finance tier + stronger judge model. |
+
+Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inventory `docs/task-b-gap.md`). PL-52 API/UI sketch only — no compare UI in this PR.
 
 ---
 

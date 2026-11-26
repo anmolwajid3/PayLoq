@@ -18,7 +18,9 @@ class ModelSpec:
     adapter: str = "stub"  # stub | ollama
     model: str | None = None  # Ollama tag, e.g. llama3.2:1b
     host: str | None = None
-    fallback_stub: bool = True
+    # Default False: stub answers must not contaminate live scorecard cells.
+    # Opt in only for demos / offline smoke (`fallback_stub: true` in matrix JSON).
+    fallback_stub: bool = False
     tier: str = "custom"  # baseline | recommended | optional | custom
 
     @classmethod
@@ -30,7 +32,7 @@ class ModelSpec:
             adapter=str(data.get("adapter") or "stub"),
             model=data.get("model"),
             host=data.get("host"),
-            fallback_stub=bool(data.get("fallback_stub", True)),
+            fallback_stub=bool(data.get("fallback_stub", False)),
             tier=str(data.get("tier") or "custom"),
         )
 
@@ -61,16 +63,23 @@ def parse_model_token(token: str) -> ModelSpec:
             adapter="ollama",
             model=DEFAULT_OLLAMA_MODEL,
             tier="recommended",
+            fallback_stub=False,
         )
     if token.startswith("ollama:"):
         tag = token[len("ollama:") :]
-        return ModelSpec(id=f"ollama:{tag}", adapter="ollama", model=tag)
+        return ModelSpec(
+            id=f"ollama:{tag}", adapter="ollama", model=tag, fallback_stub=False
+        )
     if token.startswith("ollama/"):
         tag = token[len("ollama/") :]
-        return ModelSpec(id=f"ollama:{tag}", adapter="ollama", model=tag)
+        return ModelSpec(
+            id=f"ollama:{tag}", adapter="ollama", model=tag, fallback_stub=False
+        )
     # Bare Ollama tag convenience (e.g. llama3.2:1b)
     if ":" in token or token.endswith("b"):
-        return ModelSpec(id=f"ollama:{token}", adapter="ollama", model=token)
+        return ModelSpec(
+            id=f"ollama:{token}", adapter="ollama", model=token, fallback_stub=False
+        )
     raise ValueError(
         f"Unknown model token '{token}'. Use stub, ollama, ollama:<tag>, "
         "shortlist, or a matrix config JSON."
