@@ -15,6 +15,10 @@ const FALLBACK_SHORTLIST = [
   "qwen2.5:7b",
   "llama3.2:1b",
   "llama3.2:3b",
+  "llama3.1:8b",
+  "mistral:7b",
+  "phi3:mini",
+  "gemma2:2b",
 ];
 
 function tagInstalled(names: string[], tag: string): boolean {

@@ -1,0 +1,161 @@
+{
+  "scenarios": ["good", "weak", "cash_critical"],
+  "hardware_note": "Task B full matrix — Mac Compose Ollama first; skip_unavailable drops unpulled cells. Seed 42 for fair compare.",
+  "seed": 42,
+  "write_spotcheck": true,
+  "skip_unavailable": true,
+  "models": [
+    {
+      "id": "stub",
+      "adapter": "stub",
+      "tier": "baseline",
+      "notes": "Harness wiring only — excluded from by_model comparisons"
+    },
+    {
+      "id": "ollama:qwen2.5:0.5b",
+      "adapter": "ollama",
+      "model": "qwen2.5:0.5b",
+      "tier": "general_purpose",
+      "family": "qwen2.5",
+      "fallback_stub": false,
+      "size_hint": "~0.5B",
+      "fi_note": "Multilingual family — check FI band separately"
+    },
+    {
+      "id": "ollama:qwen2.5:3b",
+      "adapter": "ollama",
+      "model": "qwen2.5:3b",
+      "tier": "general_purpose",
+      "family": "qwen2.5",
+      "fallback_stub": false,
+      "size_hint": "~3B",
+      "fi_note": "Multilingual / FI probe comparison"
+    },
+    {
+      "id": "ollama:qwen2.5:7b",
+      "adapter": "ollama",
+      "model": "qwen2.5:7b",
+      "tier": "recommended",
+      "family": "qwen2.5",
+      "fallback_stub": false,
+      "size_hint": "~7B",
+      "notes": "Task A default extract model; also primary local judge when not pack"
+    },
+    {
+      "id": "ollama:llama3.2:1b",
+      "adapter": "ollama",
+      "model": "llama3.2:1b",
+      "tier": "general_purpose",
+      "family": "llama3.2",
+      "fallback_stub": false,
+      "size_hint": "~1B"
+    },
+    {
+      "id": "ollama:llama3.2:3b",
+      "adapter": "ollama",
+      "model": "llama3.2:3b",
+      "tier": "general_purpose",
+      "family": "llama3.2",
+      "fallback_stub": false,
+      "size_hint": "~3B"
+    },
+    {
+      "id": "ollama:llama3.1:8b",
+      "adapter": "ollama",
+      "model": "llama3.1:8b",
+      "tier": "general_purpose",
+      "family": "llama3.1",
+      "fallback_stub": false,
+      "size_hint": "~8B",
+      "notes": "Size step-up vs Llama 3.2 — check whether size improves Task B metrics"
+    },
+    {
+      "id": "ollama:mistral:7b",
+      "adapter": "ollama",
+      "model": "mistral:7b",
+      "tier": "general_purpose",
+      "family": "mistral",
+      "fallback_stub": false,
+      "size_hint": "~7B",
+      "notes": "Different architecture from Qwen/Llama"
+    },
+    {
+      "id": "ollama:phi3:mini",
+      "adapter": "ollama",
+      "model": "phi3:mini",
+      "tier": "general_purpose",
+      "family": "phi3",
+      "fallback_stub": false,
+      "size_hint": "~3.8B",
+      "notes": "Small/fast low end of the range"
+    },
+    {
+      "id": "ollama:gemma2:2b",
+      "adapter": "ollama",
+      "model": "gemma2:2b",
+      "tier": "general_purpose",
+      "family": "gemma2",
+      "fallback_stub": false,
+      "size_hint": "~2B"
+    },
+    {
+      "id": "ollama:gemma2:9b",
+      "adapter": "ollama",
+      "model": "gemma2:9b",
+      "tier": "general_purpose",
+      "family": "gemma2",
+      "fallback_stub": false,
+      "size_hint": "~9B",
+      "notes": "Heavier on Mac CPU — pull only when comparing size within Gemma"
+    },
+    {
+      "id": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "adapter": "ollama",
+      "model": "FableForge-AI/nexus-finance:q4_k_m",
+      "tier": "finance_tuned",
+      "family": "nexus-finance",
+      "fallback_stub": false,
+      "size_hint": "~1.5B finance-tuned",
+      "notes": "Open finance-tuned Qwen2.5-1.5B (Apache-2.0). EN-primary — score FI band separately. Already in Mac scorecard."
+    },
+    {
+      "id": "ollama:hf.co/gaianet/FinGPT-MT-Llama-3-8B-LoRA-GGUF:Q4_K_M",
+      "adapter": "ollama",
+      "model": "hf.co/gaianet/FinGPT-MT-Llama-3-8B-LoRA-GGUF:Q4_K_M",
+      "tier": "finance_tuned",
+      "family": "fingpt",
+      "fallback_stub": false,
+      "size_hint": "~8B FinGPT LoRA GGUF",
+      "notes": "Community GGUF of FinGPT-MT-Llama-3-8B-LoRA. Verify license on HF before use. Built for finance tasks — test schema/JSON extract before trusting param scores. EN-primary."
+    }
+  ],
+  "judge": {
+    "enabled": true,
+    "adapter": "ollama",
+    "model": "qwen2.5:7b",
+    "panel": ["qwen2.5:7b", "llama3.1:8b", "mistral:7b", "llama3.2:3b"],
+    "notes": "Multi-judge when pulled; never self-judge the pack model. Enable/disable with --judge / --no-judge."
+  },
+  "catalog_excluded": [
+    {
+      "name": "FinMA-7B (TheFinAI/PIXIU)",
+      "reason": "HF weights; no official Ollama library tag. Add via custom Modelfile/GGUF after license check — not in runnable matrix until pulled."
+    },
+    {
+      "name": "Instruct-FinGPT / FinLLaMA-Instruct",
+      "reason": "HF / LoRA — same path as FinGPT; pin a verified GGUF before adding a cell."
+    },
+    {
+      "name": "FinTral",
+      "reason": "Weights/source not publicly available for Ollama (ollama#3233) — excluded."
+    },
+    {
+      "name": "FinBERT",
+      "reason": "Classification-only — cannot interpret cash projections. Optional sentiment baseline only, outside generative Task B."
+    },
+    {
+      "name": "Claude (cloud reference)",
+      "reason": "No cloud adapter in-repo yet. Synthetic data only when added; keep behind PAYLOQ_CLOUD_BENCH flag."
+    }
+  ]
+}

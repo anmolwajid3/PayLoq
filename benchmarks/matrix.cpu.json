@@ -1,6 +1,6 @@
 {
   "scenarios": ["good", "weak", "cash_critical"],
-  "hardware_note": "CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
+  "hardware_note": "CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first). Subset of matrix.task_b.json.",
   "seed": 42,
   "write_spotcheck": true,
   "skip_unavailable": true,
@@ -10,22 +10,6 @@
       "adapter": "stub",
       "tier": "baseline",
       "notes": "Harness wiring only — excluded from by_model comparisons"
-    },
-    {
-      "id": "ollama:llama3.2:1b",
-      "adapter": "ollama",
-      "model": "llama3.2:1b",
-      "tier": "size_ladder",
-      "fallback_stub": false,
-      "size_hint": "~1B"
-    },
-    {
-      "id": "ollama:llama3.2:3b",
-      "adapter": "ollama",
-      "model": "llama3.2:3b",
-      "tier": "size_ladder",
-      "fallback_stub": false,
-      "size_hint": "~3B"
     },
     {
       "id": "ollama:qwen2.5:3b",
@@ -46,6 +30,58 @@
       "notes": "Task A default extract model; also used as optional judge"
     },
     {
+      "id": "ollama:llama3.2:1b",
+      "adapter": "ollama",
+      "model": "llama3.2:1b",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~1B"
+    },
+    {
+      "id": "ollama:llama3.2:3b",
+      "adapter": "ollama",
+      "model": "llama3.2:3b",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~3B"
+    },
+    {
+      "id": "ollama:llama3.1:8b",
+      "adapter": "ollama",
+      "model": "llama3.1:8b",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~8B",
+      "notes": "Optional size step-up — skip if unpulled"
+    },
+    {
+      "id": "ollama:mistral:7b",
+      "adapter": "ollama",
+      "model": "mistral:7b",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~7B",
+      "notes": "Non-llama architecture — skip if unpulled"
+    },
+    {
+      "id": "ollama:phi3:mini",
+      "adapter": "ollama",
+      "model": "phi3:mini",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~3.8B",
+      "notes": "Skip if unpulled"
+    },
+    {
+      "id": "ollama:gemma2:2b",
+      "adapter": "ollama",
+      "model": "gemma2:2b",
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~2B",
+      "notes": "Skip if unpulled"
+    },
+    {
       "id": "ollama:FableForge-AI/nexus-finance:q4_k_m",
       "adapter": "ollama",
       "model": "FableForge-AI/nexus-finance:q4_k_m",
@@ -59,6 +95,6 @@
     "enabled": false,
     "adapter": "ollama",
     "model": "qwen2.5:7b",
-    "notes": "Enable with --judge on Mac once qwen2.5:7b is pulled. Stronger than size-ladder cells; skipped (not stubbed) when Ollama is down."
+    "notes": "Enable with --judge on Mac once qwen2.5:7b is pulled. Multi-judge panel also uses other pulled tags in Generate compare."
   }
 }

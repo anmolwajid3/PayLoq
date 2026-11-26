@@ -38,18 +38,21 @@ Finnish is required for the PoC, but many open finance models are EN-primary. Po
 | `pack_summary_<scenario>.json` | Figures shown to models |
 | `spotcheck.csv` + `spotcheck_README.md` | Human review template |
 
-## CPU model shortlist
+## CPU / Task B model shortlist
 
-Official config: [`benchmarks/matrix.cpu.json`](../benchmarks/matrix.cpu.json)
+- Mac-friendly default: [`benchmarks/matrix.cpu.json`](../benchmarks/matrix.cpu.json)
+- Full Task B catalog (general + finance + exclusions): [`benchmarks/models.task_b.md`](../benchmarks/models.task_b.md) · [`benchmarks/matrix.task_b.json`](../benchmarks/matrix.task_b.json)
 
 | Tier | Model | Notes |
 | --- | --- | --- |
 | baseline | `stub` | Always works (CI / offline); excluded from comparisons |
-| size ladder | `llama3.2:1b` | ~1B general |
-| size ladder | `llama3.2:3b` | ~3B general |
-| size ladder | `qwen2.5:3b` | ~3B multilingual / FI probes |
-| recommended | `qwen2.5:7b` | Task A default; optional stronger judge |
+| general | `qwen2.5:0.5b` / `3b` / `7b` | Default pack = 7b; FI band separate |
+| general | `llama3.2:1b` / `3b`, `llama3.1:8b` | Size ladder incl. 8B step-up |
+| general | `mistral:7b`, `phi3:mini`, `gemma2:2b` / `9b` | Other families (9b heavy on Mac) |
 | finance | `FableForge-AI/nexus-finance:q4_k_m` | Open finance-tuned (~1.5B); FI band separate |
+| finance | FinGPT GGUF (`hf.co/gaianet/…`) | Optional — verify HF license; schema-format risk |
+| excluded | FinTral, FinBERT, FinMA (until GGUF) | See `models.task_b.md` |
+| cloud | Claude API | Synthetic data only — not wired yet |
 
 Minimal example (stub + sizes + finance): [`benchmarks/matrix.example.json`](../benchmarks/matrix.example.json).
 

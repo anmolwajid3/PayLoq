@@ -75,8 +75,8 @@ const dict = {
   },
   compareModels: { fi: "Vertaa malleja", en: "Compare models" },
   compareModelsHint: {
-    fi: "Oletus: kokoportaat 1B→3B→7B (llama + qwen; + finance jos asennettu). Ei-ladatut tagit näkyvät harmaana — lataa Ollamalla. Tuomari on erillinen malli. Pakettimalli ≠ kaikki vertailumallit.",
-    en: "Default: size ladder 1B→3B→7B (llama + qwen; + finance if installed). Unpulled tags stay visible greyed out — pull with Ollama. Judge is a separate model. Pack model ≠ every compare model.",
+    fi: "Oletus: qwen + llama + mistral/phi/gemma (+ finance jos asennettu). Ei-ladatut tagit harmaana — ollama pull. Useita tuomareita (≠ paketti). Katso benchmarks/models.task_b.md.",
+    en: "Default: qwen + llama + mistral/phi/gemma (+ finance if installed). Unpulled tags stay grey — ollama pull. Multi-judge panel (≠ pack). See benchmarks/models.task_b.md.",
   },
   notPulled: { fi: "ei ladattu", en: "not pulled" },
   comparePullHint: {
