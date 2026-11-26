@@ -129,6 +129,32 @@ def test_generate_from_text_rejects_stub(client: TestClient):
     assert "ollama" in detail.lower()
 
 
+def test_company_data_upload_session_and_logout(client: TestClient):
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    missing = client.get("/api/company-data/session", headers=headers)
+    assert missing.status_code == 404
+
+    files = {
+        "files": ("cash.csv", b"week,balance\n1,1200\n2,1100\n", "text/csv"),
+    }
+    up = client.post("/api/company-data/upload", headers=headers, files=files)
+    assert up.status_code == 200, up.text
+    body = up.json()
+    assert body["filenames"] == ["cash.csv"]
+    assert body["ttl_remaining_s"] > 0
+
+    got = client.get("/api/company-data/session", headers=headers)
+    assert got.status_code == 200
+    assert got.json()["filenames"] == ["cash.csv"]
+
+    bye = client.post("/api/auth/logout", headers=headers)
+    assert bye.status_code == 200
+    assert bye.json()["cleared_company_data"] is True
+    gone = client.get("/api/company-data/session", headers=headers)
+    assert gone.status_code == 404
+
+
 def test_generate_from_text_background_returns_running(client: TestClient, monkeypatch):
     """background=true returns immediately with progress; worker is scheduled."""
     called: list[int] = []

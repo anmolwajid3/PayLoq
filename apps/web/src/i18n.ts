@@ -109,6 +109,22 @@ const dict = {
     fi: "Kirjoita oma kuvaus; placeholder on vain esimerkki.",
     en: "Write your own description; the placeholder is only an example.",
   },
+  companyData: { fi: "Yritysdata", en: "Company data" },
+  companyDataHint: {
+    fi: "Lataa Excel/CSV/JSON-istuntoon. Data hävitetään uloskirjautuessa. Chat ja tilanneraportti käyttävät paikallista mallia — koodi ei tallenna pysyvästi.",
+    en: "Upload Excel/CSV/JSON for this session only. Discarded on logout. Chat and situation report use a local model — nothing is stored permanently.",
+  },
+  uploadFiles: { fi: "Tiedostot", en: "Files" },
+  uploadFilesHint: {
+    fi: "Työjärjestyksen muotoiset .xlsx / .csv / .json (esim. cash_and_invoices.json).",
+    en: "Work-order shaped .xlsx / .csv / .json (e.g. cash_and_invoices.json).",
+  },
+  upload: { fi: "Lataa istuntoon", en: "Upload to session" },
+  sessionActive: { fi: "Aktiivinen istunto", en: "Active session" },
+  expiresIn: { fi: "Vanhenee", en: "Expires in" },
+  situationReport: { fi: "Tilanneraportti", en: "Situation report" },
+  exportChatPdf: { fi: "Lataa chat-PDF", en: "Download chat PDF" },
+  discardSession: { fi: "Hävitä istunto", en: "Discard session" },
   runGenerate: { fi: "Käynnistä generointi", en: "Run generation" },
   startingBackground: {
     fi: "Käynnistetään taustalla…",
