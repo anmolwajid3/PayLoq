@@ -33,10 +33,35 @@ export function RunDetailPage() {
   useEffect(() => {
     const runId = Number(id);
     if (!runId) return;
-    api
-      .getRun(runId)
-      .then(setRun)
-      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const next = await api.getRun(runId);
+        if (cancelled) return;
+        setRun(next);
+        setError(null);
+        const inFlight =
+          next.status === "running" ||
+          next.status === "pending" ||
+          (next.progress != null && !next.progress.done);
+        if (inFlight) {
+          timer = setTimeout(poll, 1500);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Error");
+          timer = setTimeout(poll, 3000);
+        }
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [id]);
 
   async function viewJson(filename: string) {
@@ -117,13 +142,27 @@ export function RunDetailPage() {
             <div className="meta-row">
               <div>
                 {t("status", lang)}:{" "}
-                <strong className={run.status === "ok" ? "status-ok" : "status-err"}>{run.status}</strong>
+                <strong
+                  className={
+                    run.status === "ok"
+                      ? "status-ok"
+                      : run.status === "running" || run.status === "pending"
+                        ? "status-running"
+                        : "status-err"
+                  }
+                >
+                  {run.status}
+                </strong>
               </div>
               <div>
                 {t("validation", lang)}:{" "}
-                <strong className={run.validation_ok ? "status-ok" : "status-err"}>
-                  {run.validation_ok ? t("ok", lang) : t("failed", lang)}
-                </strong>
+                {run.validation_ok == null ? (
+                  <strong className="status-running">—</strong>
+                ) : (
+                  <strong className={run.validation_ok ? "status-ok" : "status-err"}>
+                    {run.validation_ok ? t("ok", lang) : t("failed", lang)}
+                  </strong>
+                )}
               </div>
               {summary?.last_cash != null && (
                 <div>
@@ -137,6 +176,36 @@ export function RunDetailPage() {
                 </div>
               )}
             </div>
+
+            {(run.status === "running" || run.status === "pending") && (
+              <div className="progress-panel" role="status" aria-live="polite">
+                <div className="progress-head">
+                  <strong>{t("runInProgress", lang)}</strong>
+                  <span className="progress-pct">
+                    {Math.max(0, Math.min(100, run.progress?.percent ?? 0))}%
+                  </span>
+                </div>
+                <div
+                  className="progress-track"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={run.progress?.percent ?? 0}
+                  role="progressbar"
+                >
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${Math.max(2, Math.min(100, run.progress?.percent ?? 2))}%`,
+                    }}
+                  />
+                </div>
+                <p className="progress-label muted">
+                  {lang === "fi"
+                    ? run.progress?.label_fi || t("runWorking", lang)
+                    : run.progress?.label_en || t("runWorking", lang)}
+                </p>
+              </div>
+            )}
 
             {run.error_message && <div className="error-banner">{run.error_message}</div>}
 

@@ -103,6 +103,18 @@ const dict = {
     en: "Write your own description; the placeholder is only an example.",
   },
   runGenerate: { fi: "Käynnistä generointi", en: "Run generation" },
+  startingBackground: {
+    fi: "Käynnistetään taustalla…",
+    en: "Starting in background…",
+  },
+  runInProgress: {
+    fi: "Ajo käynnissä taustalla",
+    en: "Run in progress (background)",
+  },
+  runWorking: {
+    fi: "Työskennellään…",
+    en: "Working…",
+  },
   back: { fi: "Takaisin", en: "Back" },
   loginHint: {
     fi: "PoC-kirjautuminen — oletus payloq / payloq",

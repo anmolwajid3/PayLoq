@@ -132,9 +132,55 @@ def run_preset(
     return run
 
 
-def run_from_text(
+def create_from_text_run(
     session: Session,
     settings: Settings,
+    *,
+    text: str,
+    llm: str = "ollama",
+    ollama_model: str | None = None,
+    seed: int = 42,
+) -> GenerationRun:
+    """Create a running from-text row and seed progress.json (does not call Ollama)."""
+    from payloq_api.services.progress import write_progress
+
+    resolved_model = (
+        (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
+        if llm == "ollama"
+        else None
+    )
+    run = GenerationRun(
+        source="from_text",
+        llm_adapter=llm,
+        llm_model=resolved_model,
+        seed=seed,
+        status="running",
+        from_text=text,
+    )
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+
+    out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_progress(
+        out_dir,
+        percent=2,
+        stage="queued",
+        label_en="Queued — starting in background…",
+        label_fi="Jonossa — käynnistyy taustalla…",
+    )
+    run.artifact_dir = str(out_dir.resolve())
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def execute_from_text(
+    session: Session,
+    settings: Settings,
+    run: GenerationRun,
     *,
     text: str,
     llm: str = "ollama",
@@ -150,34 +196,59 @@ def run_from_text(
     compare: bool = True,
     compare_models: list[str] | None = None,
 ) -> GenerationRun:
+    """Run Ollama extract → pack → validate → optional compare with progress updates."""
     from payloq_api.services.model_compare import (
         resolve_compare_models,
         run_model_comparison,
     )
+    from payloq_api.services.progress import write_progress
 
     resolved_model = (
         (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
         if llm == "ollama"
-        else None
+        else run.llm_model
     )
-    run = GenerationRun(
-        source="from_text",
-        llm_adapter=llm,
-        llm_model=resolved_model,
-        seed=seed,
-        status="pending",
-        from_text=text,
+    out_dir = (
+        Path(run.artifact_dir)
+        if run.artifact_dir
+        else Path(settings.artifact_dir) / f"run_{run.id}"
     )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run.artifact_dir = str(out_dir.resolve())
+    run.status = "running"
     session.add(run)
     session.commit()
-    session.refresh(run)
 
-    out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
+    def _progress(
+        percent: int,
+        stage: str,
+        label_en: str,
+        label_fi: str | None = None,
+        *,
+        done: bool = False,
+        error: str | None = None,
+    ) -> None:
+        write_progress(
+            out_dir,
+            percent=percent,
+            stage=stage,
+            label_en=label_en,
+            label_fi=label_fi,
+            done=done,
+            error=error,
+        )
+
     try:
         if llm != "ollama":
             raise ValueError(
                 "From-text generation requires Ollama (local model)."
             )
+        _progress(
+            8,
+            "extract",
+            "Extracting parameters with Ollama…",
+            "Poimitaan parametreja Ollamalla…",
+        )
         host = ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST
         adapter = get_adapter(
             "ollama",
@@ -203,7 +274,15 @@ def run_from_text(
         run.llm_adapter = "ollama"
         if resolved_model:
             run.llm_model = resolved_model
+        session.add(run)
+        session.commit()
 
+        _progress(
+            40,
+            "generate",
+            "Building scenario pack (code)…",
+            "Rakennetaan skenaariopakettia (koodi)…",
+        )
         outcome = run_generation(
             inp,
             out_dir,
@@ -213,6 +292,12 @@ def run_from_text(
             llm_name=llm_name,
         )
         pack = outcome.pack
+        _progress(
+            50,
+            "validate",
+            "Validating pack…",
+            "Validoidaan pakettia…",
+        )
         soft = assess_nl_params(
             text,
             (pack.input.parameters_from_language_model.model_dump() if pack else {}),
@@ -229,6 +314,14 @@ def run_from_text(
         else:
             run.status = "error"
             run.error_message = outcome.error_message or "Generated pack failed validation"
+            _progress(
+                100,
+                "error",
+                "Validation failed",
+                "Validointi epäonnistui",
+                done=True,
+                error=run.error_message,
+            )
 
         # PL-52: score shortlist on the same code-owned pack (best-effort; never fail the run).
         if (
@@ -255,6 +348,7 @@ def run_from_text(
                         host=host,
                         timeout_s=settings.ollama_timeout,
                         out_dir=out_dir,
+                        on_progress=_progress,
                     )
             except Exception as cmp_exc:  # noqa: BLE001
                 # Persist a soft note; pack artifacts remain the source of truth.
@@ -279,14 +373,124 @@ def run_from_text(
             session.commit()
             session.refresh(scenario)
             run.scenario_id = scenario.id
+
+        if run.status == "ok":
+            _progress(
+                100,
+                "done",
+                "Complete",
+                "Valmis",
+                done=True,
+            )
     except Exception as exc:  # noqa: BLE001
         run.status = "error"
         run.error_message = str(exc)
+        _progress(
+            100,
+            "error",
+            "Failed",
+            "Epäonnistui",
+            done=True,
+            error=str(exc),
+        )
 
     session.add(run)
     session.commit()
     session.refresh(run)
     return run
+
+
+def run_from_text(
+    session: Session,
+    settings: Settings,
+    *,
+    text: str,
+    llm: str = "ollama",
+    language: str = "fi",
+    industry: str = "unspecified",
+    company_size: str = "small",
+    months: int = 12,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    ollama_model: str | None = None,
+    ollama_host: str | None = None,
+    save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+) -> GenerationRun:
+    """Synchronous from-text (tests / callers that need a finished run)."""
+    run = create_from_text_run(
+        session,
+        settings,
+        text=text,
+        llm=llm,
+        ollama_model=ollama_model,
+        seed=seed,
+    )
+    return execute_from_text(
+        session,
+        settings,
+        run,
+        text=text,
+        llm=llm,
+        language=language,
+        industry=industry,
+        company_size=company_size,
+        months=months,
+        seed=seed,
+        write_xlsx=write_xlsx,
+        ollama_model=ollama_model,
+        ollama_host=ollama_host,
+        save_as_slug=save_as_slug,
+        compare=compare,
+        compare_models=compare_models,
+    )
+
+
+def execute_from_text_job(
+    run_id: int,
+    *,
+    text: str,
+    llm: str = "ollama",
+    language: str = "fi",
+    industry: str = "unspecified",
+    company_size: str = "small",
+    months: int = 12,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    ollama_model: str | None = None,
+    ollama_host: str | None = None,
+    save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+) -> None:
+    """Background worker: open a fresh DB session and finish the run."""
+    from payloq_api.db import get_engine
+    from payloq_api.config import get_settings
+
+    settings = get_settings()
+    with Session(get_engine()) as session:
+        run = session.get(GenerationRun, run_id)
+        if run is None:
+            return
+        execute_from_text(
+            session,
+            settings,
+            run,
+            text=text,
+            llm=llm,
+            language=language,
+            industry=industry,
+            company_size=company_size,
+            months=months,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            ollama_model=ollama_model,
+            ollama_host=ollama_host,
+            save_as_slug=save_as_slug,
+            compare=compare,
+            compare_models=compare_models,
+        )
 
 
 def load_preset_input(settings: Settings, slug: str) -> GeneratorInput:

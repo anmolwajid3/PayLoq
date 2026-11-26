@@ -71,6 +71,16 @@ export type Run = {
   created_at: string;
   artifacts: string[];
   comparison?: ModelComparison | null;
+  progress?: RunProgress | null;
+};
+
+export type RunProgress = {
+  percent: number;
+  stage: string;
+  label_en: string;
+  label_fi: string;
+  done: boolean;
+  error?: string | null;
 };
 
 export type ModelComparisonRow = {
@@ -177,10 +187,11 @@ export async function generateFromText(body: {
   seed: number;
   compare?: boolean;
   compare_models?: string[];
+  background?: boolean;
 }) {
   return request<Run>("/api/generate/from-text", {
     method: "POST",
-    body: JSON.stringify({ ...body, write_xlsx: true }),
+    body: JSON.stringify({ ...body, write_xlsx: true, background: body.background ?? true }),
   });
 }
 

@@ -88,6 +88,13 @@ class GenerateFromTextRequest(BaseModel):
             "(qwen2.5:3b, llama3.2:3b, qwen2.5:7b) plus primary. Empty list skips."
         ),
     )
+    background: bool = Field(
+        default=True,
+        description=(
+            "When true (default), return a running run immediately and finish "
+            "Ollama extract / pack / compare in a background task. Poll GET /runs/{id}."
+        ),
+    )
 
     @field_validator("company_size")
     @classmethod
@@ -169,6 +176,15 @@ class ValidationIssueOut(BaseModel):
     severity: str
 
 
+class RunProgressOut(BaseModel):
+    percent: int = 0
+    stage: str = ""
+    label_en: str = ""
+    label_fi: str = ""
+    done: bool = False
+    error: Optional[str] = None
+
+
 class RunOut(BaseModel):
     id: int
     scenario_id: Optional[int]
@@ -189,6 +205,10 @@ class RunOut(BaseModel):
     comparison: Optional[dict[str, Any]] = Field(
         default=None,
         description="PL-52 multi-model compare payload (from comparison.json when present).",
+    )
+    progress: Optional[RunProgressOut] = Field(
+        default=None,
+        description="Live percent/stage from progress.json while status is running.",
     )
 
 

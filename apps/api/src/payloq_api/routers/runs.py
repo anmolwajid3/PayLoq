@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
@@ -23,6 +23,7 @@ from payloq_api.schemas import (
     OllamaModelOut,
     OllamaModelsResponse,
     RunOut,
+    RunProgressOut,
 )
 from payloq_api.services.chat import (
     chat_on_run,
@@ -31,8 +32,15 @@ from payloq_api.services.chat import (
     result_to_dict,
     suggestions_for_run,
 )
-from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
+from payloq_api.services.generate import (
+    artifacts_for_run,
+    create_from_text_run,
+    execute_from_text_job,
+    run_from_text,
+    run_preset,
+)
 from payloq_api.services.model_compare import load_comparison
+from payloq_api.services.progress import load_progress
 from payloq_llm.adapters import list_ollama_models
 from payloq_llm.defaults import DEFAULT_COMPARE_MODELS, UI_SUGGESTED_OLLAMA_TAGS
 
@@ -40,6 +48,8 @@ router = APIRouter(tags=["runs"])
 
 
 def _run_out(run: GenerationRun) -> RunOut:
+    raw = load_progress(run.artifact_dir)
+    progress = RunProgressOut(**raw) if raw else None
     return RunOut(
         id=run.id or 0,
         scenario_id=run.scenario_id,
@@ -58,6 +68,7 @@ def _run_out(run: GenerationRun) -> RunOut:
         created_at=run.created_at,
         artifacts=artifacts_for_run(run),
         comparison=load_comparison(run.artifact_dir),
+        progress=progress,
     )
 
 
@@ -108,13 +119,12 @@ def generate_preset(
 @router.post("/generate/from-text", response_model=RunOut)
 def generate_from_text(
     body: GenerateFromTextRequest,
+    background_tasks: BackgroundTasks,
     _: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> RunOut:
-    run = run_from_text(
-        session,
-        settings,
+    kwargs = dict(
         text=body.text,
         llm=body.llm,
         language=body.language,
@@ -129,6 +139,18 @@ def generate_from_text(
         compare=body.compare,
         compare_models=body.compare_models,
     )
+    if body.background:
+        run = create_from_text_run(
+            session,
+            settings,
+            text=body.text,
+            llm=body.llm,
+            ollama_model=body.ollama_model,
+            seed=body.seed,
+        )
+        background_tasks.add_task(execute_from_text_job, run.id, **kwargs)
+        return _run_out(run)
+    run = run_from_text(session, settings, **kwargs)
     return _run_out(run)
 
 

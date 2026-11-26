@@ -173,6 +173,7 @@ def run_model_comparison(
     host: str | None = None,
     timeout_s: float | None = None,
     out_dir: Path | None = None,
+    on_progress: Any | None = None,
 ) -> dict[str, Any]:
     """
     Score each model on the same code-built pack.
@@ -191,7 +192,17 @@ def run_model_comparison(
 
     rows: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
-    for tag in models:
+    n = max(len(models), 1)
+    for i, tag in enumerate(models):
+        if on_progress is not None:
+            # Map compare phase into roughly 55–95%.
+            pct = 55 + int(40 * i / n)
+            on_progress(
+                pct,
+                "compare",
+                f"Comparing model {i + 1}/{len(models)}: {tag}",
+                f"Verrataan mallia {i + 1}/{len(models)}: {tag}",
+            )
         try:
             adapter = get_adapter(
                 "ollama",

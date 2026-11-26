@@ -127,7 +127,9 @@ export function GeneratePage() {
         seed,
         compare: true,
         compare_models: compareTags,
+        background: true,
       });
+      // Navigate immediately; Run detail polls progress while status is running.
       navigate(`/runs/${run.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -277,7 +279,7 @@ export function GeneratePage() {
           type="submit"
           disabled={busy || !text.trim() || !model || models.length === 0 || !companySize.trim()}
         >
-          {busy ? t("loading", lang) : t("runGenerate", lang)}
+          {busy ? t("startingBackground", lang) : t("runGenerate", lang)}
         </button>
       </form>
     </div>

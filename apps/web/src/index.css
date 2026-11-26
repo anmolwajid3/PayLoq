@@ -509,6 +509,51 @@ textarea {
   color: var(--danger);
 }
 
+.status-running {
+  color: var(--accent-soft);
+}
+
+.progress-panel {
+  margin: 1rem 0 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(7, 31, 30, 0.55);
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.progress-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent-soft);
+}
+
+.progress-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ok), var(--accent-soft));
+  transition: width 0.4s ease;
+}
+
+.progress-label {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+}
+
 .artifact-list {
   display: flex;
   flex-wrap: wrap;

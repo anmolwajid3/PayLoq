@@ -33,6 +33,17 @@ Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inve
 | `apps/web/.../RunDetail.tsx` | Comparison table + recommended badge + expandable answers. |
 | `tests/test_model_compare_pl52.py` | Unit tests for shortlist + stub scoring on a preset pack. |
 
+## Background Generate + progress %
+
+| File | Change |
+| --- | --- |
+| `apps/api/.../services/progress.py` | **new** — `progress.json` percent/stage helpers. |
+| `apps/api/.../services/generate.py` | `create_from_text_run` + `execute_from_text_job`; stage updates through extract → pack → compare. |
+| `apps/api/.../routers/runs.py` | `background=true` (default) returns `status=running` and finishes via `BackgroundTasks`. |
+| `apps/api/.../schemas.py` | `GenerateFromTextRequest.background`; `RunOut.progress`. |
+| `apps/web/.../Generate.tsx` / `RunDetail.tsx` | Navigate immediately; poll run every 1.5s and show progress bar. |
+| `tests/test_background_progress.py` | Progress helpers + background enqueue smoke test. |
+
 ---
 
 ## Labelling rules (Option A)
