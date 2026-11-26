@@ -21,9 +21,10 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def test_default_compare_shortlist_mac_winners() -> None:
-    assert "qwen2.5:3b" in DEFAULT_COMPARE_MODELS
+def test_default_compare_shortlist_size_ladder() -> None:
+    assert "llama3.2:1b" in DEFAULT_COMPARE_MODELS
     assert "llama3.2:3b" in DEFAULT_COMPARE_MODELS
+    assert "qwen2.5:3b" in DEFAULT_COMPARE_MODELS
     assert "qwen2.5:7b" in DEFAULT_COMPARE_MODELS
     assert "stub" not in DEFAULT_COMPARE_MODELS
 
@@ -83,3 +84,5 @@ def test_run_model_comparison_writes_artifact(tmp_path: Path) -> None:
     assert payload["pack_model"] == "qwen2.5:7b"
     assert payload["models"] == []
     assert payload["recommended_model"] is None
+    assert "judge_role" in payload
+    assert "score_weights" in payload

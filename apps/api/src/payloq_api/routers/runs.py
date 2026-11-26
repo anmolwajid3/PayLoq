@@ -35,7 +35,9 @@ from payloq_api.services.chat import (
 from payloq_api.services.generate import (
     artifacts_for_run,
     create_from_text_run,
+    create_preset_run,
     execute_from_text_job,
+    execute_preset_job,
     run_from_text,
     run_preset,
 )
@@ -99,6 +101,7 @@ def get_run(
 @router.post("/generate/preset", response_model=RunOut)
 def generate_preset(
     body: GeneratePresetRequest,
+    background_tasks: BackgroundTasks,
     _: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -106,13 +109,25 @@ def generate_preset(
     scenario = session.exec(select(Scenario).where(Scenario.slug == body.scenario_slug)).first()
     if scenario is None:
         raise HTTPException(status_code=404, detail=f"Scenario '{body.scenario_slug}' not found")
-    run = run_preset(
-        session,
-        settings,
-        scenario=scenario,
+    kwargs = dict(
         seed=body.seed,
         write_xlsx=body.write_xlsx,
+        compare=body.compare,
+        compare_models=body.compare_models,
+        language=body.language,
     )
+    if body.background:
+        run = create_preset_run(
+            session, settings, scenario=scenario, seed=body.seed
+        )
+        background_tasks.add_task(
+            execute_preset_job,
+            run.id,
+            scenario.id,
+            **kwargs,
+        )
+        return _run_out(run)
+    run = run_preset(session, settings, scenario=scenario, **kwargs)
     return _run_out(run)
 
 

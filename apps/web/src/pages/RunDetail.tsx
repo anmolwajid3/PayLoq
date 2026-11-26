@@ -233,6 +233,19 @@ export function RunDetailPage() {
                     </>
                   )}
                 </p>
+                <p className="muted">
+                  {t("judgeModel", lang)}:{" "}
+                  {run.comparison.judge_skipped ? (
+                    <em>—</em>
+                  ) : (
+                    <code>{run.comparison.judge_model || "—"}</code>
+                  )}
+                  {run.comparison.judge_skipped
+                    ? ` (${run.comparison.judge_skipped})`
+                    : run.comparison.judge_role
+                      ? ` — ${run.comparison.judge_role}`
+                      : ""}
+                </p>
                 <div className="table-wrap">
                   <table className="data-table compact">
                     <thead>
@@ -242,6 +255,7 @@ export function RunDetailPage() {
                         <th className="num">{t("colRead", lang)}</th>
                         <th className="num">{t("colMom", lang)}</th>
                         <th className="num">{t("colInterp", lang)}</th>
+                        <th className="num">{t("colJudge", lang)}</th>
                         <th>{t("colFi", lang)}</th>
                         <th className="num">{t("colLatency", lang)}</th>
                         <th />
@@ -264,6 +278,7 @@ export function RunDetailPage() {
                               <td className="num">{fmtScore(row.reading_score)}</td>
                               <td className="num">{fmtScore(row.mom_score)}</td>
                               <td className="num">{fmtScore(row.interpretation_score)}</td>
+                              <td className="num">{fmtScore(row.judge_score)}</td>
                               <td>{row.fi_band || fmtScore(row.fi_quality_score)}</td>
                               <td className="num">
                                 {row.latency_ms != null
@@ -284,10 +299,22 @@ export function RunDetailPage() {
                             </tr>
                             {open && (
                               <tr>
-                                <td colSpan={8}>
+                                <td colSpan={9}>
                                   <pre className="compare-answer">
                                     {row.interpretation_answer || "—"}
                                   </pre>
+                                  {row.score_rationale ? (
+                                    <p className="muted">
+                                      <strong>{t("scoreRationale", lang)}:</strong>{" "}
+                                      {row.score_rationale}
+                                    </p>
+                                  ) : null}
+                                  {row.judge_notes ? (
+                                    <p className="muted">
+                                      <strong>{t("judgeNotes", lang)}:</strong>{" "}
+                                      {row.judge_notes}
+                                    </p>
+                                  ) : null}
                                   {row.notes ? (
                                     <p className="muted">{row.notes}</p>
                                   ) : null}

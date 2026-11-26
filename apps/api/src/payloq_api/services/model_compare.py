@@ -14,11 +14,14 @@ from payloq_benchmark.graders import (
     grade_parameters_binary,
     grade_probes,
 )
+from payloq_benchmark.judge import run_llm_judge
 from payloq_benchmark.pack_summary import build_pack_summary
 from payloq_benchmark.scorecard import fi_band_label
 from payloq_llm.adapters import LlmAdapter, get_adapter, list_ollama_models
 from payloq_llm.defaults import (
+    DEFAULT_COMPARE_FINANCE_MODEL,
     DEFAULT_COMPARE_MODELS,
+    DEFAULT_JUDGE_MODEL,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
 )
@@ -45,7 +48,12 @@ def resolve_compare_models(
     ``None`` / empty requested → default shortlist (+ primary).
     When ``available_only``, drop tags not present in Ollama ``/api/tags``.
     """
-    base = list(requested) if requested else list(DEFAULT_COMPARE_MODELS)
+    if requested:
+        base = list(requested)
+    else:
+        base = list(DEFAULT_COMPARE_MODELS)
+        # Size / specialty ladder: append finance-tuned when caller left defaults.
+        base.append(DEFAULT_COMPARE_FINANCE_MODEL)
     if primary:
         base = [primary, *[m for m in base if m != primary]]
     # de-dupe preserve order
@@ -107,6 +115,8 @@ def score_model_on_pack(
     parameter_key: dict[str, Any],
     pack_summary: dict[str, Any],
     language: str = "fi",
+    judge_adapter: LlmAdapter | None = None,
+    judge_model: str | None = None,
 ) -> dict[str, Any]:
     """Extract + read + interpret one model against the same code-owned pack."""
     notes: list[str] = []
@@ -144,18 +154,57 @@ def score_model_on_pack(
     fi_grade = grade_fi_quality(interpretation, expected_language=language)
     latency_ms = (time.perf_counter() - t0) * 1000
 
+    wrong_params = [k for k, v in (param_grade.per_field or {}).items() if float(v) < 0.5]
+    score_why: list[str] = []
+    if param_grade.notes:
+        score_why.append(f"params: {param_grade.notes}")
+    elif wrong_params:
+        score_why.append("params wrong: " + ", ".join(wrong_params[:8]))
+    if interp_grade.notes:
+        score_why.append(f"interp (code): {interp_grade.notes}")
+    if fi_grade.notes:
+        score_why.append(f"FI: {fi_grade.notes}")
+
+    judge_score: float | None = None
+    judge_notes = ""
+    judge_axes: dict[str, float] = {}
+    if judge_adapter is not None and interpretation.strip():
+        try:
+            jg = run_llm_judge(
+                judge_adapter,
+                question=question,
+                answer=interpretation,
+                pack_summary=pack_summary,
+            )
+            judge_score = jg.score
+            judge_notes = jg.notes or ""
+            judge_axes = {k: float(v) for k, v in (jg.per_field or {}).items()}
+            if judge_notes:
+                score_why.append(f"judge: {judge_notes}")
+        except Exception as exc:  # noqa: BLE001
+            notes.append(f"judge failed: {exc}")
+
     row: dict[str, Any] = {
         "model": model,
         "parameter_score": param_grade.score,
         "reading_score": round(reading, 4),
         "mom_score": round(mom, 4),
         "interpretation_score": interp_grade.score,
+        "interpretation_axes": {
+            k: float(v) for k, v in (interp_grade.per_field or {}).items()
+        },
         "fi_quality_score": fi_grade.score,
         "fi_band": fi_band_label(fi_grade.score),
         "latency_ms": round(latency_ms, 1),
         "interpretation_answer": interpretation,
         "predicted_parameters": predicted,
         "probe_answers": answers,
+        "parameter_field_scores": dict(param_grade.per_field or {}),
+        "judge_model": judge_model,
+        "judge_score": judge_score,
+        "judge_axes": judge_axes,
+        "judge_notes": judge_notes,
+        "score_rationale": "; ".join(score_why) if score_why else "",
         "notes": "; ".join(notes) if notes else "",
     }
     row["composite_score"] = _composite(row)
@@ -193,6 +242,32 @@ def run_model_comparison(
     rows: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
     n = max(len(models), 1)
+
+    judge_adapter: LlmAdapter | None = None
+    judge_model_used: str | None = None
+    judge_skip: str | None = None
+    try:
+        available = resolve_compare_models(
+            requested=[DEFAULT_JUDGE_MODEL],
+            primary=None,
+            host=host,
+            available_only=True,
+        )
+        if available:
+            judge_model_used = available[0]
+            judge_adapter = get_adapter(
+                "ollama",
+                fallback_stub=False,
+                model=judge_model_used,
+                host=host or DEFAULT_OLLAMA_HOST,
+                timeout_s=timeout_s,
+            )
+        else:
+            judge_skip = f"judge tag not pulled: {DEFAULT_JUDGE_MODEL}"
+    except Exception as exc:  # noqa: BLE001
+        judge_skip = f"judge unavailable: {exc}"
+        judge_adapter = None
+
     for i, tag in enumerate(models):
         if on_progress is not None:
             # Map compare phase into roughly 55–95%.
@@ -221,6 +296,8 @@ def run_model_comparison(
                     parameter_key=key,
                     pack_summary=summary,
                     language=language,
+                    judge_adapter=judge_adapter,
+                    judge_model=judge_model_used,
                 )
             )
         except Exception as exc:  # noqa: BLE001
@@ -231,9 +308,15 @@ def run_model_comparison(
         recommended = max(rows, key=lambda r: float(r.get("composite_score") or 0.0))["model"]
 
     payload: dict[str, Any] = {
-        "version": 1,
+        "version": 2,
         "principle": "code calculates; models extract/interpret only",
         "pack_model": pack_model or DEFAULT_OLLAMA_MODEL,
+        "judge_model": judge_model_used,
+        "judge_role": (
+            "Scores each model's interpretation for factual / understandable / "
+            "no_invented_causes against the same code figures. Never stubbed."
+        ),
+        "judge_skipped": judge_skip,
         "models": rows,
         "skipped": skipped,
         "recommended_model": recommended,
@@ -243,6 +326,13 @@ def run_model_comparison(
             "mid": "0.40–0.75",
             "low": "< 0.40",
             "n/a": "skipped / EN-only prompt",
+        },
+        "score_weights": {
+            "parameter": 0.25,
+            "reading": 0.25,
+            "mom": 0.15,
+            "interpretation": 0.25,
+            "fi_quality": 0.10,
         },
     }
 

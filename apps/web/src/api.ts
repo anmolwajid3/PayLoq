@@ -89,21 +89,33 @@ export type ModelComparisonRow = {
   reading_score: number | null;
   mom_score: number | null;
   interpretation_score: number | null;
+  interpretation_axes?: Record<string, number>;
   fi_quality_score: number | null;
   fi_band?: string;
   latency_ms?: number;
   composite_score?: number;
   interpretation_answer?: string;
   notes?: string;
+  score_rationale?: string;
+  judge_model?: string | null;
+  judge_score?: number | null;
+  judge_axes?: Record<string, number>;
+  judge_notes?: string;
+  parameter_field_scores?: Record<string, number>;
 };
 
 export type ModelComparison = {
   version?: number;
   pack_model?: string;
   recommended_model?: string | null;
+  judge_model?: string | null;
+  judge_role?: string;
+  judge_skipped?: string | null;
+  score_weights?: Record<string, number>;
   models: ModelComparisonRow[];
   skipped?: { model: string; reason: string }[];
   shortlist_default?: string[];
+  fi_band_legend?: Record<string, string>;
 };
 
 function authHeaders(): HeadersInit {
@@ -165,14 +177,27 @@ export async function getRun(id: number) {
   return request<Run>(`/api/runs/${id}`);
 }
 
-export async function generatePreset(scenario_slug: string) {
+export async function generatePreset(
+  scenario_slug: string,
+  opts?: {
+    seed?: number;
+    language?: "fi" | "en";
+    compare?: boolean;
+    compare_models?: string[];
+    background?: boolean;
+  },
+) {
   return request<Run>("/api/generate/preset", {
     method: "POST",
     body: JSON.stringify({
       scenario_slug,
-      seed: 42,
+      seed: opts?.seed ?? 42,
       write_xlsx: true,
-          }),
+      language: opts?.language ?? "fi",
+      compare: opts?.compare ?? true,
+      compare_models: opts?.compare_models,
+      background: opts?.background ?? true,
+    }),
   });
 }
 

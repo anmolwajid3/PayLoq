@@ -426,7 +426,90 @@ export function buildRunPdf(run: Run, lang: Lang): jsPDF {
     y = (doc.lastAutoTable?.finalY ?? y) + 6;
   }
 
-  // Artifact summary (filenames only — PDF stands alone without dumping JSON)
+  // Model comparison + judge (PL-53)
+  const cmp = run.comparison;
+  if (cmp?.models?.length) {
+    y = sectionTitle(doc, t("comparison", lang), y);
+    y = bodyText(
+      doc,
+      `${t("packModel", lang)}: ${cmp.pack_model || run.llm_model || "—"}` +
+        (cmp.recommended_model
+          ? ` · ${t("recommended", lang)}: ${cmp.recommended_model}`
+          : ""),
+      y,
+    );
+    if (cmp.judge_model || cmp.judge_skipped) {
+      y = bodyText(
+        doc,
+        cmp.judge_skipped
+          ? `${t("judgeModel", lang)}: — (${cmp.judge_skipped})`
+          : `${t("judgeModel", lang)}: ${cmp.judge_model}`,
+        y,
+      );
+      if (cmp.judge_role) {
+        y = bodyText(doc, cmp.judge_role, y);
+      }
+    }
+    if (cmp.score_weights) {
+      const w = cmp.score_weights;
+      y = bodyText(
+        doc,
+        `${t("scoreWeights", lang)}: param ${w.parameter ?? "—"} · read ${w.reading ?? "—"} · MoM ${w.mom ?? "—"} · interp ${w.interpretation ?? "—"} · FI ${w.fi_quality ?? "—"}`,
+        y,
+      );
+    }
+    autoTable(doc, {
+      startY: y,
+      margin: { left: MARGIN, right: MARGIN },
+      tableWidth: CONTENT_W,
+      head: [
+        [
+          t("ollamaModel", lang),
+          t("colParam", lang),
+          t("colRead", lang),
+          t("colMom", lang),
+          t("colInterp", lang),
+          t("colJudge", lang),
+          t("colFi", lang),
+          "Σ",
+        ],
+      ],
+      body: cmp.models.map((row) => [
+        row.model === cmp.recommended_model ? `${row.model} ★` : row.model,
+        row.parameter_score != null ? row.parameter_score.toFixed(2) : "—",
+        row.reading_score != null ? row.reading_score.toFixed(2) : "—",
+        row.mom_score != null ? row.mom_score.toFixed(2) : "—",
+        row.interpretation_score != null ? row.interpretation_score.toFixed(2) : "—",
+        row.judge_score != null ? row.judge_score.toFixed(2) : "—",
+        row.fi_band || (row.fi_quality_score != null ? row.fi_quality_score.toFixed(2) : "—"),
+        row.composite_score != null ? row.composite_score.toFixed(2) : "—",
+      ]),
+      styles: { fontSize: 7, cellPadding: 1.1, overflow: "linebreak" },
+      headStyles: { fillColor: [18, 63, 60], textColor: [255, 255, 255] },
+    });
+    y = (doc.lastAutoTable?.finalY ?? y) + 4;
+
+    for (const row of cmp.models) {
+      y = sectionTitle(doc, `${t("modelDetail", lang)}: ${row.model}`, y);
+      if (row.score_rationale) {
+        y = bodyText(doc, `${t("scoreRationale", lang)}: ${row.score_rationale}`, y);
+      }
+      if (row.judge_axes && Object.keys(row.judge_axes).length) {
+        const axes = Object.entries(row.judge_axes)
+          .map(([k, v]) => `${k}=${Number(v).toFixed(2)}`)
+          .join(" · ");
+        y = bodyText(doc, `${t("judgeAxes", lang)}: ${axes}`, y);
+      }
+      if (row.judge_notes) {
+        y = bodyText(doc, `${t("judgeNotes", lang)}: ${row.judge_notes}`, y);
+      }
+      if (row.interpretation_answer) {
+        y = bodyText(doc, `${t("answer", lang)}: ${row.interpretation_answer}`, y);
+      }
+    }
+  }
+
+  // Artifact inventory + note that JSON tables above are the package content
   y = sectionTitle(doc, t("artifacts", lang), y);
   if (!run.artifacts.length) {
     y = bodyText(doc, "—", y);

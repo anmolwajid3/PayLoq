@@ -53,6 +53,22 @@ class GeneratePresetRequest(BaseModel):
     scenario_slug: str
     seed: int = 42
     write_xlsx: bool = True
+    language: Literal["fi", "en"] = "fi"
+    compare: bool = Field(
+        default=False,
+        description="Score compare_models on the same preset pack (PL-55). UI should set true.",
+    )
+    compare_models: Optional[list[str]] = Field(
+        default=None,
+        description="Ollama tags to compare. Null = size-ladder shortlist. Empty skips.",
+    )
+    background: bool = Field(
+        default=False,
+        description=(
+            "When true, return running immediately and finish pack/compare in background. "
+            "UI should set true; tests keep false."
+        ),
+    )
 
 
 class GenerateFromTextRequest(BaseModel):
@@ -84,8 +100,9 @@ class GenerateFromTextRequest(BaseModel):
     compare_models: Optional[list[str]] = Field(
         default=None,
         description=(
-            "Ollama tags to compare. Null = Mac-winner shortlist "
-            "(qwen2.5:3b, llama3.2:3b, qwen2.5:7b) plus primary. Empty list skips."
+            "Ollama tags to compare. Null = size ladder "
+            "(llama3.2:1b, 3b, qwen2.5:3b, qwen2.5:7b) + finance when pulled, plus primary. "
+            "Empty list skips."
         ),
     )
     background: bool = Field(

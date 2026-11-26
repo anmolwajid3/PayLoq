@@ -75,27 +75,93 @@ def _list_artifacts(out_dir: Path) -> list[str]:
     return sorted(p.name for p in out_dir.iterdir() if p.is_file())
 
 
-def run_preset(
+def create_preset_run(
     session: Session,
     settings: Settings,
     *,
     scenario: Scenario,
     seed: int = 42,
-    write_xlsx: bool = True,
 ) -> GenerationRun:
+    from payloq_api.services.progress import write_progress
+
     run = GenerationRun(
         scenario_id=scenario.id,
         source="preset",
         llm_adapter="none",
         seed=seed,
-        status="pending",
+        status="running",
     )
     session.add(run)
     session.commit()
     session.refresh(run)
-
     out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_progress(
+        out_dir,
+        percent=2,
+        stage="queued",
+        label_en="Queued — building preset pack…",
+        label_fi="Jonossa — rakennetaan valmista pakettia…",
+    )
+    run.artifact_dir = str(out_dir.resolve())
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def execute_preset(
+    session: Session,
+    settings: Settings,
+    run: GenerationRun,
+    *,
+    scenario: Scenario,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> GenerationRun:
+    from payloq_api.services.model_compare import (
+        resolve_compare_models,
+        run_model_comparison,
+    )
+    from payloq_api.services.progress import write_progress
+    from payloq_llm.defaults import DEFAULT_OLLAMA_HOST
+
+    out_dir = (
+        Path(run.artifact_dir)
+        if run.artifact_dir
+        else Path(settings.artifact_dir) / f"run_{run.id}"
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run.artifact_dir = str(out_dir.resolve())
+    run.status = "running"
+    session.add(run)
+    session.commit()
+
+    def _progress(
+        percent: int,
+        stage: str,
+        label_en: str,
+        label_fi: str | None = None,
+        *,
+        done: bool = False,
+        error: str | None = None,
+    ) -> None:
+        write_progress(
+            out_dir,
+            percent=percent,
+            stage=stage,
+            label_en=label_en,
+            label_fi=label_fi,
+            done=done,
+            error=error,
+        )
+
     try:
+        _progress(15, "generate", "Building preset pack (code)…", "Rakennetaan valmista pakettia…")
         inp = GeneratorInput.model_validate(scenario.input_json)
         if inp.options.scenario_id is None:
             inp.options.scenario_id = scenario.slug
@@ -122,14 +188,130 @@ def run_preset(
         else:
             run.status = "error"
             run.error_message = outcome.error_message or "Generated pack failed validation"
+            _progress(
+                100,
+                "error",
+                "Validation failed",
+                "Validointi epäonnistui",
+                done=True,
+                error=run.error_message,
+            )
+
+        if (
+            compare
+            and outcome.ok
+            and pack is not None
+            and not outcome.test_only_broken
+            and compare_models != []
+        ):
+            try:
+                host = ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST
+                tags = resolve_compare_models(
+                    requested=compare_models,
+                    primary=settings.ollama_model,
+                    host=host,
+                    available_only=True,
+                )
+                if tags:
+                    lang = language or getattr(inp.options, "language", None) or "fi"
+                    text = (
+                        inp.scenario_description.fi
+                        if lang == "fi"
+                        else inp.scenario_description.en
+                    ) or inp.scenario_description.fi or inp.scenario_description.en
+                    run_model_comparison(
+                        pack=pack,
+                        text=text or "",
+                        language=str(lang),
+                        options=inp.options.model_dump(),
+                        models=tags,
+                        pack_model=None,
+                        host=host,
+                        timeout_s=settings.ollama_timeout,
+                        out_dir=out_dir,
+                        on_progress=_progress,
+                    )
+            except Exception as cmp_exc:  # noqa: BLE001
+                note = f"model compare skipped: {cmp_exc}"
+                run.llm_fallback_note = (
+                    f"{run.llm_fallback_note}; {note}"
+                    if run.llm_fallback_note
+                    else note
+                )
+
+        if run.status == "ok":
+            _progress(100, "done", "Complete", "Valmis", done=True)
     except Exception as exc:  # noqa: BLE001
         run.status = "error"
         run.error_message = str(exc)
+        _progress(100, "error", "Failed", "Epäonnistui", done=True, error=str(exc))
 
     session.add(run)
     session.commit()
     session.refresh(run)
     return run
+
+
+def run_preset(
+    session: Session,
+    settings: Settings,
+    *,
+    scenario: Scenario,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = False,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> GenerationRun:
+    """Synchronous preset generate (tests default compare=False)."""
+    run = create_preset_run(session, settings, scenario=scenario, seed=seed)
+    return execute_preset(
+        session,
+        settings,
+        run,
+        scenario=scenario,
+        seed=seed,
+        write_xlsx=write_xlsx,
+        compare=compare,
+        compare_models=compare_models,
+        language=language,
+        ollama_host=ollama_host,
+    )
+
+
+def execute_preset_job(
+    run_id: int,
+    scenario_id: int,
+    *,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> None:
+    from payloq_api.config import get_settings
+    from payloq_api.db import get_engine
+
+    settings = get_settings()
+    with Session(get_engine()) as session:
+        run = session.get(GenerationRun, run_id)
+        scenario = session.get(Scenario, scenario_id)
+        if run is None or scenario is None:
+            return
+        execute_preset(
+            session,
+            settings,
+            run,
+            scenario=scenario,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            compare=compare,
+            compare_models=compare_models,
+            language=language,
+            ollama_host=ollama_host,
+        )
 
 
 def create_from_text_run(

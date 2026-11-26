@@ -44,6 +44,17 @@ Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inve
 | `apps/web/.../Generate.tsx` / `RunDetail.tsx` | Navigate immediately; poll run every 1.5s and show progress bar. |
 | `tests/test_background_progress.py` | Progress helpers + background enqueue smoke test. |
 
+## PL-53 / PL-54 / PL-55 follow-ons
+
+| File | Change |
+| --- | --- |
+| `packages/llm/.../defaults.py` | Size-ladder `DEFAULT_COMPARE_MODELS` (1b→3b→7b); `DEFAULT_JUDGE_MODEL`; finance tag constant. |
+| `apps/api/.../model_compare.py` | LLM judge on interpretations; score rationale; finance tag when pulled. |
+| `apps/web/.../exportRunPdf.ts` | Full-package PDF: comparison table, judge who/why, per-model rationale + answers. |
+| `apps/web/.../RunDetail.tsx` | Judge column + rationale in compare UI. |
+| `apps/api/.../generate.py` + preset router | Preset compare + optional background (PL-55). |
+| Project `docs/task-b-followons.md` | Gap map + order. |
+
 ---
 
 ## Labelling rules (Option A)
