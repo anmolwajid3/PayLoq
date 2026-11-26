@@ -237,12 +237,16 @@ export async function getScenario(slug: string) {
   return request<Scenario>(`/api/scenarios/${encodeURIComponent(slug)}`);
 }
 
-export async function listRuns() {
-  return request<Run[]>("/api/runs");
+export async function listRuns(limit = 50) {
+  return request<Run[]>(`/api/runs?limit=${limit}`);
 }
 
 export async function getRun(id: number) {
   return request<Run>(`/api/runs/${id}`);
+}
+
+export async function deleteRun(id: number) {
+  return request<{ deleted: boolean }>(`/api/runs/${id}`, { method: "DELETE" });
 }
 
 export async function generatePreset(

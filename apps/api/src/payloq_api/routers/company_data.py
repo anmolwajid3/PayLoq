@@ -42,6 +42,14 @@ class CompanyChatRequest(BaseModel):
     ollama_model: str | None = None
 
 
+class CompanyReportRequest(BaseModel):
+    """Situation report body — question is optional (server supplies default)."""
+
+    language: str = "fi"
+    ollama_model: str | None = None
+    question: str | None = None
+
+
 class CompanyChatResponse(BaseModel):
     answer: str
     model: str | None
@@ -103,7 +111,7 @@ async def upload_company_files(
 def situation_report(
     user: Annotated[User, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
-    body: CompanyChatRequest | None = None,
+    body: CompanyReportRequest | None = None,
 ) -> CompanyChatResponse:
     sess = su.get_session(user.username)
     if sess is None:
@@ -116,7 +124,10 @@ def situation_report(
         or DEFAULT_OLLAMA_MODEL
     )
     figures = _figures_for_llm(sess)
-    if language == "fi":
+    custom_q = (body.question if body else None) or ""
+    if custom_q.strip():
+        question = custom_q.strip()
+    elif language == "fi":
         question = (
             "Kirjoita lyhyt virtuaalikirjanpitäjän tilanneraportti yhtiöstä. "
             "Käytä vain annettuja lukuja; älä keksi syitä. Mainitse kassa, "
