@@ -237,15 +237,55 @@ export function RunDetailPage() {
                   {t("judgeModel", lang)}:{" "}
                   {run.comparison.judge_skipped ? (
                     <em>—</em>
+                  ) : run.comparison.judge_models && run.comparison.judge_models.length > 0 ? (
+                    run.comparison.judge_models.map((j, i) => (
+                      <Fragment key={j}>
+                        {i > 0 ? ", " : ""}
+                        <code>{j}</code>
+                        {j === run.comparison?.judge_model ? (
+                          <span className="muted"> ({t("judgePrimary", lang)})</span>
+                        ) : null}
+                      </Fragment>
+                    ))
                   ) : (
                     <code>{run.comparison.judge_model || "—"}</code>
                   )}
                   {run.comparison.judge_skipped
                     ? ` (${run.comparison.judge_skipped})`
-                    : run.comparison.judge_role
-                      ? ` — ${run.comparison.judge_role}`
-                      : ""}
+                    : ""}
                 </p>
+                <p className="muted">{t("judgePanelHint", lang)}</p>
+                {run.comparison.judge_dashboard &&
+                  run.comparison.judge_dashboard.length > 0 && (
+                    <div className="table-wrap" style={{ marginBottom: "1rem" }}>
+                      <h4>{t("judgeDashboard", lang)}</h4>
+                      <table className="data-table compact">
+                        <thead>
+                          <tr>
+                            <th>{t("judgeModel", lang)}</th>
+                            <th className="num">{t("judgeMean", lang)}</th>
+                            <th className="num">n</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {run.comparison.judge_dashboard.map((j) => (
+                            <tr key={j.judge_model}>
+                              <td>
+                                <code>{j.judge_model}</code>
+                                {j.is_primary ? (
+                                  <span className="pill-recommended">
+                                    {t("judgePrimary", lang)}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="num">{fmtScore(j.mean_score)}</td>
+                              <td className="num">{j.n_scored ?? "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 <div className="table-wrap">
                   <table className="data-table compact">
                     <thead>
@@ -255,7 +295,12 @@ export function RunDetailPage() {
                         <th className="num">{t("colRead", lang)}</th>
                         <th className="num">{t("colMom", lang)}</th>
                         <th className="num">{t("colInterp", lang)}</th>
-                        <th className="num">{t("colJudge", lang)}</th>
+                        <th className="num">{t("colJudgeMean", lang)}</th>
+                        {(run.comparison.judge_models || []).map((j) => (
+                          <th key={j} className="num">
+                            {j}
+                          </th>
+                        ))}
                         <th>{t("colFi", lang)}</th>
                         <th className="num">{t("colLatency", lang)}</th>
                         <th />
@@ -265,6 +310,11 @@ export function RunDetailPage() {
                       {run.comparison.models.map((row) => {
                         const isRec = row.model === run.comparison?.recommended_model;
                         const open = expandedAnswer === row.model;
+                        const judgeCols = run.comparison?.judge_models || [];
+                        const panelByTag = Object.fromEntries(
+                          (row.judge_panel || []).map((c) => [c.judge_model, c]),
+                        );
+                        const colSpan = 8 + judgeCols.length;
                         return (
                           <Fragment key={row.model}>
                             <tr className={isRec ? "row-recommended" : undefined}>
@@ -279,6 +329,11 @@ export function RunDetailPage() {
                               <td className="num">{fmtScore(row.mom_score)}</td>
                               <td className="num">{fmtScore(row.interpretation_score)}</td>
                               <td className="num">{fmtScore(row.judge_score)}</td>
+                              {judgeCols.map((j) => (
+                                <td key={j} className="num">
+                                  {fmtScore(panelByTag[j]?.score ?? null)}
+                                </td>
+                              ))}
                               <td>{row.fi_band || fmtScore(row.fi_quality_score)}</td>
                               <td className="num">
                                 {row.latency_ms != null
@@ -299,7 +354,7 @@ export function RunDetailPage() {
                             </tr>
                             {open && (
                               <tr>
-                                <td colSpan={9}>
+                                <td colSpan={colSpan}>
                                   <pre className="compare-answer">
                                     {row.interpretation_answer || "—"}
                                   </pre>
@@ -309,7 +364,20 @@ export function RunDetailPage() {
                                       {row.score_rationale}
                                     </p>
                                   ) : null}
-                                  {row.judge_notes ? (
+                                  {(row.judge_panel || []).length > 0 ? (
+                                    <div className="muted">
+                                      <strong>{t("judgePanel", lang)}:</strong>
+                                      <ul>
+                                        {(row.judge_panel || []).map((c) => (
+                                          <li key={c.judge_model}>
+                                            <code>{c.judge_model}</code>:{" "}
+                                            {fmtScore(c.score)}
+                                            {c.notes ? ` — ${c.notes}` : ""}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ) : row.judge_notes ? (
                                     <p className="muted">
                                       <strong>{t("judgeNotes", lang)}:</strong>{" "}
                                       {row.judge_notes}

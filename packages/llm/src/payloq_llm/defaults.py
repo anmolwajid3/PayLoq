@@ -95,27 +95,30 @@ UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
 ]
 
 # PL-52 / PL-54 default Generate compare shortlist — size ladder + Task A default.
-# Order: ~1B · ~3B · ~3B multilingual · ~7B. Finance-tuned added when pulled (see resolve).
+# Order: non-llama first (qwen), then llama size ladder. Finance-tuned when pulled.
 DEFAULT_COMPARE_MODELS: list[str] = [
-    "llama3.2:1b",
-    "llama3.2:3b",
     "qwen2.5:3b",
     "qwen2.5:7b",
+    "llama3.2:1b",
+    "llama3.2:3b",
 ]
 
 # Optional finance-tuned cell (EN-primary; FI band scored separately).
 DEFAULT_COMPARE_FINANCE_MODEL = "FableForge-AI/nexus-finance:q4_k_m"
 
 # LLM-as-judge for interpretation (Generate compare + PDF). Never stubbed.
-# Prefer a model that is NOT the pack model (work-order: separate fourth model).
+# Prefer models that are NOT the pack model (work-order: separate judge).
+# Multi-judge panel: every pulled tag from this list (≠ pack) scores each answer.
 DEFAULT_JUDGE_MODEL = "qwen2.5:7b"
-# Fallback order when the preferred judge equals the pack model or is missing.
-JUDGE_FALLBACK_MODELS: list[str] = [
+DEFAULT_JUDGE_MODELS: list[str] = [
+    "qwen2.5:7b",
     "llama3.2:3b",
     "qwen2.5:3b",
     "llama3.2:1b",
     "qwen2.5:0.5b",
 ]
+# Fallback order when the preferred judge equals the pack model or is missing.
+JUDGE_FALLBACK_MODELS: list[str] = list(DEFAULT_JUDGE_MODELS)
 
 
 def recommended_ollama_tags(*, include_optional: bool = True) -> list[str]:
