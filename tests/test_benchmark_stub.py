@@ -266,7 +266,9 @@ def test_matrix_cpu_config_loads() -> None:
     cfg = load_matrix_config(path)
     assert cfg.skip_unavailable is True
     assert len(cfg.models) >= 5
-    assert cfg.models[1].model == "llama3.2:1b"
+    assert any(m.model == "qwen2.5:7b" for m in cfg.models)
+    assert any(m.model == "llama3.2:1b" for m in cfg.models)
+    assert any(m.model == "mistral:7b" for m in cfg.models)
     assert any(m.tier == "finance_tuned" for m in cfg.models)
     assert any(
         m.model and "nexus-finance" in m.model for m in cfg.models
@@ -277,6 +279,11 @@ def test_matrix_cpu_config_loads() -> None:
         m.tier in {"finance_tuned", "finance_tuned_if_available"}
         for m in example.models
     )
+    task_b = load_matrix_config(root / "benchmarks" / "matrix.task_b.json")
+    assert any(m.model == "llama3.1:8b" for m in task_b.models)
+    assert any(m.model == "phi3:mini" for m in task_b.models)
+    assert any(m.model and "FinGPT" in m.model for m in task_b.models)
+    assert task_b.seed == 42
 
 
 def test_grade_parameters_binary_share() -> None:

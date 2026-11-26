@@ -89,22 +89,32 @@ RECOMMENDED_CPU_MODELS: list[dict[str, Any]] = [
 # Tags suggested in the web UI / docs when Ollama is empty (excludes stub).
 UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
     "qwen2.5:7b",
-    "llama3.2:1b",
-    "qwen2.5:0.5b",
+    "qwen2.5:3b",
     "llama3.2:3b",
+    "llama3.2:1b",
+    "mistral:7b",
+    "phi3:mini",
+    "gemma2:2b",
+    "llama3.1:8b",
 ]
 
-# PL-52 / PL-54 default Generate compare shortlist — size ladder + Task A default.
-# Order: non-llama first (qwen), then llama size ladder. Finance-tuned when pulled.
+# PL-52 / PL-54 default Generate compare shortlist — Task B families (pulled only).
+# Order: non-llama first (qwen), then other families. Finance-tuned appended when pulled.
 DEFAULT_COMPARE_MODELS: list[str] = [
     "qwen2.5:3b",
     "qwen2.5:7b",
     "llama3.2:1b",
     "llama3.2:3b",
+    "llama3.1:8b",
+    "mistral:7b",
+    "phi3:mini",
+    "gemma2:2b",
 ]
 
 # Optional finance-tuned cell (EN-primary; FI band scored separately).
 DEFAULT_COMPARE_FINANCE_MODEL = "FableForge-AI/nexus-finance:q4_k_m"
+# Extra finance cell via HF→Ollama GGUF (verify license before pull).
+TASK_B_FINGPT_OLLAMA_TAG = "hf.co/gaianet/FinGPT-MT-Llama-3-8B-LoRA-GGUF:Q4_K_M"
 
 # LLM-as-judge for interpretation (Generate compare + PDF). Never stubbed.
 # Prefer models that are NOT the pack model (work-order: separate judge).
@@ -112,6 +122,8 @@ DEFAULT_COMPARE_FINANCE_MODEL = "FableForge-AI/nexus-finance:q4_k_m"
 DEFAULT_JUDGE_MODEL = "qwen2.5:7b"
 DEFAULT_JUDGE_MODELS: list[str] = [
     "qwen2.5:7b",
+    "llama3.1:8b",
+    "mistral:7b",
     "llama3.2:3b",
     "qwen2.5:3b",
     "llama3.2:1b",
