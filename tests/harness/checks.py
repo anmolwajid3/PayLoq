@@ -645,6 +645,87 @@ def _expected_monthly(case: Case, params: dict[str, Any]) -> float | None:
     return None if got is None else float(got)
 
 
+def _projection_opening(cash: dict[str, Any], latest_cash: float) -> float:
+    """Opening cash of the open-invoice projection (latest cash before week flows)."""
+    weeks = cash.get("projection_from_open_invoices") or []
+    if not weeks:
+        return latest_cash
+    week = weeks[0]
+    return round(
+        float(week["projected_balance"])
+        - float(week["sales_inflow"])
+        + float(week["purchase_outflow"]),
+        2,
+    )
+
+
+def _assumed_starting_cash_moves(case: Case, data: dict[str, Any]) -> list[Failure]:
+    """Change an assumed opening. Latest cash and the projection opening must follow."""
+    params = _params(data)
+    sources = _sources(params)
+    if sources.get("starting_cash_eur") == "stated":
+        return [
+            _fail(
+                "sensitivity",
+                "starting cash source assumed",
+                "starting cash source stated",
+                "input.json",
+            )
+        ]
+    start = params.get("starting_cash_eur")
+    if start is None:
+        return [
+            _fail(
+                "sensitivity",
+                "an assumed starting cash",
+                "starting_cash_eur missing",
+                "input.json",
+            )
+        ]
+    from payloq_generator.engine import generate_pack
+    from payloq_schemas.models import GeneratorInput
+
+    base_in = GeneratorInput.model_validate(data["input.json"])
+    bumped = round(float(start) * 1.25 + 1000.0, 2)
+    alt_params = base_in.parameters_from_language_model.model_copy(
+        update={"starting_cash_eur": bumped}
+    )
+    alt_in = base_in.model_copy(update={"parameters_from_language_model": alt_params})
+    alt = generate_pack(alt_in, seed=case.seed)
+    base_latest = float(
+        data["monthly_reports.json"]["months"][-1]["balance_sheet"]["assets"]["cash"]
+    )
+    alt_latest = float(alt.monthly_reports.months[-1].balance_sheet.assets.cash)
+    base_open = _projection_opening(data["cash_and_invoices.json"], base_latest)
+    alt_week = alt.cash_and_invoices.projection_from_open_invoices[0]
+    alt_open = round(
+        float(alt_week.projected_balance)
+        - float(alt_week.sales_inflow)
+        + float(alt_week.purchase_outflow),
+        2,
+    )
+    failures: list[Failure] = []
+    if not alt_latest > base_latest + 1.0:
+        failures.append(
+            _fail(
+                "sensitivity",
+                f"latest cash moves up when assumed starting cash rises from {start} to {bumped}",
+                f"latest cash {base_latest} -> {alt_latest}",
+                "monthly_reports.json",
+            )
+        )
+    if not alt_open > base_open + 1.0:
+        failures.append(
+            _fail(
+                "sensitivity",
+                f"projection opening moves up when assumed starting cash rises from {start} to {bumped}",
+                f"projection opening {base_open} -> {alt_open}",
+                "cash_and_invoices.json",
+            )
+        )
+    return failures
+
+
 def check_sensitivity(case: Case, data: dict[str, Any], templates: dict[str, Any]) -> list[Failure]:
     params = _params(data)
     failures: list[Failure] = []
@@ -661,6 +742,8 @@ def check_sensitivity(case: Case, data: dict[str, Any], templates: dict[str, Any
                 "monthly_reports.json",
             )
         )
+    if "starting_cash_eur" not in case.stated_values:
+        failures.extend(_assumed_starting_cash_moves(case, data))
     if (
         "revenue_monthly_eur" not in case.stated_values
         and "revenue_annual_eur" not in case.stated_values

@@ -197,8 +197,16 @@ def _as_of_date(inp: GeneratorInput, last_month: date) -> date:
     return _month_end(last_month)
 
 
-def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
-    """Generate a consistent scenario pack from structured parameters."""
+def generate_pack(
+    inp: GeneratorInput, *, seed: int = 42, noise_seed: int | None = None
+) -> ScenarioPack:
+    """Generate a consistent scenario pack from structured parameters.
+
+    ``seed`` is the run identity stamped on the pack. ``noise_seed`` redraws
+    only generation noise (revenue wiggle, invoice split, history wave).
+    It defaults to ``seed``.
+    """
+    noise = seed if noise_seed is None else noise_seed
     profile = _infer_profile(inp)
     params = inp.parameters_from_language_model
     n = inp.options.months
@@ -216,7 +224,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         params=params,
         profile=profile,
         partly_fixed=partly_fixed,
-        seed=seed,
+        seed=noise,
         one_off_events=one_offs,
     )
 
@@ -282,7 +290,7 @@ def generate_pack(inp: GeneratorInput, *, seed: int = 42) -> ScenarioPack:
         dpo=params.days_payables_outstanding,
         profile=profile,
         language=inp.options.language,
-        seed=seed,
+        seed=noise,
         texts=invoice_texts,
     )
 
