@@ -438,16 +438,28 @@ export function buildRunPdf(run: Run, lang: Lang): jsPDF {
           : ""),
       y,
     );
-    if (cmp.judge_model || cmp.judge_skipped) {
+    if (cmp.judge_model || cmp.judge_models?.length || cmp.judge_skipped) {
+      const judges =
+        cmp.judge_models && cmp.judge_models.length > 0
+          ? cmp.judge_models.join(", ")
+          : cmp.judge_model || "—";
       y = bodyText(
         doc,
         cmp.judge_skipped
           ? `${t("judgeModel", lang)}: — (${cmp.judge_skipped})`
-          : `${t("judgeModel", lang)}: ${cmp.judge_model}`,
+          : `${t("judgePanel", lang)}: ${judges}`,
         y,
       );
-      if (cmp.judge_role) {
-        y = bodyText(doc, cmp.judge_role, y);
+      if (cmp.judge_dashboard?.length) {
+        const dash = cmp.judge_dashboard
+          .map(
+            (j) =>
+              `${j.judge_model}=${
+                j.mean_score == null ? "—" : Number(j.mean_score).toFixed(2)
+              }`,
+          )
+          .join(" · ");
+        y = bodyText(doc, `${t("judgeDashboard", lang)}: ${dash}`, y);
       }
     }
     if (cmp.score_weights) {

@@ -11,10 +11,10 @@ const EN_DESC_PLACEHOLDER =
   "Small machine shop; cash is critical within three weeks.";
 
 const FALLBACK_SHORTLIST = [
-  "llama3.2:1b",
-  "llama3.2:3b",
   "qwen2.5:3b",
   "qwen2.5:7b",
+  "llama3.2:1b",
+  "llama3.2:3b",
 ];
 
 function tagInstalled(names: string[], tag: string): boolean {

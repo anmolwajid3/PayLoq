@@ -101,7 +101,22 @@ export type ModelComparisonRow = {
   judge_score?: number | null;
   judge_axes?: Record<string, number>;
   judge_notes?: string;
+  judge_panel?: JudgePanelCell[];
   parameter_field_scores?: Record<string, number>;
+};
+
+export type JudgePanelCell = {
+  judge_model: string;
+  score: number | null;
+  axes?: Record<string, number>;
+  notes?: string;
+};
+
+export type JudgeDashboardRow = {
+  judge_model: string;
+  mean_score: number | null;
+  n_scored?: number;
+  is_primary?: boolean;
 };
 
 export type ModelComparison = {
@@ -109,12 +124,15 @@ export type ModelComparison = {
   pack_model?: string;
   recommended_model?: string | null;
   judge_model?: string | null;
+  judge_models?: string[];
+  judge_dashboard?: JudgeDashboardRow[];
   judge_role?: string;
   judge_skipped?: string | null;
   score_weights?: Record<string, number>;
   models: ModelComparisonRow[];
   skipped?: { model: string; reason: string }[];
   shortlist_default?: string[];
+  judge_shortlist_default?: string[];
   fi_band_legend?: Record<string, string>;
 };
 

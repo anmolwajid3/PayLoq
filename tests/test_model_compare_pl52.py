@@ -9,6 +9,7 @@ import pytest
 from payloq_api.services.model_compare import (
     resolve_compare_models,
     resolve_judge_model,
+    resolve_judge_models,
     run_model_comparison,
     score_model_on_pack,
 )
@@ -27,6 +28,7 @@ def test_default_compare_shortlist_size_ladder() -> None:
     assert "llama3.2:3b" in DEFAULT_COMPARE_MODELS
     assert "qwen2.5:3b" in DEFAULT_COMPARE_MODELS
     assert "qwen2.5:7b" in DEFAULT_COMPARE_MODELS
+    assert DEFAULT_COMPARE_MODELS[0].startswith("qwen")
     assert "stub" not in DEFAULT_COMPARE_MODELS
 
 
@@ -47,6 +49,17 @@ def test_resolve_judge_model_skips_pack_self_judge() -> None:
         pack_model="qwen2.5:7b",
     ) == "llama3.2:3b"
     assert resolve_judge_model(pulled=["qwen2.5:7b"], pack_model="qwen2.5:7b") is None
+
+
+def test_resolve_judge_models_returns_panel_excluding_pack() -> None:
+    panel = resolve_judge_models(
+        pulled=["qwen2.5:7b", "llama3.2:3b", "qwen2.5:3b", "llama3.2:1b"],
+        pack_model="qwen2.5:7b",
+    )
+    assert "qwen2.5:7b" not in panel
+    assert panel[0] == "llama3.2:3b"
+    assert "qwen2.5:3b" in panel
+    assert "llama3.2:1b" in panel
 
 
 def test_score_stub_on_preset_pack(tmp_path: Path) -> None:
@@ -95,3 +108,6 @@ def test_run_model_comparison_writes_artifact(tmp_path: Path) -> None:
     assert payload["recommended_model"] is None
     assert "judge_role" in payload
     assert "score_weights" in payload
+    assert "judge_models" in payload
+    assert "judge_dashboard" in payload
+    assert payload["version"] == 3

@@ -22,6 +22,7 @@ from payloq_llm.defaults import (
     DEFAULT_COMPARE_FINANCE_MODEL,
     DEFAULT_COMPARE_MODELS,
     DEFAULT_JUDGE_MODEL,
+    DEFAULT_JUDGE_MODELS,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OLLAMA_MODEL,
     JUDGE_FALLBACK_MODELS,
@@ -36,31 +37,53 @@ INTERPRET_QUESTION_EN = (
 )
 
 
+def resolve_judge_models(
+    *,
+    pulled: list[str] | set[str],
+    pack_model: str | None,
+    preferred: list[str] | None = None,
+) -> list[str]:
+    """All pulled judge tags distinct from the pack model (multi-judge panel).
+
+    Order: preferred shortlist first, then any other pulled non-pack tag.
+    Never includes the pack model (no self-judge).
+    """
+    available = {str(t).strip() for t in pulled if str(t).strip()}
+    pack = (pack_model or "").strip() or None
+    shortlist = list(preferred) if preferred is not None else list(DEFAULT_JUDGE_MODELS)
+    ordered: list[str] = []
+    seen: set[str] = set()
+
+    def _ok(tag: str) -> bool:
+        return bool(tag) and tag in available and tag != pack
+
+    for tag in shortlist:
+        tag = (tag or "").strip()
+        if _ok(tag) and tag not in seen:
+            seen.add(tag)
+            ordered.append(tag)
+    # Keep resolve_judge_model's old "any pulled" escape hatch for sparse installs.
+    for tag in JUDGE_FALLBACK_MODELS:
+        tag = (tag or "").strip()
+        if _ok(tag) and tag not in seen:
+            seen.add(tag)
+            ordered.append(tag)
+    return ordered
+
+
 def resolve_judge_model(
     *,
     pulled: list[str] | set[str],
     pack_model: str | None,
     preferred: str = DEFAULT_JUDGE_MODEL,
 ) -> str | None:
-    """Pick a judge tag that is pulled and distinct from the pack model.
-
-    Work-order intent: a separate model judges answers. Never self-judge the pack.
-    """
-    available = {str(t).strip() for t in pulled if str(t).strip()}
-    pack = (pack_model or "").strip() or None
-
-    def _ok(tag: str) -> bool:
-        return bool(tag) and tag in available and tag != pack
-
-    if _ok(preferred):
-        return preferred
-    for tag in JUDGE_FALLBACK_MODELS:
-        if _ok(tag):
-            return tag
-    for tag in sorted(available):
-        if _ok(tag):
-            return tag
-    return None
+    """Pick the primary judge tag (first of the multi-judge panel)."""
+    panel = resolve_judge_models(
+        pulled=pulled,
+        pack_model=pack_model,
+        preferred=[preferred, *DEFAULT_JUDGE_MODELS],
+    )
+    return panel[0] if panel else None
 
 
 def resolve_compare_models(
@@ -145,6 +168,7 @@ def score_model_on_pack(
     language: str = "fi",
     judge_adapter: LlmAdapter | None = None,
     judge_model: str | None = None,
+    judge_panel: list[tuple[str, LlmAdapter]] | None = None,
 ) -> dict[str, Any]:
     """Extract + read + interpret one model against the same code-owned pack."""
     notes: list[str] = []
@@ -193,34 +217,63 @@ def score_model_on_pack(
     if fi_grade.notes:
         score_why.append(f"FI: {fi_grade.notes}")
 
-    judge_score: float | None = None
-    judge_notes = ""
-    judge_axes: dict[str, float] = {}
-    if judge_adapter is not None and interpretation.strip():
+    panel_specs: list[tuple[str, LlmAdapter]] = list(judge_panel or [])
+    if not panel_specs and judge_adapter is not None and judge_model:
+        panel_specs = [(judge_model, judge_adapter)]
+
+    panel_rows: list[dict[str, Any]] = []
+    for j_tag, j_adapter in panel_specs:
+        if not interpretation.strip():
+            break
         try:
             jg = run_llm_judge(
-                judge_adapter,
+                j_adapter,
                 question=question,
                 answer=interpretation,
                 pack_summary=pack_summary,
             )
-            judge_score = jg.score
-            judge_notes = jg.notes or ""
-            judge_axes = {k: float(v) for k, v in (jg.per_field or {}).items()}
+            j_score = jg.score
+            j_notes = jg.notes or ""
+            j_axes = {k: float(v) for k, v in (jg.per_field or {}).items()}
             # Code grounding beats a generous LLM judge on invented amounts.
-            if "ungrounded" in (interp_grade.notes or "") and judge_score is not None:
-                judge_score = min(float(judge_score), 0.45)
+            if "ungrounded" in (interp_grade.notes or "") and j_score is not None:
+                j_score = min(float(j_score), 0.45)
                 for axis in ("factual", "no_invented_causes"):
-                    if axis in judge_axes:
-                        judge_axes[axis] = min(float(judge_axes[axis]), 0.4)
-                judge_notes = (
-                    (judge_notes + "; ").lstrip("; ")
+                    if axis in j_axes:
+                        j_axes[axis] = min(float(j_axes[axis]), 0.4)
+                j_notes = (
+                    (j_notes + "; ").lstrip("; ")
                     + "capped: code found ungrounded amounts"
                 ).strip("; ")
-            if judge_notes:
-                score_why.append(f"judge: {judge_notes}")
+            panel_rows.append(
+                {
+                    "judge_model": j_tag,
+                    "score": j_score,
+                    "axes": j_axes,
+                    "notes": j_notes,
+                }
+            )
+            if j_notes:
+                score_why.append(f"judge[{j_tag}]: {j_notes}")
         except Exception as exc:  # noqa: BLE001
-            notes.append(f"judge failed: {exc}")
+            notes.append(f"judge {j_tag} failed: {exc}")
+            panel_rows.append(
+                {
+                    "judge_model": j_tag,
+                    "score": None,
+                    "axes": {},
+                    "notes": f"failed: {exc}",
+                }
+            )
+
+    scored = [float(p["score"]) for p in panel_rows if p.get("score") is not None]
+    judge_score: float | None = round(sum(scored) / len(scored), 4) if scored else None
+    primary = panel_rows[0] if panel_rows else None
+    judge_model_out = (
+        primary["judge_model"] if primary else judge_model
+    )
+    judge_notes = primary["notes"] if primary else ""
+    judge_axes = dict(primary["axes"]) if primary else {}
 
     row: dict[str, Any] = {
         "model": model,
@@ -238,10 +291,11 @@ def score_model_on_pack(
         "predicted_parameters": predicted,
         "probe_answers": answers,
         "parameter_field_scores": dict(param_grade.per_field or {}),
-        "judge_model": judge_model,
+        "judge_model": judge_model_out,
         "judge_score": judge_score,
         "judge_axes": judge_axes,
         "judge_notes": judge_notes,
+        "judge_panel": panel_rows,
         "score_rationale": "; ".join(score_why) if score_why else "",
         "notes": "; ".join(notes) if notes else "",
     }
@@ -281,40 +335,48 @@ def run_model_comparison(
     skipped: list[dict[str, str]] = []
     n = max(len(models), 1)
 
-    judge_adapter: LlmAdapter | None = None
+    judge_panel_adapters: list[tuple[str, LlmAdapter]] = []
+    judge_models_used: list[str] = []
     judge_model_used: str | None = None
     judge_skip: str | None = None
     try:
-        payload = list_ollama_models(host or DEFAULT_OLLAMA_HOST)
+        tags_payload = list_ollama_models(host or DEFAULT_OLLAMA_HOST)
         pulled = [
             str(m.get("name") or "").strip()
-            for m in (payload.get("models") or [])
+            for m in (tags_payload.get("models") or [])
             if str(m.get("name") or "").strip()
         ]
-        # Also accept bare tags without :latest suffix variants via resolve list.
-        judge_model_used = resolve_judge_model(
+        judge_models_used = resolve_judge_models(
             pulled=pulled,
             pack_model=pack_model or DEFAULT_OLLAMA_MODEL,
-            preferred=DEFAULT_JUDGE_MODEL,
+            preferred=list(DEFAULT_JUDGE_MODELS),
         )
-        if judge_model_used:
-            judge_adapter = get_adapter(
-                "ollama",
-                fallback_stub=False,
-                model=judge_model_used,
-                host=host or DEFAULT_OLLAMA_HOST,
-                timeout_s=timeout_s,
+        judge_model_used = judge_models_used[0] if judge_models_used else None
+        for j_tag in judge_models_used:
+            judge_panel_adapters.append(
+                (
+                    j_tag,
+                    get_adapter(
+                        "ollama",
+                        fallback_stub=False,
+                        model=j_tag,
+                        host=host or DEFAULT_OLLAMA_HOST,
+                        timeout_s=timeout_s,
+                    ),
+                )
             )
-        elif not payload.get("available"):
-            judge_skip = "judge unavailable: Ollama host down"
-        else:
-            judge_skip = (
-                f"no separate judge tag pulled (pack={pack_model or DEFAULT_OLLAMA_MODEL}; "
-                f"preferred={DEFAULT_JUDGE_MODEL})"
-            )
+        if not judge_models_used:
+            if not tags_payload.get("available"):
+                judge_skip = "judge unavailable: Ollama host down"
+            else:
+                judge_skip = (
+                    f"no separate judge tag pulled (pack={pack_model or DEFAULT_OLLAMA_MODEL}; "
+                    f"shortlist={', '.join(DEFAULT_JUDGE_MODELS)})"
+                )
     except Exception as exc:  # noqa: BLE001
         judge_skip = f"judge unavailable: {exc}"
-        judge_adapter = None
+        judge_panel_adapters = []
+        judge_models_used = []
         judge_model_used = None
 
     for i, tag in enumerate(models):
@@ -345,7 +407,7 @@ def run_model_comparison(
                     parameter_key=key,
                     pack_summary=summary,
                     language=language,
-                    judge_adapter=judge_adapter,
+                    judge_panel=judge_panel_adapters,
                     judge_model=judge_model_used,
                 )
             )
@@ -356,21 +418,44 @@ def run_model_comparison(
     if rows:
         recommended = max(rows, key=lambda r: float(r.get("composite_score") or 0.0))["model"]
 
+    # Per-judge mean across subjects — which judge is harsher / more generous.
+    judge_dashboard: list[dict[str, Any]] = []
+    for j_tag in judge_models_used:
+        cell_scores: list[float] = []
+        for row in rows:
+            for cell in row.get("judge_panel") or []:
+                if cell.get("judge_model") == j_tag and cell.get("score") is not None:
+                    cell_scores.append(float(cell["score"]))
+        judge_dashboard.append(
+            {
+                "judge_model": j_tag,
+                "mean_score": (
+                    round(sum(cell_scores) / len(cell_scores), 4) if cell_scores else None
+                ),
+                "n_scored": len(cell_scores),
+                "is_primary": j_tag == judge_model_used,
+            }
+        )
+
     payload: dict[str, Any] = {
-        "version": 2,
+        "version": 3,
         "principle": "code calculates; models extract/interpret only",
         "pack_model": pack_model or DEFAULT_OLLAMA_MODEL,
         "judge_model": judge_model_used,
+        "judge_models": judge_models_used,
+        "judge_dashboard": judge_dashboard,
         "judge_role": (
-            "Separate model (never the pack model) scores each interpretation for "
-            "factual / understandable / no_invented_causes against the same code "
-            "figures. Never stubbed; skipped when only the pack tag is pulled."
+            "Separate models (never the pack model) each score every interpretation for "
+            "factual / understandable / no_invented_causes against the same code figures. "
+            "judge_score on a row is the mean across the judge panel. Never stubbed; "
+            "skipped when only the pack tag is pulled."
         ),
         "judge_skipped": judge_skip,
         "models": rows,
         "skipped": skipped,
         "recommended_model": recommended,
         "shortlist_default": list(DEFAULT_COMPARE_MODELS),
+        "judge_shortlist_default": list(DEFAULT_JUDGE_MODELS),
         "fi_band_legend": {
             "high": "≥ 0.75",
             "mid": "0.40–0.75",
