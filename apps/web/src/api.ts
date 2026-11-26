@@ -191,8 +191,6 @@ export async function discardCompanySession() {
 export async function uploadCompanyFiles(files: File[]) {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
-  const headers: HeadersInit = { ...authHeaders() };
-  // Let the browser set multipart boundary — do not force JSON Content-Type.
   const token = localStorage.getItem("payloq_token");
   const res = await fetch(`${API_BASE}/api/company-data/upload`, {
     method: "POST",
