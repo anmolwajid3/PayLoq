@@ -21,6 +21,7 @@ dependencies = [
   "payloq-validate",
   "payloq-export-xlsx",
   "payloq-llm",
+  "payloq-benchmark",
 ]
 
 [project.scripts]

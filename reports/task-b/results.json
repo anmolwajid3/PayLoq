@@ -1,0 +1,2451 @@
+{
+  "batch_id": "93b544893573",
+  "runs": [
+    {
+      "model": "stub",
+      "scenario_id": "good",
+      "adapter": "stub",
+      "status": "ok",
+      "latency_ms": 3.358,
+      "tokens_in": 49,
+      "tokens_out": 153,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.8182,
+      "reading_score": 1.0,
+      "mom_score": 1.0,
+      "interpretation_score": 1.0,
+      "fi_quality_score": 1.0,
+      "judge_score": null,
+      "rough_cost_eur": 2e-08,
+      "notes": "stub, not a model",
+      "detail": {
+        "parameter": {
+          "score": 0.9566,
+          "notes": "11 fields graded (tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.9512,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.8947,
+            "days_payables_outstanding": 0.9355,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 1.0,
+            "cost_shares.materials": 0.9444,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 0.9394,
+            "cost_shares.other": 0.8571,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_binary": {
+          "score": 0.8182,
+          "notes": "9 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 1.0,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 1.0,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 1.0,
+            "cost_shares.materials": 1.0,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 1.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.8182,
+        "predicted_parameters": {
+          "monthly_revenue_start_eur": 200000.0,
+          "monthly_revenue_growth": 0.008,
+          "cost_shares_of_revenue": {
+            "materials": 0.37,
+            "services": 0.08,
+            "personnel": 0.34,
+            "other": 0.15
+          },
+          "days_sales_outstanding": 40.0,
+          "days_payables_outstanding": 32.0,
+          "target_cash_at_end_eur": 330000.0,
+          "starting_cash_eur": 379500.0,
+          "covenant_min_cash_eur": 330000.0,
+          "special_investment_eur": 0.0,
+          "special_investment_month": 2,
+          "monthly_revenue_factors": null,
+          "one_off_events": [],
+          "notes": "stub: good / default heuristic; steel/manufacturing industry defaults",
+          "partly_fixed_costs": false,
+          "field_sources": {
+            "monthly_revenue_start_eur": "assumed",
+            "monthly_revenue_growth": "assumed",
+            "target_cash_at_end_eur": "assumed",
+            "starting_cash_eur": "assumed",
+            "special_investment_eur": "assumed",
+            "days_sales_outstanding": "assumed",
+            "days_payables_outstanding": "assumed",
+            "cost_shares_of_revenue": "assumed"
+          },
+          "field_quotes": {},
+          "stated_values": {},
+          "scenario_shape": null,
+          "scenario_shape_quote": null,
+          "revenue_annual_eur": null,
+          "growth_per_month_percent": null,
+          "dso_weeks": null,
+          "dpo_weeks": null,
+          "dso_months": null,
+          "dpo_months": null,
+          "derived_values": [],
+          "llm_model_name": null,
+          "extraction_seed": null,
+          "conversion_notes": []
+        },
+        "probes": {
+          "score": 1.0,
+          "notes": "reading=1.000; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 1.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 1.0,
+            "_reading": 1.0,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 372327.58}",
+          "revenue_last": "{\"value\": 221731.46}",
+          "mom_revenue_change": "{\"value\": -2101.55}",
+          "first_negative_projection_week": "{\"value\": null}"
+        },
+        "interpretation": {
+          "score": 1.0,
+          "notes": "ok",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 1.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 1.0
+          }
+        },
+        "fi_quality": {
+          "score": 1.0,
+          "notes": "fi_chars=True; fi_words=5",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 1.0,
+            "en_only": 0.0,
+            "fi_word_hits": 5.0
+          }
+        },
+        "interpretation_answer": "[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.\nKassasaldo kauden lopussa / Cash at period end: 372327.58 EUR\nHuom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": null,
+        "model_version": "stub",
+        "excluded_from_comparisons": true,
+        "label": "stub, not a model"
+      }
+    },
+    {
+      "model": "stub",
+      "scenario_id": "weak",
+      "adapter": "stub",
+      "status": "ok",
+      "latency_ms": 1.13,
+      "tokens_in": 73,
+      "tokens_out": 152,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.5455,
+      "reading_score": 1.0,
+      "mom_score": 1.0,
+      "interpretation_score": 1.0,
+      "fi_quality_score": 1.0,
+      "judge_score": null,
+      "rough_cost_eur": 1e-08,
+      "notes": "stub, not a model",
+      "detail": {
+        "parameter": {
+          "score": 0.9169,
+          "notes": "11 fields graded (tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.8947,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.7021,
+            "days_payables_outstanding": 0.7778,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 1.0,
+            "cost_shares.materials": 0.9474,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 0.8889,
+            "cost_shares.other": 0.875,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_binary": {
+          "score": 0.5455,
+          "notes": "6 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 1.0,
+            "cost_shares.materials": 1.0,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.5455,
+        "predicted_parameters": {
+          "monthly_revenue_start_eur": 200000.0,
+          "monthly_revenue_growth": -0.012,
+          "cost_shares_of_revenue": {
+            "materials": 0.37,
+            "services": 0.08,
+            "personnel": 0.34,
+            "other": 0.15
+          },
+          "days_sales_outstanding": 40.0,
+          "days_payables_outstanding": 32.0,
+          "target_cash_at_end_eur": 85000.0,
+          "starting_cash_eur": 97750.0,
+          "covenant_min_cash_eur": 85000.0,
+          "special_investment_eur": 70000.0,
+          "special_investment_month": 2,
+          "monthly_revenue_factors": null,
+          "one_off_events": [],
+          "notes": "stub: weak heuristic from NL keywords; steel/manufacturing industry defaults",
+          "partly_fixed_costs": true,
+          "field_sources": {
+            "monthly_revenue_start_eur": "assumed",
+            "monthly_revenue_growth": "assumed",
+            "target_cash_at_end_eur": "assumed",
+            "starting_cash_eur": "assumed",
+            "special_investment_eur": "assumed",
+            "days_sales_outstanding": "assumed",
+            "days_payables_outstanding": "assumed",
+            "cost_shares_of_revenue": "assumed"
+          },
+          "field_quotes": {},
+          "stated_values": {},
+          "scenario_shape": null,
+          "scenario_shape_quote": null,
+          "revenue_annual_eur": null,
+          "growth_per_month_percent": null,
+          "dso_weeks": null,
+          "dpo_weeks": null,
+          "dso_months": null,
+          "dpo_months": null,
+          "derived_values": [],
+          "llm_model_name": null,
+          "extraction_seed": null,
+          "conversion_notes": []
+        },
+        "probes": {
+          "score": 1.0,
+          "notes": "reading=1.000; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 1.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 1.0,
+            "_reading": 1.0,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 141414.2}",
+          "revenue_last": "{\"value\": 164849.48}",
+          "mom_revenue_change": "{\"value\": -4931.09}",
+          "first_negative_projection_week": "{\"value\": null}"
+        },
+        "interpretation": {
+          "score": 1.0,
+          "notes": "ok",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 1.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 1.0
+          }
+        },
+        "fi_quality": {
+          "score": 1.0,
+          "notes": "fi_chars=True; fi_words=5",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 1.0,
+            "en_only": 0.0,
+            "fi_word_hits": 5.0
+          }
+        },
+        "interpretation_answer": "[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.\nKassasaldo kauden lopussa / Cash at period end: 141414.2 EUR\nHuom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": null,
+        "model_version": "stub",
+        "excluded_from_comparisons": true,
+        "label": "stub, not a model"
+      }
+    },
+    {
+      "model": "stub",
+      "scenario_id": "cash_critical",
+      "adapter": "stub",
+      "status": "ok",
+      "latency_ms": 1.391,
+      "tokens_in": 105,
+      "tokens_out": 152,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.8182,
+      "reading_score": 1.0,
+      "mom_score": 1.0,
+      "interpretation_score": 1.0,
+      "fi_quality_score": 1.0,
+      "judge_score": null,
+      "rough_cost_eur": 1e-08,
+      "notes": "stub, not a model",
+      "detail": {
+        "parameter": {
+          "score": 0.8732,
+          "notes": "11 fields graded (tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.9167,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.8182,
+            "days_payables_outstanding": 0.9394,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 1.0,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 1.0,
+            "cost_shares.other": 0.931,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_binary": {
+          "score": 0.8182,
+          "notes": "9 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 1.0,
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 1.0,
+            "target_cash_at_end_eur": 1.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 1.0,
+            "cost_shares.services": 1.0,
+            "cost_shares.personnel": 1.0,
+            "cost_shares.other": 1.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.8182,
+        "predicted_parameters": {
+          "monthly_revenue_start_eur": 200000.0,
+          "monthly_revenue_growth": 0.0,
+          "cost_shares_of_revenue": {
+            "materials": 0.37,
+            "services": 0.08,
+            "personnel": 0.34,
+            "other": 0.15
+          },
+          "days_sales_outstanding": 40.0,
+          "days_payables_outstanding": 32.0,
+          "target_cash_at_end_eur": 45000.0,
+          "starting_cash_eur": 51750.0,
+          "covenant_min_cash_eur": 45000.0,
+          "special_investment_eur": 0.0,
+          "special_investment_month": 2,
+          "monthly_revenue_factors": null,
+          "one_off_events": [],
+          "notes": "stub: cash_critical heuristic from NL keywords; steel/manufacturing industry defaults",
+          "partly_fixed_costs": true,
+          "field_sources": {
+            "monthly_revenue_start_eur": "assumed",
+            "monthly_revenue_growth": "assumed",
+            "target_cash_at_end_eur": "assumed",
+            "starting_cash_eur": "assumed",
+            "special_investment_eur": "assumed",
+            "days_sales_outstanding": "assumed",
+            "days_payables_outstanding": "assumed",
+            "cost_shares_of_revenue": "assumed"
+          },
+          "field_quotes": {},
+          "stated_values": {},
+          "scenario_shape": null,
+          "scenario_shape_quote": null,
+          "revenue_annual_eur": null,
+          "growth_per_month_percent": null,
+          "dso_weeks": null,
+          "dpo_weeks": null,
+          "dso_months": null,
+          "dpo_months": null,
+          "derived_values": [],
+          "llm_model_name": null,
+          "extraction_seed": null,
+          "conversion_notes": []
+        },
+        "probes": {
+          "score": 1.0,
+          "notes": "reading=1.000; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 1.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 1.0,
+            "_reading": 1.0,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 86651.47}",
+          "revenue_last": "{\"value\": 190243.06}",
+          "mom_revenue_change": "{\"value\": -3339.47}",
+          "first_negative_projection_week": "{\"value\": 3}"
+        },
+        "interpretation": {
+          "score": 1.0,
+          "notes": "ok",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 1.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 1.0
+          }
+        },
+        "fi_quality": {
+          "score": 1.0,
+          "notes": "fi_chars=True; fi_words=5",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 1.0,
+            "en_only": 0.0,
+            "fi_word_hits": 5.0
+          }
+        },
+        "interpretation_answer": "[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.\nKassasaldo kauden lopussa / Cash at period end: 86651.47 EUR\nHuom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": null,
+        "model_version": "stub",
+        "excluded_from_comparisons": true,
+        "label": "stub, not a model"
+      }
+    },
+    {
+      "model": "stub",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "stub",
+      "status": "ok",
+      "latency_ms": 0.302,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.5,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "stub, not a model; CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.5,
+          "notes": "2 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 1.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {
+          "monthly_revenue_start_eur": 200000.0,
+          "monthly_revenue_growth": 0.008,
+          "cost_shares_of_revenue": {
+            "materials": 0.37,
+            "services": 0.08,
+            "personnel": 0.34,
+            "other": 0.15
+          },
+          "days_sales_outstanding": 40.0,
+          "days_payables_outstanding": 32.0,
+          "target_cash_at_end_eur": 330000.0,
+          "starting_cash_eur": 379500.0,
+          "covenant_min_cash_eur": 330000.0,
+          "special_investment_eur": 0.0,
+          "special_investment_month": 2,
+          "monthly_revenue_factors": null,
+          "one_off_events": [],
+          "notes": "stub: good / default heuristic",
+          "partly_fixed_costs": false,
+          "field_sources": {
+            "monthly_revenue_start_eur": "assumed",
+            "monthly_revenue_growth": "assumed",
+            "target_cash_at_end_eur": "assumed",
+            "starting_cash_eur": "assumed",
+            "special_investment_eur": "assumed",
+            "days_sales_outstanding": "assumed",
+            "days_payables_outstanding": "assumed",
+            "cost_shares_of_revenue": "assumed"
+          },
+          "field_quotes": {},
+          "stated_values": {},
+          "scenario_shape": null,
+          "scenario_shape_quote": null,
+          "revenue_annual_eur": null,
+          "growth_per_month_percent": null,
+          "dso_weeks": null,
+          "dpo_weeks": null,
+          "dso_months": null,
+          "dpo_months": null,
+          "derived_values": [],
+          "llm_model_name": null,
+          "extraction_seed": null,
+          "conversion_notes": []
+        },
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä.",
+        "excluded_from_comparisons": true,
+        "label": "stub, not a model"
+      }
+    },
+    {
+      "model": "stub",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "stub",
+      "status": "ok",
+      "latency_ms": 0.353,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 1.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "stub, not a model; CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
+      "detail": {
+        "parameter_binary": {
+          "score": 1.0,
+          "notes": "3 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 1.0,
+            "target_cash_at_end_eur": 1.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {
+          "monthly_revenue_start_eur": 200000.0,
+          "monthly_revenue_growth": 0.0,
+          "cost_shares_of_revenue": {
+            "materials": 0.37,
+            "services": 0.08,
+            "personnel": 0.34,
+            "other": 0.15
+          },
+          "days_sales_outstanding": 40.0,
+          "days_payables_outstanding": 32.0,
+          "target_cash_at_end_eur": 45000.0,
+          "starting_cash_eur": 51750.0,
+          "covenant_min_cash_eur": 45000.0,
+          "special_investment_eur": 0.0,
+          "special_investment_month": 2,
+          "monthly_revenue_factors": null,
+          "one_off_events": [],
+          "notes": "stub: cash_critical heuristic from NL keywords; steel/manufacturing industry defaults",
+          "partly_fixed_costs": true,
+          "field_sources": {
+            "monthly_revenue_start_eur": "assumed",
+            "monthly_revenue_growth": "assumed",
+            "target_cash_at_end_eur": "assumed",
+            "starting_cash_eur": "assumed",
+            "special_investment_eur": "assumed",
+            "days_sales_outstanding": "assumed",
+            "days_payables_outstanding": "assumed",
+            "cost_shares_of_revenue": "assumed"
+          },
+          "field_quotes": {},
+          "stated_values": {},
+          "scenario_shape": null,
+          "scenario_shape_quote": null,
+          "revenue_annual_eur": null,
+          "growth_per_month_percent": null,
+          "dso_weeks": null,
+          "dpo_weeks": null,
+          "dso_months": null,
+          "dpo_months": null,
+          "derived_values": [],
+          "llm_model_name": null,
+          "extraction_seed": null,
+          "conversion_notes": []
+        },
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä.",
+        "excluded_from_comparisons": true,
+        "label": "stub, not a model"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "scenario_id": "good",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 2445606.469,
+      "tokens_in": 1918,
+      "tokens_out": 339,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0909,
+      "reading_score": 0.3333,
+      "mom_score": 1.0,
+      "interpretation_score": 0.8,
+      "fi_quality_score": 1.0,
+      "judge_score": null,
+      "rough_cost_eur": 0.01369955,
+      "notes": "param extract failed: Ollama timed out after 600.0s at http://127.0.0.1:11434.; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0909,
+          "notes": "1 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0909,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.5,
+          "notes": "reading=0.333; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.3333,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 372327.58}",
+          "revenue_last": "{\"value\": 10392.04}",
+          "mom_revenue_change": "{\"value\": -2101.55}",
+          "first_negative_projection_week": "{\n  \"scenario_id\": \"good\",\n  \"months\": 12,\n  \"last_month\": \"2026-10\",\n  \"prev_month\": \"2026-09\",\n  \"revenue_last\": 221731.46,\n  \"revenue_prev\": 223833.01,\n  \"mom_revenue_change\": -2101.55,\n  \"mom_revenue_pct\": -0.009389,\n  \"net_result_last\": 10392.04,\n  \"cash_end\": 372327.58,\n  \"receivables\": 352479.11,\n  \"payables\": 126521.46,\n  \"open_sales_sum\": 352479.11,\n  \"open_purchase_sum\": 126521.46,\n  \"first_negative_projection_week\": null,\n  \"projection_week_1_balance\": 397504.66,\n  \"projection_week_3_balance\": 464299.55,\n  \"balance_history_last\": 372327.58,\n  \"allowed_facts\": [\n    \"All figures above are produced by code from parameters.\",\n    \"Projection excludes payroll/tax/recurring costs; overdue sales assumed paid in week 1.\",\n    \"Do not invent external causes (customers leaving, bank freezes, fraud, etc.).\"\n  ]\n}"
+        },
+        "interpretation": {
+          "score": 0.8,
+          "notes": "ungrounded amounts: [2101.5]",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 1.0
+          }
+        },
+        "fi_quality": {
+          "score": 1.0,
+          "notes": "fi_chars=False; fi_words=4",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 1.0,
+            "en_only": 0.0,
+            "fi_word_hits": 4.0
+          }
+        },
+        "interpretation_answer": "Kassa muuttuu ennusteessa, kun mom_revenue_change on suuria (miksi kassa laski). Mom_revenue_change on 2101,5 €.",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:1b",
+        "model_version": "llama3.2:1b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "scenario_id": "weak",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 2429052.366,
+      "tokens_in": 1918,
+      "tokens_out": 371,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.3305,
+      "mom_score": 1.0,
+      "interpretation_score": 1.0,
+      "fi_quality_score": 0.75,
+      "judge_score": null,
+      "rough_cost_eur": 0.01360919,
+      "notes": "param extract failed: Ollama timed out after 600.0s at http://127.0.0.1:11434.; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.4979,
+          "notes": "reading=0.330; mom=1.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.9914,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.3305,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": -12169.66}",
+          "revenue_last": "{\"value\": 164565.74}",
+          "mom_revenue_change": "{\"value\": -4931.09}",
+          "first_negative_projection_week": "{\n  \"scenario_id\": \"weak\",\n  \"months\": 12,\n  \"last_month\": \"2026-10\",\n  \"prev_month\": \"2026-09\",\n  \"revenue_last\": 164849.48,\n  \"revenue_prev\": 169780.57,\n  \"mom_revenue_change\": -4931.09,\n  \"mom_revenue_pct\": -0.029044,\n  \"net_result_last\": -12169.66,\n  \"cash_end\": 141414.2,\n  \"receivables\": 324121.55,\n  \"payables\": 114201.12,\n  \"open_sales_sum\": 324121.55,\n  \"open_purchase_sum\": 114201.12,\n  \"first_negative_projection_week\": null,\n  \"projection_week_1_balance\": 164565.74,\n  \"projection_week_3_balance\": 229548.6,\n  \"balance_history_last\": 141414.2,\n  \"allowed_facts\": [\n    \"All figures above are produced by code from parameters.\",\n    \"Projection excludes payroll/tax/recurring costs; overdue sales assumed paid in week 1.\",\n    \"Do not invent external causes (customers leaving, bank freezes, fraud, etc.).\"\n  ]\n}"
+        },
+        "interpretation": {
+          "score": 1.0,
+          "notes": "ok",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 1.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.75
+          }
+        },
+        "fi_quality": {
+          "score": 0.75,
+          "notes": "fi_chars=True; fi_words=2",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.75,
+            "en_only": 0.0,
+            "fi_word_hits": 2.0
+          }
+        },
+        "interpretation_answer": "Kassa muuttuu ennesteessä, kun mom_revenue_change (-4931.09) on suuria summaa. Tämä on ollut tiettyä jo vuosikymmenen ajan, kun mom_revenue_pct (-0.029044) oli ollut huomattavan pieni.",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:1b",
+        "model_version": "llama3.2:1b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "scenario_id": "cash_critical",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 974696.834,
+      "tokens_in": 3978,
+      "tokens_out": 2284,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.3333,
+      "mom_score": 1.0,
+      "interpretation_score": 1.0,
+      "fi_quality_score": 0.5,
+      "judge_score": null,
+      "rough_cost_eur": 0.00572808,
+      "notes": "param extract failed: Ollama returned invalid parameters JSON after retries: one_off_events[0]: one-off 5,000 EUR in month 1 (outflow) is not stated in the description; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.5,
+          "notes": "reading=0.333; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.3333,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 86651.47}",
+          "revenue_last": "{\"value\": 3876.92}",
+          "mom_revenue_change": "{\"value\": -3339.47}",
+          "first_negative_projection_week": "{\n  \"scenario_id\": \"cash_critical\",\n  \"months\": 12,\n  \"last_month\": \"2026-10\",\n  \"prev_month\": \"2026-09\",\n  \"revenue_last\": 190243.06,\n  \"revenue_prev\": 193582.53,\n  \"mom_revenue_change\": -3339.47,\n  \"mom_revenue_pct\": -0.017251,\n  \"net_result_last\": 3876.92,\n  \"cash_end\": 86651.47,\n  \"receivables\": 350174.06,\n  \"payables\": 118183.74,\n  \"open_sales_sum\": 350174.06,\n  \"open_purchase_sum\": 118183.74,\n  \"first_negative_projection_week\": 3,\n  \"projection_week_1_balance\": 111663.9,\n  \"projection_week_3_balance\": -6519.84,\n  \"balance_history_last\": 86651.47,\n  \"allowed_facts\": [\n    \"All figures above are produced by code from parameters.\",\n    \"Projection excludes payroll/tax/recurring costs; overdue sales assumed paid in week 1.\",\n    \"Do not invent external causes (customers leaving, bank freezes, fraud, etc.).\"\n  ]\n}"
+        },
+        "interpretation": {
+          "score": 1.0,
+          "notes": "ok",
+          "per_field": {
+            "understandable": 1.0,
+            "factual": 1.0,
+            "grounded": 1.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.5
+          }
+        },
+        "fi_quality": {
+          "score": 0.5,
+          "notes": "fi_chars=False; fi_words=2",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.5,
+            "en_only": 0.0,
+            "fi_word_hits": 2.0
+          }
+        },
+        "interpretation_answer": "Kassa muuttuu ennusteessa, kun mom_revenue_change (-3339.47) on suuri kuin mom_revenue_pct (-0.017251).",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:1b",
+        "model_version": "llama3.2:1b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 37831.597,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.25,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama returned invalid parameters JSON after retries: one_off_events[0].amount_eur: value 100.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[1].amount_eur: value 100.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[0]: one-off 100 EUR in month 1 (inflow) is not stated in the description; one_off_events[1]: one-off 100 EUR in month 1 (outflow) is not stated in the description",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.25,
+          "notes": "1 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä."
+      }
+    },
+    {
+      "model": "ollama:llama3.2:1b",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 40393.303,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama returned invalid parameters JSON after retries: one_off_events[0].amount_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[1].amount_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[0]: one-off 1,000 EUR in month 1 (inflow) is not stated in the description; one_off_events[1]: one-off 1,000 EUR in month 1 (outflow) is not stated in the description",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä."
+      }
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "scenario_id": "good",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 10.674,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0909,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 6e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0909,
+          "notes": "1 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0909,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:3b",
+        "model_version": "llama3.2:3b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "scenario_id": "weak",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 8.67,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:3b",
+        "model_version": "llama3.2:3b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "scenario_id": "cash_critical",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 8.569,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.0,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.0,
+          "notes": "reading=0.000; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.0,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "llama3.2:3b",
+        "model_version": "llama3.2:3b"
+      }
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 0.949,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.25,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.25,
+          "notes": "1 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä."
+      }
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 0.897,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=llama3.2:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä."
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "scenario_id": "good",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 9.172,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0909,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0909,
+          "notes": "1 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0909,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:3b",
+        "model_version": "qwen2.5:3b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "scenario_id": "weak",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 8.709,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:3b",
+        "model_version": "qwen2.5:3b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "scenario_id": "cash_critical",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 8.681,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.0,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.0,
+          "notes": "reading=0.000; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.0,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:3b",
+        "model_version": "qwen2.5:3b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 0.954,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.25,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.25,
+          "notes": "1 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä."
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 0.891,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:3b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä."
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "scenario_id": "good",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 9.261,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0909,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0909,
+          "notes": "1 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0909,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:7b",
+        "model_version": "qwen2.5:7b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "scenario_id": "weak",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 8.424,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.1667,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 5e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.125,
+          "notes": "reading=0.167; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.5,
+            "_reading": 0.1667,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:7b",
+        "model_version": "qwen2.5:7b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "scenario_id": "cash_critical",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 12.553,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.0,
+      "mom_score": 0.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 7e-08,
+      "notes": "param extract failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe cash_end failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe revenue_last failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe mom_revenue_change failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; probe first_negative_projection_week failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found; interpret failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.0,
+          "notes": "reading=0.000; mom=0.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 0.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.0,
+            "_mom": 0.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "",
+          "revenue_last": "",
+          "mom_revenue_change": "",
+          "first_negative_projection_week": ""
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": false,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "qwen2.5:7b",
+        "model_version": "qwen2.5:7b"
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 1.02,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.25,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.25,
+          "notes": "1 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä."
+      }
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 0.953,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama unavailable at http://127.0.0.1:11434 (model=qwen2.5:7b). Install/start Ollama and pull the configured model. Underlying error: HTTP Error 404: Not Found",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä."
+      }
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "scenario_id": "good",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 3096818.481,
+      "tokens_in": 2623,
+      "tokens_out": 739,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0909,
+      "reading_score": 0.0,
+      "mom_score": 1.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 0.01737265,
+      "notes": "param extract failed: Ollama returned invalid parameters JSON after retries: revenue_monthly_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; revenue_annual_eur: value 23000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; growth_per_month_percent: value 0.5 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; starting_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; covenant_min_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dso_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dpo_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; one_off_events[0].amount_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[0]: one-off 1,000 EUR in month 12 (outflow) is not stated in the description; interpret failed: Ollama timed out after 600.0s at http://127.0.0.1:11434.; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0909,
+          "notes": "1 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0909,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.25,
+          "notes": "reading=0.000; mom=1.000",
+          "per_field": {
+            "cash_end": 0.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.0,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{ \"scenario_id\": \"good\", \"months\": 12, \"last_month\": \"2026-10\", \"prev_month\": \"2026-09\", \"revenue_last\": 221731.46, \"revenue_prev\": 223833.01, \"mom_revenue_change\": -2101.55, \"mom_revenue_pct\": -0.009389, \"net_result_last\": 10392.04, \"cash_end\": 372327.58, \"receivables\": 352479.11, \"payables\": 126521.46, \"open_sales_sum\": 352479.11, \"open_purchase_sum\": 126521.46, \"first_negative_projection_week\": null, \"projection_week_1_balance\": 397504.66, \"projection_week_3_balance\": 464299.55, \"balance_history_last\": 372327.58, \"allowed_facts\": [\"All figures above are produced by code from parameters.\", \"Projection excludes payroll/tax/recurring costs; overdue sales assumed paid in week 1.\", \"Do not invent external causes (customers leaving, bank freezes, fraud, etc.).\"] }",
+          "revenue_last": "{\"value\": -2101.55}",
+          "mom_revenue_change": "{\"value\": -2101.55}",
+          "first_negative_projection_week": "{ \"value\": \"Week 1\" }"
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "FableForge-AI/nexus-finance:q4_k_m",
+        "model_version": "FableForge-AI/nexus-finance:q4_k_m"
+      }
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "scenario_id": "weak",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 2455628.429,
+      "tokens_in": 2422,
+      "tokens_out": 316,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.6667,
+      "mom_score": 1.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 0.01377928,
+      "notes": "param extract failed: Ollama returned invalid parameters JSON after retries: revenue_monthly_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; revenue_annual_eur: value 120000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; growth_per_month_percent: value 0.5 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; starting_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; covenant_min_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dso_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dpo_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; interpret failed: Ollama timed out after 600.0s at http://127.0.0.1:11434.; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.75,
+          "notes": "reading=0.667; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 1.0,
+            "_reading": 0.6667,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 141414.2}",
+          "revenue_last": "{\"value\": -4931.09}",
+          "mom_revenue_change": "{\"value\": -4931.09}",
+          "first_negative_projection_week": "{\"value\": null}"
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "FableForge-AI/nexus-finance:q4_k_m",
+        "model_version": "FableForge-AI/nexus-finance:q4_k_m"
+      }
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "scenario_id": "cash_critical",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 2474950.751,
+      "tokens_in": 2550,
+      "tokens_out": 420,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": 0.3333,
+      "mom_score": 1.0,
+      "interpretation_score": 0.4,
+      "fi_quality_score": 0.0,
+      "judge_score": null,
+      "rough_cost_eur": 0.01389823,
+      "notes": "param extract failed: Ollama returned invalid parameters JSON after retries: revenue_monthly_eur: value 2300.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; revenue_annual_eur: value 28000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; growth_per_month_percent: value 0.5 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; starting_cash_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; covenant_min_cash_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dso_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dpo_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; one_off_events[0].amount_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; interpret failed: Ollama timed out after 600.0s at http://127.0.0.1:11434.; too_slow_for_chat_demo (>120s total latency)",
+      "detail": {
+        "parameter": {
+          "score": 0.0,
+          "notes": "0 fields graded (tol=0.05)",
+          "per_field": {}
+        },
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 11 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_start_eur": 0.0,
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "days_payables_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "special_investment_eur": 0.0,
+            "cost_shares.materials": 0.0,
+            "cost_shares.services": 0.0,
+            "cost_shares.personnel": 0.0,
+            "cost_shares.other": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "parameter_fields_correct_share": 0.0,
+        "predicted_parameters": {},
+        "probes": {
+          "score": 0.5,
+          "notes": "reading=0.333; mom=1.000",
+          "per_field": {
+            "cash_end": 1.0,
+            "revenue_last": 0.0,
+            "mom_revenue_change": 1.0,
+            "first_negative_projection_week": 0.0,
+            "_reading": 0.3333,
+            "_mom": 1.0
+          }
+        },
+        "probe_answers": {
+          "cash_end": "{\"value\": 86651.47}",
+          "revenue_last": "{\"value\": -3339.47}",
+          "mom_revenue_change": "{\"value\": -3339.47}",
+          "first_negative_projection_week": "{\"value\": -6519.84}"
+        },
+        "interpretation": {
+          "score": 0.4,
+          "notes": "did not cite pack figures",
+          "per_field": {
+            "understandable": 0.0,
+            "factual": 0.0,
+            "grounded": 0.0,
+            "no_invented_causes": 1.0,
+            "no_contradiction": 1.0,
+            "fi_quality": 0.0
+          }
+        },
+        "fi_quality": {
+          "score": 0.0,
+          "notes": "empty answer on FI prompt",
+          "per_field": {
+            "applicable": 1.0,
+            "fi_markers": 0.0,
+            "en_only": 1.0
+          }
+        },
+        "interpretation_answer": "",
+        "interpretation_question": "Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.",
+        "too_slow_for_chat_demo": true,
+        "peak_rss_mb": 35.09,
+        "model_quantisation": "FableForge-AI/nexus-finance:q4_k_m",
+        "model_version": "FableForge-AI/nexus-finance:q4_k_m"
+      }
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "scenario_id": "task1_extra:late_payers_ok_cash",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 50192.579,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.25,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama returned invalid parameters JSON after retries: revenue_monthly_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; revenue_annual_eur: value 12000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; growth_per_month_percent: value 0.5 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; starting_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; covenant_min_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dso_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dpo_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; one_off_events[0].amount_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[0]: one-off 1,000 EUR in month 12 (inflow) is not stated in the description",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.25,
+          "notes": "1 of 4 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "days_sales_outstanding": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 1.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "days_sales_outstanding": 75,
+          "target_cash_at_end_eur": 200000,
+          "monthly_revenue_growth": 0.0,
+          "partly_fixed_costs": false
+        },
+        "description_en": "Cash is fine but customers pay very late.",
+        "description_fi": "Kassa on kunnossa, mutta asiakkaat maksavat hyvin myöhässä."
+      }
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "scenario_id": "task1_extra:tight_now_critical_three_weeks",
+      "adapter": "ollama",
+      "status": "ok",
+      "latency_ms": 46943.365,
+      "tokens_in": null,
+      "tokens_out": null,
+      "hardware": "x86_64/x86_64 · py3.12.3 · rss≈35.09MB",
+      "parameter_score": 0.0,
+      "reading_score": null,
+      "mom_score": null,
+      "interpretation_score": null,
+      "fi_quality_score": null,
+      "judge_score": null,
+      "rough_cost_eur": null,
+      "notes": "extra task1 failed: Ollama returned invalid parameters JSON after retries: revenue_monthly_eur: value 1000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; revenue_annual_eur: value 12000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; growth_per_month_percent: value 0.5 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; starting_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; covenant_min_cash_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dso_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; dpo_days: value 10.0 does not appear in the description after parsing units (k, M, %, €); description amounts sample=[]; one_off_events[0].amount_eur: value 10000.0 does not appear in the description after parsing units (k, M, %, €); sample=[]; one_off_events[0]: one-off 10,000 EUR in month 12 (outflow) is not stated in the description",
+      "detail": {
+        "parameter_binary": {
+          "score": 0.0,
+          "notes": "0 of 3 fields correct (binary, rel_tol=0.05)",
+          "per_field": {
+            "monthly_revenue_growth": 0.0,
+            "target_cash_at_end_eur": 0.0,
+            "partly_fixed_costs": 0.0
+          }
+        },
+        "predicted_parameters": {},
+        "expected": {
+          "target_cash_at_end_eur": 45000,
+          "partly_fixed_costs": true,
+          "monthly_revenue_growth": 0.0
+        },
+        "description_en": "A small machine shop. Cash is tight now and critical in three weeks.",
+        "description_fi": "Pieni konepaja. Kassa on tiukalla nyt ja kriittinen kolmen viikon päästä."
+      }
+    }
+  ],
+  "summary": {
+    "batch_id": "93b544893573",
+    "n_runs": 30,
+    "models": [
+      "stub",
+      "ollama:llama3.2:1b",
+      "ollama:llama3.2:3b",
+      "ollama:qwen2.5:3b",
+      "ollama:qwen2.5:7b",
+      "ollama:FableForge-AI/nexus-finance:q4_k_m"
+    ],
+    "models_run": [
+      "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "ollama:llama3.2:1b",
+      "ollama:llama3.2:3b",
+      "ollama:qwen2.5:3b",
+      "ollama:qwen2.5:7b"
+    ],
+    "scenarios": [
+      "good",
+      "weak",
+      "cash_critical"
+    ],
+    "status": "phase7",
+    "skip_unavailable": true,
+    "skipped_models": [],
+    "judge_enabled": false,
+    "judge_model": null,
+    "judge_skipped": null,
+    "hardware": {
+      "platform": "Linux-6.12.113+-x86_64-with-glibc2.39",
+      "python": "3.12.3",
+      "processor": "x86_64",
+      "machine": "x86_64",
+      "note": "CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
+      "peak_rss_mb": 35.09,
+      "gpu_note": "not measured (CPU-first PoC)"
+    },
+    "by_model": [
+      {
+        "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+        "n": 5,
+        "avg_parameter": 0.06817999999999999,
+        "avg_reading": 0.3333333333333333,
+        "avg_mom": 1.0,
+        "avg_interpretation": 0.4000000000000001,
+        "avg_fi_quality": 0.0,
+        "avg_judge": null,
+        "avg_latency_ms": 1624906.7210000001,
+        "tokens_total": 9070,
+        "cost_eur": 0.04505016
+      },
+      {
+        "model": "ollama:llama3.2:1b",
+        "n": 5,
+        "avg_parameter": 0.06817999999999999,
+        "avg_reading": 0.33236666666666664,
+        "avg_mom": 1.0,
+        "avg_interpretation": 0.9333333333333332,
+        "avg_fi_quality": 0.75,
+        "avg_judge": null,
+        "avg_latency_ms": 1185516.1138,
+        "tokens_total": 10808,
+        "cost_eur": 0.03303682
+      },
+      {
+        "model": "ollama:llama3.2:3b",
+        "n": 5,
+        "avg_parameter": 0.06817999999999999,
+        "avg_reading": 0.11113333333333332,
+        "avg_mom": 0.0,
+        "avg_interpretation": 0.4000000000000001,
+        "avg_fi_quality": 0.0,
+        "avg_judge": null,
+        "avg_latency_ms": 5.9518,
+        "tokens_total": 0,
+        "cost_eur": 1.6e-07
+      },
+      {
+        "model": "ollama:qwen2.5:3b",
+        "n": 5,
+        "avg_parameter": 0.06817999999999999,
+        "avg_reading": 0.11113333333333332,
+        "avg_mom": 0.0,
+        "avg_interpretation": 0.4000000000000001,
+        "avg_fi_quality": 0.0,
+        "avg_judge": null,
+        "avg_latency_ms": 5.6814,
+        "tokens_total": 0,
+        "cost_eur": 1.5e-07
+      },
+      {
+        "model": "ollama:qwen2.5:7b",
+        "n": 5,
+        "avg_parameter": 0.06817999999999999,
+        "avg_reading": 0.11113333333333332,
+        "avg_mom": 0.0,
+        "avg_interpretation": 0.4000000000000001,
+        "avg_fi_quality": 0.0,
+        "avg_judge": null,
+        "avg_latency_ms": 6.4422,
+        "tokens_total": 0,
+        "cost_eur": 1.7000000000000001e-07
+      }
+    ],
+    "stub_baseline": {
+      "label": "stub, not a model",
+      "excluded_from_comparisons": true,
+      "n_runs": 5
+    },
+    "sqlite": "runs/benchmark_task_b_live/metrics.sqlite",
+    "scorecard_json": "runs/benchmark_task_b_live/scorecard.json",
+    "scorecard_csv": "runs/benchmark_task_b_live/scorecard.csv",
+    "runs_csv": "runs/benchmark_task_b_live/runs.csv",
+    "fi_band_notes": "FI quality is a separate band; EN-only answers on FI prompts get a low fi_quality_score without failing the main interpretation rubric."
+  }
+}

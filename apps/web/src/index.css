@@ -349,6 +349,63 @@ textarea {
   padding: 1.25rem 0;
 }
 
+.compare-fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem 1rem;
+  margin: 0;
+}
+
+.compare-fieldset legend {
+  font-weight: 600;
+  padding: 0 0.35rem;
+}
+
+.compare-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  margin-top: 0.6rem;
+}
+
+.compare-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.compare-answer {
+  white-space: pre-wrap;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.04));
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.pill-recommended {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  background: rgba(46, 125, 50, 0.12);
+  color: #1b5e20;
+  vertical-align: middle;
+}
+
+.row-recommended td {
+  background: rgba(46, 125, 50, 0.06);
+}
+
+.btn-small {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+}
+
 .panel h3 {
   font-family: var(--font-display);
   margin: 0 0 0.75rem;
@@ -450,6 +507,51 @@ textarea {
 
 .status-err {
   color: var(--danger);
+}
+
+.status-running {
+  color: var(--accent-soft);
+}
+
+.progress-panel {
+  margin: 1rem 0 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(7, 31, 30, 0.55);
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.progress-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent-soft);
+}
+
+.progress-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ok), var(--accent-soft));
+  transition: width 0.4s ease;
+}
+
+.progress-label {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
 }
 
 .artifact-list {

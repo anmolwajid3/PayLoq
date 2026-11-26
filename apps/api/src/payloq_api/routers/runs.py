@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
@@ -23,6 +23,7 @@ from payloq_api.schemas import (
     OllamaModelOut,
     OllamaModelsResponse,
     RunOut,
+    RunProgressOut,
 )
 from payloq_api.services.chat import (
     chat_on_run,
@@ -31,14 +32,26 @@ from payloq_api.services.chat import (
     result_to_dict,
     suggestions_for_run,
 )
-from payloq_api.services.generate import artifacts_for_run, run_from_text, run_preset
+from payloq_api.services.generate import (
+    artifacts_for_run,
+    create_from_text_run,
+    create_preset_run,
+    execute_from_text_job,
+    execute_preset_job,
+    run_from_text,
+    run_preset,
+)
+from payloq_api.services.model_compare import load_comparison
+from payloq_api.services.progress import load_progress
 from payloq_llm.adapters import list_ollama_models
-from payloq_llm.defaults import UI_SUGGESTED_OLLAMA_TAGS
+from payloq_llm.defaults import DEFAULT_COMPARE_MODELS, UI_SUGGESTED_OLLAMA_TAGS
 
 router = APIRouter(tags=["runs"])
 
 
 def _run_out(run: GenerationRun) -> RunOut:
+    raw = load_progress(run.artifact_dir)
+    progress = RunProgressOut(**raw) if raw else None
     return RunOut(
         id=run.id or 0,
         scenario_id=run.scenario_id,
@@ -56,6 +69,8 @@ def _run_out(run: GenerationRun) -> RunOut:
         from_text=run.from_text,
         created_at=run.created_at,
         artifacts=artifacts_for_run(run),
+        comparison=load_comparison(run.artifact_dir),
+        progress=progress,
     )
 
 
@@ -86,6 +101,7 @@ def get_run(
 @router.post("/generate/preset", response_model=RunOut)
 def generate_preset(
     body: GeneratePresetRequest,
+    background_tasks: BackgroundTasks,
     _: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -93,26 +109,37 @@ def generate_preset(
     scenario = session.exec(select(Scenario).where(Scenario.slug == body.scenario_slug)).first()
     if scenario is None:
         raise HTTPException(status_code=404, detail=f"Scenario '{body.scenario_slug}' not found")
-    run = run_preset(
-        session,
-        settings,
-        scenario=scenario,
+    kwargs = dict(
         seed=body.seed,
         write_xlsx=body.write_xlsx,
+        compare=body.compare,
+        compare_models=body.compare_models,
+        language=body.language,
     )
+    if body.background:
+        run = create_preset_run(
+            session, settings, scenario=scenario, seed=body.seed
+        )
+        background_tasks.add_task(
+            execute_preset_job,
+            run.id,
+            scenario.id,
+            **kwargs,
+        )
+        return _run_out(run)
+    run = run_preset(session, settings, scenario=scenario, **kwargs)
     return _run_out(run)
 
 
 @router.post("/generate/from-text", response_model=RunOut)
 def generate_from_text(
     body: GenerateFromTextRequest,
+    background_tasks: BackgroundTasks,
     _: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> RunOut:
-    run = run_from_text(
-        session,
-        settings,
+    kwargs = dict(
         text=body.text,
         llm=body.llm,
         language=body.language,
@@ -124,7 +151,21 @@ def generate_from_text(
         ollama_model=body.ollama_model,
         ollama_host=body.ollama_host,
         save_as_slug=body.save_as_slug,
+        compare=body.compare,
+        compare_models=body.compare_models,
     )
+    if body.background:
+        run = create_from_text_run(
+            session,
+            settings,
+            text=body.text,
+            llm=body.llm,
+            ollama_model=body.ollama_model,
+            seed=body.seed,
+        )
+        background_tasks.add_task(execute_from_text_job, run.id, **kwargs)
+        return _run_out(run)
+    run = run_from_text(session, settings, **kwargs)
     return _run_out(run)
 
 
@@ -141,6 +182,7 @@ def llm_models(
         models=[OllamaModelOut(**m) for m in (payload.get("models") or [])],
         error=payload.get("error"),
         recommended=list(UI_SUGGESTED_OLLAMA_TAGS),
+        compare_shortlist=list(DEFAULT_COMPARE_MODELS),
     )
 
 

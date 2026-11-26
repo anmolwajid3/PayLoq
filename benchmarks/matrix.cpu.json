@@ -1,6 +1,6 @@
 {
   "scenarios": ["good", "weak", "cash_critical"],
-  "hardware_note": "CPU-friendly local workstation (Anmol Desktop first)",
+  "hardware_note": "CPU-friendly local workstation (Anmol Desktop / Mac Compose Ollama first)",
   "seed": 42,
   "write_spotcheck": true,
   "skip_unavailable": true,
@@ -8,36 +8,57 @@
     {
       "id": "stub",
       "adapter": "stub",
-      "tier": "baseline"
+      "tier": "baseline",
+      "notes": "Harness wiring only — excluded from by_model comparisons"
     },
     {
       "id": "ollama:llama3.2:1b",
       "adapter": "ollama",
       "model": "llama3.2:1b",
-      "tier": "recommended",
-      "fallback_stub": true,
+      "tier": "size_ladder",
+      "fallback_stub": false,
       "size_hint": "~1B"
     },
     {
       "id": "ollama:llama3.2:3b",
       "adapter": "ollama",
       "model": "llama3.2:3b",
-      "tier": "optional",
-      "fallback_stub": true,
+      "tier": "size_ladder",
+      "fallback_stub": false,
       "size_hint": "~3B"
     },
     {
       "id": "ollama:qwen2.5:3b",
       "adapter": "ollama",
       "model": "qwen2.5:3b",
-      "tier": "optional",
-      "fallback_stub": true,
-      "size_hint": "~3B"
+      "tier": "size_ladder",
+      "fallback_stub": false,
+      "size_hint": "~3B",
+      "notes": "Multilingual / FI probe comparison"
+    },
+    {
+      "id": "ollama:qwen2.5:7b",
+      "adapter": "ollama",
+      "model": "qwen2.5:7b",
+      "tier": "recommended",
+      "fallback_stub": false,
+      "size_hint": "~7B",
+      "notes": "Task A default extract model; also used as optional judge"
+    },
+    {
+      "id": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "adapter": "ollama",
+      "model": "FableForge-AI/nexus-finance:q4_k_m",
+      "tier": "finance_tuned",
+      "fallback_stub": false,
+      "size_hint": "~1.5B finance-tuned",
+      "notes": "Open finance-tuned Qwen2.5-1.5B (Apache-2.0). EN-primary — score FI band separately."
     }
   ],
   "judge": {
     "enabled": false,
     "adapter": "ollama",
-    "model": "llama3.2:1b"
+    "model": "qwen2.5:7b",
+    "notes": "Enable with --judge on Mac once qwen2.5:7b is pulled. Stronger than size-ladder cells; skipped (not stubbed) when Ollama is down."
   }
 }

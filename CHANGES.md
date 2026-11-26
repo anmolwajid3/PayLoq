@@ -1,9 +1,59 @@
-# CHANGES — Pilot generator work-order fix (Task A)
+# CHANGES — Pilot generator work-order fix (Task A) + Task B seed
 
 Source: `internal/pilot-generator-fix-prompt.md` + `docs/payloq-pilot-work-order.pdf`.
 PDF conflict check: none found (journal is §4 optional; schema may evolve; fidelity/consistency are code checks). No `OPEN_QUESTIONS.md`.
 
-Scope: Task A generator only. Benchmark (Task B) and chat demo kept, with **labelling rules** only (Option A). Journal deleted. One-off direction canonicalized to `inflow|outflow`.
+Scope: Task A generator + Task B seeded scorecard (PL-51). Chat demo labelling rules (Option A) unchanged. Journal deleted. One-off direction canonicalized to `inflow|outflow`.
+
+---
+
+## Task B — Seeded multi-model scorecard (PL-51)
+
+| File | Change |
+| --- | --- |
+| `benchmarks/matrix.cpu.json` | Size ladder (`llama3.2:1b/3b`, `qwen2.5:3b`) + recommended `qwen2.5:7b` + finance `FableForge-AI/nexus-finance:q4_k_m`. Judge model → `qwen2.5:7b`. Live cells `fallback_stub: false`. |
+| `benchmarks/matrix.example.json` | Same finance tag + judge; no placeholder `REPLACE_WITH_…`. |
+| `packages/benchmark/.../config.py` | Ollama `ModelSpec` / CLI tokens default `fallback_stub=False` (no stub-contaminated scorecard cells). |
+| `packages/benchmark/.../runner.py` | Skip LLM judge when Ollama unavailable (never stub-as-judge). Skip ollama cells when the **tag is not pulled** (host-up alone is not enough). |
+| `docs/evaluation.md` | CPU shortlist table + Task B artifact pointers. |
+| `reports/task-b/*` | Seeded scorecard JSON/CSV/MD + spotcheck from cloud live batch `93b544893573` (stub excluded; Mac still owns full ladder + judge). |
+| `tests/test_benchmark_stub.py` | Matrix expects finance tier + stronger judge model. |
+
+Human-readable store copy: Project `docs/task-b-seeded-scorecard.md` (+ gap inventory `docs/task-b-gap.md`).
+
+## Task B — Per-input model comparison (PL-52)
+
+| File | Change |
+| --- | --- |
+| `packages/llm/.../defaults.py` | `DEFAULT_COMPARE_MODELS` = Mac winners `qwen2.5:3b`, `llama3.2:3b`, `qwen2.5:7b`. |
+| `apps/api/.../services/model_compare.py` | **new** — score shortlist on one code-built pack; write `comparison.json` + `compare_answers/`. |
+| `apps/api/.../services/generate.py` | `run_from_text(..., compare=, compare_models=)` runs compare after a successful pack. |
+| `apps/api/.../schemas.py` / `routers/runs.py` | Request fields + `RunOut.comparison`; `/llm/models` returns `compare_shortlist`. |
+| `apps/web/.../Generate.tsx` | Multi-select compare checkboxes (defaults = shortlist ∩ installed). |
+| `apps/web/.../RunDetail.tsx` | Comparison table + recommended badge + expandable answers. |
+| `tests/test_model_compare_pl52.py` | Unit tests for shortlist + stub scoring on a preset pack. |
+
+## Background Generate + progress %
+
+| File | Change |
+| --- | --- |
+| `apps/api/.../services/progress.py` | **new** — `progress.json` percent/stage helpers. |
+| `apps/api/.../services/generate.py` | `create_from_text_run` + `execute_from_text_job`; stage updates through extract → pack → compare. |
+| `apps/api/.../routers/runs.py` | `background=true` (default) returns `status=running` and finishes via `BackgroundTasks`. |
+| `apps/api/.../schemas.py` | `GenerateFromTextRequest.background`; `RunOut.progress`. |
+| `apps/web/.../Generate.tsx` / `RunDetail.tsx` | Navigate immediately; poll run every 1.5s and show progress bar. |
+| `tests/test_background_progress.py` | Progress helpers + background enqueue smoke test. |
+
+## PL-53 / PL-54 / PL-55 follow-ons
+
+| File | Change |
+| --- | --- |
+| `packages/llm/.../defaults.py` | Size-ladder `DEFAULT_COMPARE_MODELS` (1b→3b→7b); `DEFAULT_JUDGE_MODEL`; finance tag constant. |
+| `apps/api/.../model_compare.py` | LLM judge on interpretations; score rationale; finance tag when pulled. |
+| `apps/web/.../exportRunPdf.ts` | Full-package PDF: comparison table, judge who/why, per-model rationale + answers. |
+| `apps/web/.../RunDetail.tsx` | Judge column + rationale in compare UI. |
+| `apps/api/.../generate.py` + preset router | Preset compare + optional background (PL-55). |
+| Project `docs/task-b-followons.md` | Gap map + order. |
 
 ---
 

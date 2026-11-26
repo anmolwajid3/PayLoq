@@ -75,27 +75,93 @@ def _list_artifacts(out_dir: Path) -> list[str]:
     return sorted(p.name for p in out_dir.iterdir() if p.is_file())
 
 
-def run_preset(
+def create_preset_run(
     session: Session,
     settings: Settings,
     *,
     scenario: Scenario,
     seed: int = 42,
-    write_xlsx: bool = True,
 ) -> GenerationRun:
+    from payloq_api.services.progress import write_progress
+
     run = GenerationRun(
         scenario_id=scenario.id,
         source="preset",
         llm_adapter="none",
         seed=seed,
-        status="pending",
+        status="running",
     )
     session.add(run)
     session.commit()
     session.refresh(run)
-
     out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_progress(
+        out_dir,
+        percent=2,
+        stage="queued",
+        label_en="Queued — building preset pack…",
+        label_fi="Jonossa — rakennetaan valmista pakettia…",
+    )
+    run.artifact_dir = str(out_dir.resolve())
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def execute_preset(
+    session: Session,
+    settings: Settings,
+    run: GenerationRun,
+    *,
+    scenario: Scenario,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> GenerationRun:
+    from payloq_api.services.model_compare import (
+        resolve_compare_models,
+        run_model_comparison,
+    )
+    from payloq_api.services.progress import write_progress
+    from payloq_llm.defaults import DEFAULT_OLLAMA_HOST
+
+    out_dir = (
+        Path(run.artifact_dir)
+        if run.artifact_dir
+        else Path(settings.artifact_dir) / f"run_{run.id}"
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run.artifact_dir = str(out_dir.resolve())
+    run.status = "running"
+    session.add(run)
+    session.commit()
+
+    def _progress(
+        percent: int,
+        stage: str,
+        label_en: str,
+        label_fi: str | None = None,
+        *,
+        done: bool = False,
+        error: str | None = None,
+    ) -> None:
+        write_progress(
+            out_dir,
+            percent=percent,
+            stage=stage,
+            label_en=label_en,
+            label_fi=label_fi,
+            done=done,
+            error=error,
+        )
+
     try:
+        _progress(15, "generate", "Building preset pack (code)…", "Rakennetaan valmista pakettia…")
         inp = GeneratorInput.model_validate(scenario.input_json)
         if inp.options.scenario_id is None:
             inp.options.scenario_id = scenario.slug
@@ -122,9 +188,393 @@ def run_preset(
         else:
             run.status = "error"
             run.error_message = outcome.error_message or "Generated pack failed validation"
+            _progress(
+                100,
+                "error",
+                "Validation failed",
+                "Validointi epäonnistui",
+                done=True,
+                error=run.error_message,
+            )
+
+        if (
+            compare
+            and outcome.ok
+            and pack is not None
+            and not outcome.test_only_broken
+            and compare_models != []
+        ):
+            try:
+                host = ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST
+                tags = resolve_compare_models(
+                    requested=compare_models,
+                    primary=settings.ollama_model,
+                    host=host,
+                    available_only=True,
+                )
+                if tags:
+                    lang = language or getattr(inp.options, "language", None) or "fi"
+                    text = (
+                        inp.scenario_description.fi
+                        if lang == "fi"
+                        else inp.scenario_description.en
+                    ) or inp.scenario_description.fi or inp.scenario_description.en
+                    run_model_comparison(
+                        pack=pack,
+                        text=text or "",
+                        language=str(lang),
+                        options=inp.options.model_dump(),
+                        models=tags,
+                        pack_model=None,
+                        host=host,
+                        timeout_s=settings.ollama_timeout,
+                        out_dir=out_dir,
+                        on_progress=_progress,
+                    )
+            except Exception as cmp_exc:  # noqa: BLE001
+                note = f"model compare skipped: {cmp_exc}"
+                run.llm_fallback_note = (
+                    f"{run.llm_fallback_note}; {note}"
+                    if run.llm_fallback_note
+                    else note
+                )
+
+        if run.status == "ok":
+            _progress(100, "done", "Complete", "Valmis", done=True)
     except Exception as exc:  # noqa: BLE001
         run.status = "error"
         run.error_message = str(exc)
+        _progress(100, "error", "Failed", "Epäonnistui", done=True, error=str(exc))
+
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def run_preset(
+    session: Session,
+    settings: Settings,
+    *,
+    scenario: Scenario,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = False,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> GenerationRun:
+    """Synchronous preset generate (tests default compare=False)."""
+    run = create_preset_run(session, settings, scenario=scenario, seed=seed)
+    return execute_preset(
+        session,
+        settings,
+        run,
+        scenario=scenario,
+        seed=seed,
+        write_xlsx=write_xlsx,
+        compare=compare,
+        compare_models=compare_models,
+        language=language,
+        ollama_host=ollama_host,
+    )
+
+
+def execute_preset_job(
+    run_id: int,
+    scenario_id: int,
+    *,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+    language: str = "fi",
+    ollama_host: str | None = None,
+) -> None:
+    from payloq_api.config import get_settings
+    from payloq_api.db import get_engine
+
+    settings = get_settings()
+    with Session(get_engine()) as session:
+        run = session.get(GenerationRun, run_id)
+        scenario = session.get(Scenario, scenario_id)
+        if run is None or scenario is None:
+            return
+        execute_preset(
+            session,
+            settings,
+            run,
+            scenario=scenario,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            compare=compare,
+            compare_models=compare_models,
+            language=language,
+            ollama_host=ollama_host,
+        )
+
+
+def create_from_text_run(
+    session: Session,
+    settings: Settings,
+    *,
+    text: str,
+    llm: str = "ollama",
+    ollama_model: str | None = None,
+    seed: int = 42,
+) -> GenerationRun:
+    """Create a running from-text row and seed progress.json (does not call Ollama)."""
+    from payloq_api.services.progress import write_progress
+
+    resolved_model = (
+        (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
+        if llm == "ollama"
+        else None
+    )
+    run = GenerationRun(
+        source="from_text",
+        llm_adapter=llm,
+        llm_model=resolved_model,
+        seed=seed,
+        status="running",
+        from_text=text,
+    )
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+
+    out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_progress(
+        out_dir,
+        percent=2,
+        stage="queued",
+        label_en="Queued — starting in background…",
+        label_fi="Jonossa — käynnistyy taustalla…",
+    )
+    run.artifact_dir = str(out_dir.resolve())
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return run
+
+
+def execute_from_text(
+    session: Session,
+    settings: Settings,
+    run: GenerationRun,
+    *,
+    text: str,
+    llm: str = "ollama",
+    language: str = "fi",
+    industry: str = "unspecified",
+    company_size: str = "small",
+    months: int = 12,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    ollama_model: str | None = None,
+    ollama_host: str | None = None,
+    save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+) -> GenerationRun:
+    """Run Ollama extract → pack → validate → optional compare with progress updates."""
+    from payloq_api.services.model_compare import (
+        resolve_compare_models,
+        run_model_comparison,
+    )
+    from payloq_api.services.progress import write_progress
+
+    resolved_model = (
+        (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
+        if llm == "ollama"
+        else run.llm_model
+    )
+    out_dir = (
+        Path(run.artifact_dir)
+        if run.artifact_dir
+        else Path(settings.artifact_dir) / f"run_{run.id}"
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run.artifact_dir = str(out_dir.resolve())
+    run.status = "running"
+    session.add(run)
+    session.commit()
+
+    def _progress(
+        percent: int,
+        stage: str,
+        label_en: str,
+        label_fi: str | None = None,
+        *,
+        done: bool = False,
+        error: str | None = None,
+    ) -> None:
+        write_progress(
+            out_dir,
+            percent=percent,
+            stage=stage,
+            label_en=label_en,
+            label_fi=label_fi,
+            done=done,
+            error=error,
+        )
+
+    try:
+        if llm != "ollama":
+            raise ValueError(
+                "From-text generation requires Ollama (local model)."
+            )
+        _progress(
+            8,
+            "extract",
+            "Extracting parameters with Ollama…",
+            "Poimitaan parametreja Ollamalla…",
+        )
+        host = ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST
+        adapter = get_adapter(
+            "ollama",
+            model=resolved_model or DEFAULT_OLLAMA_MODEL,
+            host=host,
+            timeout_s=settings.ollama_timeout,
+        )
+        opts = default_options_from_text(
+            industry=industry,
+            company_size=company_size,
+            months=months,
+            language=language,
+            seed=seed,
+        )
+        inp = input_from_text(
+            text=text,
+            adapter=adapter,
+            language=language,
+            options=opts,
+            with_invoice_texts=True,
+        )
+        llm_name = "ollama"
+        run.llm_adapter = "ollama"
+        if resolved_model:
+            run.llm_model = resolved_model
+        session.add(run)
+        session.commit()
+
+        _progress(
+            40,
+            "generate",
+            "Building scenario pack (code)…",
+            "Rakennetaan skenaariopakettia (koodi)…",
+        )
+        outcome = run_generation(
+            inp,
+            out_dir,
+            seed=seed,
+            write_xlsx=write_xlsx,
+            raw_llm_output=getattr(adapter, "last_raw_output", None),
+            llm_name=llm_name,
+        )
+        pack = outcome.pack
+        _progress(
+            50,
+            "validate",
+            "Validating pack…",
+            "Validoidaan pakettia…",
+        )
+        soft = assess_nl_params(
+            text,
+            (pack.input.parameters_from_language_model.model_dump() if pack else {}),
+            language=language,
+        )
+        run.artifact_dir = str(out_dir.resolve())
+        run.validation_ok = outcome.ok
+        run.validation_json = outcome.validation.as_dict()
+        run.seed = outcome.seed_used
+        if pack is not None:
+            run.pack_summary = _pack_summary(pack, nl_soft_warnings=soft)
+        if outcome.ok and pack is not None:
+            run.status = "ok"
+        else:
+            run.status = "error"
+            run.error_message = outcome.error_message or "Generated pack failed validation"
+            _progress(
+                100,
+                "error",
+                "Validation failed",
+                "Validointi epäonnistui",
+                done=True,
+                error=run.error_message,
+            )
+
+        # PL-52: score shortlist on the same code-owned pack (best-effort; never fail the run).
+        if (
+            compare
+            and outcome.ok
+            and pack is not None
+            and compare_models != []
+        ):
+            try:
+                tags = resolve_compare_models(
+                    requested=compare_models,
+                    primary=resolved_model,
+                    host=host,
+                    available_only=True,
+                )
+                if tags:
+                    run_model_comparison(
+                        pack=pack,
+                        text=text,
+                        language=language,
+                        options=opts,
+                        models=tags,
+                        pack_model=resolved_model,
+                        host=host,
+                        timeout_s=settings.ollama_timeout,
+                        out_dir=out_dir,
+                        on_progress=_progress,
+                    )
+            except Exception as cmp_exc:  # noqa: BLE001
+                # Persist a soft note; pack artifacts remain the source of truth.
+                note = f"model compare skipped: {cmp_exc}"
+                run.llm_fallback_note = (
+                    f"{run.llm_fallback_note}; {note}"
+                    if run.llm_fallback_note
+                    else note
+                )
+
+        if save_as_slug and outcome.ok and pack is not None:
+            scenario = Scenario(
+                slug=save_as_slug,
+                title_fi=inp.scenario_description.fi[:120],
+                title_en=inp.scenario_description.en[:120],
+                description_fi=inp.scenario_description.fi,
+                description_en=inp.scenario_description.en,
+                is_preset=False,
+                input_json=json.loads(inp.model_dump_json()),
+            )
+            session.add(scenario)
+            session.commit()
+            session.refresh(scenario)
+            run.scenario_id = scenario.id
+
+        if run.status == "ok":
+            _progress(
+                100,
+                "done",
+                "Complete",
+                "Valmis",
+                done=True,
+            )
+    except Exception as exc:  # noqa: BLE001
+        run.status = "error"
+        run.error_message = str(exc)
+        _progress(
+            100,
+            "error",
+            "Failed",
+            "Epäonnistui",
+            done=True,
+            error=str(exc),
+        )
 
     session.add(run)
     session.commit()
@@ -147,103 +597,82 @@ def run_from_text(
     ollama_model: str | None = None,
     ollama_host: str | None = None,
     save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
 ) -> GenerationRun:
-    resolved_model = (
-        (ollama_model or settings.ollama_model or DEFAULT_OLLAMA_MODEL)
-        if llm == "ollama"
-        else None
-    )
-    run = GenerationRun(
-        source="from_text",
-        llm_adapter=llm,
-        llm_model=resolved_model,
+    """Synchronous from-text (tests / callers that need a finished run)."""
+    run = create_from_text_run(
+        session,
+        settings,
+        text=text,
+        llm=llm,
+        ollama_model=ollama_model,
         seed=seed,
-        status="pending",
-        from_text=text,
     )
-    session.add(run)
-    session.commit()
-    session.refresh(run)
+    return execute_from_text(
+        session,
+        settings,
+        run,
+        text=text,
+        llm=llm,
+        language=language,
+        industry=industry,
+        company_size=company_size,
+        months=months,
+        seed=seed,
+        write_xlsx=write_xlsx,
+        ollama_model=ollama_model,
+        ollama_host=ollama_host,
+        save_as_slug=save_as_slug,
+        compare=compare,
+        compare_models=compare_models,
+    )
 
-    out_dir = Path(settings.artifact_dir) / f"run_{run.id}"
-    try:
-        if llm != "ollama":
-            raise ValueError(
-                "From-text generation requires Ollama (local model)."
-            )
-        adapter = get_adapter(
-            "ollama",
-            model=resolved_model or DEFAULT_OLLAMA_MODEL,
-            host=ollama_host or settings.ollama_host or DEFAULT_OLLAMA_HOST,
-            timeout_s=settings.ollama_timeout,
-        )
-        opts = default_options_from_text(
+
+def execute_from_text_job(
+    run_id: int,
+    *,
+    text: str,
+    llm: str = "ollama",
+    language: str = "fi",
+    industry: str = "unspecified",
+    company_size: str = "small",
+    months: int = 12,
+    seed: int = 42,
+    write_xlsx: bool = True,
+    ollama_model: str | None = None,
+    ollama_host: str | None = None,
+    save_as_slug: str | None = None,
+    compare: bool = True,
+    compare_models: list[str] | None = None,
+) -> None:
+    """Background worker: open a fresh DB session and finish the run."""
+    from payloq_api.db import get_engine
+    from payloq_api.config import get_settings
+
+    settings = get_settings()
+    with Session(get_engine()) as session:
+        run = session.get(GenerationRun, run_id)
+        if run is None:
+            return
+        execute_from_text(
+            session,
+            settings,
+            run,
+            text=text,
+            llm=llm,
+            language=language,
             industry=industry,
             company_size=company_size,
             months=months,
-            language=language,
-            seed=seed,
-        )
-        inp = input_from_text(
-            text=text,
-            adapter=adapter,
-            language=language,
-            options=opts,
-            with_invoice_texts=True,
-        )
-        llm_name = "ollama"
-        run.llm_adapter = "ollama"
-        if resolved_model:
-            run.llm_model = resolved_model
-
-        outcome = run_generation(
-            inp,
-            out_dir,
             seed=seed,
             write_xlsx=write_xlsx,
-            raw_llm_output=getattr(adapter, "last_raw_output", None),
-            llm_name=llm_name,
+            ollama_model=ollama_model,
+            ollama_host=ollama_host,
+            save_as_slug=save_as_slug,
+            compare=compare,
+            compare_models=compare_models,
         )
-        pack = outcome.pack
-        soft = assess_nl_params(
-            text,
-            (pack.input.parameters_from_language_model.model_dump() if pack else {}),
-            language=language,
-        )
-        run.artifact_dir = str(out_dir.resolve())
-        run.validation_ok = outcome.ok
-        run.validation_json = outcome.validation.as_dict()
-        run.seed = outcome.seed_used
-        if pack is not None:
-            run.pack_summary = _pack_summary(pack, nl_soft_warnings=soft)
-        if outcome.ok and pack is not None:
-            run.status = "ok"
-        else:
-            run.status = "error"
-            run.error_message = outcome.error_message or "Generated pack failed validation"
-
-        if save_as_slug and outcome.ok and pack is not None:
-            scenario = Scenario(
-                slug=save_as_slug,
-                title_fi=inp.scenario_description.fi[:120],
-                title_en=inp.scenario_description.en[:120],
-                description_fi=inp.scenario_description.fi,
-                description_en=inp.scenario_description.en,
-                is_preset=False,
-                input_json=json.loads(inp.model_dump_json()),
-            )
-            session.add(scenario)
-            session.commit()
-            session.refresh(scenario)
-            run.scenario_id = scenario.id
-    except Exception as exc:  # noqa: BLE001
-        run.status = "error"
-        run.error_message = str(exc)
-
-    session.add(run)
-    session.commit()
-    session.refresh(run)
-    return run
 
 
 def load_preset_input(settings: Settings, slug: str) -> GeneratorInput:

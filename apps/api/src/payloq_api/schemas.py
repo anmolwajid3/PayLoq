@@ -53,6 +53,22 @@ class GeneratePresetRequest(BaseModel):
     scenario_slug: str
     seed: int = 42
     write_xlsx: bool = True
+    language: Literal["fi", "en"] = "fi"
+    compare: bool = Field(
+        default=False,
+        description="Score compare_models on the same preset pack (PL-55). UI should set true.",
+    )
+    compare_models: Optional[list[str]] = Field(
+        default=None,
+        description="Ollama tags to compare. Null = size-ladder shortlist. Empty skips.",
+    )
+    background: bool = Field(
+        default=False,
+        description=(
+            "When true, return running immediately and finish pack/compare in background. "
+            "UI should set true; tests keep false."
+        ),
+    )
 
 
 class GenerateFromTextRequest(BaseModel):
@@ -75,6 +91,26 @@ class GenerateFromTextRequest(BaseModel):
     save_as_slug: Optional[str] = Field(
         default=None,
         description="If set, also persist a Scenario row from the generated input.",
+    )
+    # PL-52: multi-model compare on every NL generate (default shortlist when null).
+    compare: bool = Field(
+        default=True,
+        description="When true, score compare_models on the same pack and attach comparison.",
+    )
+    compare_models: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Ollama tags to compare. Null = size ladder "
+            "(llama3.2:1b, 3b, qwen2.5:3b, qwen2.5:7b) + finance when pulled, plus primary. "
+            "Empty list skips."
+        ),
+    )
+    background: bool = Field(
+        default=True,
+        description=(
+            "When true (default), return a running run immediately and finish "
+            "Ollama extract / pack / compare in a background task. Poll GET /runs/{id}."
+        ),
     )
 
     @field_validator("company_size")
@@ -145,12 +181,25 @@ class OllamaModelsResponse(BaseModel):
         default_factory=list,
         description="Suggested CPU-friendly tags to pull if missing.",
     )
+    compare_shortlist: list[str] = Field(
+        default_factory=list,
+        description="Default PL-52 Generate compare tags (Mac Task B winners).",
+    )
 
 
 class ValidationIssueOut(BaseModel):
     code: str
     message: str
     severity: str
+
+
+class RunProgressOut(BaseModel):
+    percent: int = 0
+    stage: str = ""
+    label_en: str = ""
+    label_fi: str = ""
+    done: bool = False
+    error: Optional[str] = None
 
 
 class RunOut(BaseModel):
@@ -170,6 +219,14 @@ class RunOut(BaseModel):
     from_text: Optional[str]
     created_at: datetime
     artifacts: list[str] = Field(default_factory=list)
+    comparison: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="PL-52 multi-model compare payload (from comparison.json when present).",
+    )
+    progress: Optional[RunProgressOut] = Field(
+        default=None,
+        description="Live percent/stage from progress.json while status is running.",
+    )
 
 
 class HealthOut(BaseModel):

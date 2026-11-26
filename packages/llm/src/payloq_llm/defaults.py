@@ -94,6 +94,21 @@ UI_SUGGESTED_OLLAMA_TAGS: list[str] = [
     "llama3.2:3b",
 ]
 
+# PL-52 / PL-54 default Generate compare shortlist — size ladder + Task A default.
+# Order: ~1B · ~3B · ~3B multilingual · ~7B. Finance-tuned added when pulled (see resolve).
+DEFAULT_COMPARE_MODELS: list[str] = [
+    "llama3.2:1b",
+    "llama3.2:3b",
+    "qwen2.5:3b",
+    "qwen2.5:7b",
+]
+
+# Optional finance-tuned cell (EN-primary; FI band scored separately).
+DEFAULT_COMPARE_FINANCE_MODEL = "FableForge-AI/nexus-finance:q4_k_m"
+
+# LLM-as-judge for interpretation (Generate compare + PDF). Never stubbed.
+DEFAULT_JUDGE_MODEL = "qwen2.5:7b"
+
 
 def recommended_ollama_tags(*, include_optional: bool = True) -> list[str]:
     """Ollama tags from the CPU shortlist (excludes stub)."""

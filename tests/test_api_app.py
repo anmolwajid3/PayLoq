@@ -101,6 +101,9 @@ def test_llm_models_endpoint(client: TestClient):
     assert "qwen2.5:7b" in body["recommended"]
     # UI must never need stub here — recommended tags are Ollama-only.
     assert all("stub" not in t for t in body["recommended"])
+    assert "compare_shortlist" in body
+    assert "qwen2.5:3b" in body["compare_shortlist"]
+    assert all("stub" not in t for t in body["compare_shortlist"])
 
 
 def test_generate_from_text_rejects_stub(client: TestClient):
@@ -124,6 +127,48 @@ def test_generate_from_text_rejects_stub(client: TestClient):
     assert run.status_code == 422, run.text
     detail = str(run.json())
     assert "ollama" in detail.lower()
+
+
+def test_generate_from_text_background_returns_running(client: TestClient, monkeypatch):
+    """background=true returns immediately with progress; worker is scheduled."""
+    called: list[int] = []
+
+    def fake_job(run_id: int, **_kwargs):
+        called.append(run_id)
+
+    monkeypatch.setattr(
+        "payloq_api.routers.runs.execute_from_text_job", fake_job
+    )
+
+    login = client.post("/api/auth/login", json={"username": "payloq", "password": "payloq"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = client.post(
+        "/api/generate/from-text",
+        headers=headers,
+        json={
+            "text": "Monthly revenue 250000 euro. Starting cash 150000.",
+            "llm": "ollama",
+            "language": "en",
+            "industry": "retail",
+            "company_size": "12",
+            "months": 12,
+            "seed": 1,
+            "background": True,
+            "compare": False,
+            "ollama_model": "qwen2.5:7b",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "running"
+    assert body["progress"] is not None
+    assert body["progress"]["stage"] == "queued"
+    assert called == [body["id"]]
+
+    again = client.get(f"/api/runs/{body['id']}", headers=headers)
+    assert again.status_code == 200
+    assert again.json()["progress"]["percent"] >= 0
 
 
 def test_generate_from_text_accepts_large_company_size():

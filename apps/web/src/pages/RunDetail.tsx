@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import * as api from "../api";
 import type { Run } from "../api";
@@ -15,6 +15,11 @@ function normText(s: string | null | undefined): string {
   return (s || "").trim().replace(/\s+/g, " ");
 }
 
+function fmtScore(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  return n.toFixed(2);
+}
+
 export function RunDetailPage() {
   const { id = "" } = useParams();
   const { lang } = useAuth();
@@ -23,14 +28,40 @@ export function RunDetailPage() {
   const [jsonName, setJsonName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [expandedAnswer, setExpandedAnswer] = useState<string | null>(null);
 
   useEffect(() => {
     const runId = Number(id);
     if (!runId) return;
-    api
-      .getRun(runId)
-      .then(setRun)
-      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const next = await api.getRun(runId);
+        if (cancelled) return;
+        setRun(next);
+        setError(null);
+        const inFlight =
+          next.status === "running" ||
+          next.status === "pending" ||
+          (next.progress != null && !next.progress.done);
+        if (inFlight) {
+          timer = setTimeout(poll, 1500);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Error");
+          timer = setTimeout(poll, 3000);
+        }
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [id]);
 
   async function viewJson(filename: string) {
@@ -111,13 +142,27 @@ export function RunDetailPage() {
             <div className="meta-row">
               <div>
                 {t("status", lang)}:{" "}
-                <strong className={run.status === "ok" ? "status-ok" : "status-err"}>{run.status}</strong>
+                <strong
+                  className={
+                    run.status === "ok"
+                      ? "status-ok"
+                      : run.status === "running" || run.status === "pending"
+                        ? "status-running"
+                        : "status-err"
+                  }
+                >
+                  {run.status}
+                </strong>
               </div>
               <div>
                 {t("validation", lang)}:{" "}
-                <strong className={run.validation_ok ? "status-ok" : "status-err"}>
-                  {run.validation_ok ? t("ok", lang) : t("failed", lang)}
-                </strong>
+                {run.validation_ok == null ? (
+                  <strong className="status-running">—</strong>
+                ) : (
+                  <strong className={run.validation_ok ? "status-ok" : "status-err"}>
+                    {run.validation_ok ? t("ok", lang) : t("failed", lang)}
+                  </strong>
+                )}
               </div>
               {summary?.last_cash != null && (
                 <div>
@@ -132,6 +177,36 @@ export function RunDetailPage() {
               )}
             </div>
 
+            {(run.status === "running" || run.status === "pending") && (
+              <div className="progress-panel" role="status" aria-live="polite">
+                <div className="progress-head">
+                  <strong>{t("runInProgress", lang)}</strong>
+                  <span className="progress-pct">
+                    {Math.max(0, Math.min(100, run.progress?.percent ?? 0))}%
+                  </span>
+                </div>
+                <div
+                  className="progress-track"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={run.progress?.percent ?? 0}
+                  role="progressbar"
+                >
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${Math.max(2, Math.min(100, run.progress?.percent ?? 2))}%`,
+                    }}
+                  />
+                </div>
+                <p className="progress-label muted">
+                  {lang === "fi"
+                    ? run.progress?.label_fi || t("runWorking", lang)
+                    : run.progress?.label_en || t("runWorking", lang)}
+                </p>
+              </div>
+            )}
+
             {run.error_message && <div className="error-banner">{run.error_message}</div>}
 
             {run.llm_fallback_note && (
@@ -142,6 +217,118 @@ export function RunDetailPage() {
             )}
 
             {soft.length > 0 && <SoftWarnings warnings={soft} lang={lang} />}
+
+            {run.comparison?.models && run.comparison.models.length > 0 && (
+              <div className="panel">
+                <h3>{t("comparison", lang)}</h3>
+                <p className="muted">
+                  {t("packModel", lang)}: <code>{run.comparison.pack_model || run.llm_model}</code>
+                  {run.comparison.recommended_model && (
+                    <>
+                      {" · "}
+                      {t("recommended", lang)}:{" "}
+                      <strong className="badge-recommended">
+                        {run.comparison.recommended_model}
+                      </strong>
+                    </>
+                  )}
+                </p>
+                <p className="muted">
+                  {t("judgeModel", lang)}:{" "}
+                  {run.comparison.judge_skipped ? (
+                    <em>—</em>
+                  ) : (
+                    <code>{run.comparison.judge_model || "—"}</code>
+                  )}
+                  {run.comparison.judge_skipped
+                    ? ` (${run.comparison.judge_skipped})`
+                    : run.comparison.judge_role
+                      ? ` — ${run.comparison.judge_role}`
+                      : ""}
+                </p>
+                <div className="table-wrap">
+                  <table className="data-table compact">
+                    <thead>
+                      <tr>
+                        <th>{t("ollamaModel", lang)}</th>
+                        <th className="num">{t("colParam", lang)}</th>
+                        <th className="num">{t("colRead", lang)}</th>
+                        <th className="num">{t("colMom", lang)}</th>
+                        <th className="num">{t("colInterp", lang)}</th>
+                        <th className="num">{t("colJudge", lang)}</th>
+                        <th>{t("colFi", lang)}</th>
+                        <th className="num">{t("colLatency", lang)}</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {run.comparison.models.map((row) => {
+                        const isRec = row.model === run.comparison?.recommended_model;
+                        const open = expandedAnswer === row.model;
+                        return (
+                          <Fragment key={row.model}>
+                            <tr className={isRec ? "row-recommended" : undefined}>
+                              <td>
+                                <code>{row.model}</code>
+                                {isRec && (
+                                  <span className="pill-recommended">{t("recommended", lang)}</span>
+                                )}
+                              </td>
+                              <td className="num">{fmtScore(row.parameter_score)}</td>
+                              <td className="num">{fmtScore(row.reading_score)}</td>
+                              <td className="num">{fmtScore(row.mom_score)}</td>
+                              <td className="num">{fmtScore(row.interpretation_score)}</td>
+                              <td className="num">{fmtScore(row.judge_score)}</td>
+                              <td>{row.fi_band || fmtScore(row.fi_quality_score)}</td>
+                              <td className="num">
+                                {row.latency_ms != null
+                                  ? `${Math.round(row.latency_ms)} ms`
+                                  : "—"}
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-small"
+                                  onClick={() =>
+                                    setExpandedAnswer(open ? null : row.model)
+                                  }
+                                >
+                                  {open ? t("hideAnswer", lang) : t("showAnswer", lang)}
+                                </button>
+                              </td>
+                            </tr>
+                            {open && (
+                              <tr>
+                                <td colSpan={9}>
+                                  <pre className="compare-answer">
+                                    {row.interpretation_answer || "—"}
+                                  </pre>
+                                  {row.score_rationale ? (
+                                    <p className="muted">
+                                      <strong>{t("scoreRationale", lang)}:</strong>{" "}
+                                      {row.score_rationale}
+                                    </p>
+                                  ) : null}
+                                  {row.judge_notes ? (
+                                    <p className="muted">
+                                      <strong>{t("judgeNotes", lang)}:</strong>{" "}
+                                      {row.judge_notes}
+                                    </p>
+                                  ) : null}
+                                  {row.notes ? (
+                                    <p className="muted">{row.notes}</p>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {showFromText && (
               <div className="panel">

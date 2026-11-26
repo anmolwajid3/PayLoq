@@ -1,0 +1,25 @@
+batch_id,model,scenario_id,question,model_answer,code_interpretation_score,fi_quality_score,judge_score,reviewer_factual_0_1,reviewer_understandable_0_1,reviewer_no_invented_causes_0_1,reviewer_fi_quality_0_1,reviewer_notes,reviewed_by,reviewed_at
+93b544893573,stub,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.
+Kassasaldo kauden lopussa / Cash at period end: 372327.58 EUR
+Huom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",1.0,1.0,,,,,,,,
+93b544893573,stub,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.
+Kassasaldo kauden lopussa / Cash at period end: 141414.2 EUR
+Huom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",1.0,1.0,,,,,,,,
+93b544893573,stub,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"[stub] Kysymys / Question: Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.
+Kassasaldo kauden lopussa / Cash at period end: 86651.47 EUR
+Huom: stub-vastaus; luvut tulevat koodista — ei määritelmiä.",1.0,1.0,,,,,,,,
+93b544893573,ollama:llama3.2:1b,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"Kassa muuttuu ennusteessa, kun mom_revenue_change on suuria (miksi kassa laski). Mom_revenue_change on 2101,5 €.",0.8,1.0,,,,,,,,
+93b544893573,ollama:llama3.2:1b,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"Kassa muuttuu ennesteessä, kun mom_revenue_change (-4931.09) on suuria summaa. Tämä on ollut tiettyä jo vuosikymmenen ajan, kun mom_revenue_pct (-0.029044) oli ollut huomattavan pieni.",1.0,0.75,,,,,,,,
+93b544893573,ollama:llama3.2:1b,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,"Kassa muuttuu ennusteessa, kun mom_revenue_change (-3339.47) on suuri kuin mom_revenue_pct (-0.017251).",1.0,0.5,,,,,,,,
+93b544893573,ollama:llama3.2:3b,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:llama3.2:3b,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:llama3.2:3b,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:3b,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:3b,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:3b,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:7b,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:7b,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:qwen2.5:7b,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:FableForge-AI/nexus-finance:q4_k_m,good,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:FableForge-AI/nexus-finance:q4_k_m,weak,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,
+93b544893573,ollama:FableForge-AI/nexus-finance:q4_k_m,cash_critical,Miksi kassa muuttuu ennusteessa? Käytä vain annettuja lukuja; älä keksi syitä.,,0.4,0.0,,,,,,,,

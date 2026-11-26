@@ -25,7 +25,11 @@ export function ScenarioDetailPage() {
     setBusy(true);
     setError(null);
     try {
-      const run = await api.generatePreset(slug);
+      const run = await api.generatePreset(slug, {
+        language: lang,
+        compare: true,
+        background: true,
+      });
       navigate(`/runs/${run.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");

@@ -100,10 +100,35 @@ def _resolve_adapter(spec: ModelSpec) -> LlmAdapter:
     raise ValueError(f"Unknown adapter '{spec.adapter}' for model id '{spec.id}'")
 
 
+def _ollama_tag_present(tags: list[str], wanted: str) -> bool:
+    """True if ``wanted`` matches a pulled Ollama tag (exact or ``:latest`` alias)."""
+    wanted = (wanted or "").strip()
+    if not wanted:
+        return False
+    names = {t.strip() for t in tags if t and t.strip()}
+    if wanted in names:
+        return True
+    # ``foo`` matches ``foo:latest`` and vice versa
+    if ":" not in wanted and f"{wanted}:latest" in names:
+        return True
+    if wanted.endswith(":latest") and wanted.rsplit(":", 1)[0] in names:
+        return True
+    return False
+
+
 def _ollama_host_available(spec: ModelSpec) -> bool:
+    """Host up *and* (when a tag is set) the model is actually pulled."""
+    from payloq_llm.adapters import list_ollama_models
+
     host = spec.host or DEFAULT_OLLAMA_HOST
-    probe = OllamaAdapter(model=spec.model or DEFAULT_OLLAMA_MODEL, host=host)
-    return probe.is_available()
+    payload = list_ollama_models(host)
+    if not payload.get("available"):
+        return False
+    tag = (spec.model or "").strip()
+    if not tag:
+        return True
+    names = [str(m.get("name") or "") for m in payload.get("models") or []]
+    return _ollama_tag_present(names, tag)
 
 
 def _pop_adapter_metrics(adapter: LlmAdapter) -> CallMetrics | None:
@@ -349,13 +374,41 @@ def run_benchmark(
     )
 
     judge_adapter: LlmAdapter | None = None
+    judge_skipped: dict[str, Any] | None = None
     if config.judge.enabled:
-        judge_adapter = get_adapter(
-            config.judge.adapter,
-            fallback_stub=True,
-            model=config.judge.model or DEFAULT_OLLAMA_MODEL,
-            host=config.judge.host or DEFAULT_OLLAMA_HOST,
-        )
+        # Prefer a live stronger model; never fall back to stub-as-judge
+        # (stub scores are harness wiring, not interpretation quality).
+        if config.judge.adapter == "ollama":
+            judge_spec = ModelSpec(
+                id=f"judge:{config.judge.model or DEFAULT_OLLAMA_MODEL}",
+                adapter="ollama",
+                model=config.judge.model or DEFAULT_OLLAMA_MODEL,
+                host=config.judge.host,
+                fallback_stub=False,
+            )
+            if config.skip_unavailable and not _ollama_host_available(judge_spec):
+                judge_skipped = {
+                    "model": judge_spec.id,
+                    "adapter": "ollama",
+                    "reason": (
+                        f"Judge Ollama not reachable at "
+                        f"{judge_spec.host or DEFAULT_OLLAMA_HOST}"
+                    ),
+                }
+            else:
+                judge_adapter = get_adapter(
+                    "ollama",
+                    fallback_stub=False,
+                    model=judge_spec.model,
+                    host=judge_spec.host or DEFAULT_OLLAMA_HOST,
+                )
+        else:
+            judge_adapter = get_adapter(
+                config.judge.adapter,
+                fallback_stub=False,
+                model=config.judge.model or DEFAULT_OLLAMA_MODEL,
+                host=config.judge.host or DEFAULT_OLLAMA_HOST,
+            )
 
     runs: list[ModelRunMetrics] = []
     spot_rows: list[dict[str, Any]] = []
@@ -364,15 +417,20 @@ def run_benchmark(
 
     for spec in config.models:
         if spec.adapter == "ollama" and config.skip_unavailable:
-            cache_key = spec.host or DEFAULT_OLLAMA_HOST
+            cache_key = f"{spec.host or DEFAULT_OLLAMA_HOST}::{spec.model or ''}"
             if cache_key not in availability_cache:
                 availability_cache[cache_key] = _ollama_host_available(spec)
             if not availability_cache[cache_key]:
+                host = spec.host or DEFAULT_OLLAMA_HOST
+                tag = spec.model or "(default)"
+                reason = (
+                    f"Ollama model '{tag}' not pulled (or host down) at {host}"
+                )
                 skipped_models.append(
                     {
                         "model": spec.id,
                         "adapter": spec.adapter,
-                        "reason": f"Ollama not reachable at {cache_key}",
+                        "reason": reason,
                     }
                 )
                 continue
@@ -517,6 +575,9 @@ def run_benchmark(
         "status": "phase7",
         "skip_unavailable": config.skip_unavailable,
         "skipped_models": skipped_models,
+        "judge_enabled": bool(config.judge.enabled),
+        "judge_model": config.judge.model if config.judge.enabled else None,
+        "judge_skipped": judge_skipped,
         "hardware": hardware.as_dict(),
         "by_model": by_model,
         "stub_baseline": {

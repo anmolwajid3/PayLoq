@@ -1,0 +1,41 @@
+{
+  "batch_id": "39146bdfcd94",
+  "by_model": [],
+  "skipped_models": [
+    {
+      "model": "ollama:llama3.2:1b",
+      "adapter": "ollama",
+      "reason": "Ollama not reachable at http://127.0.0.1:11434"
+    },
+    {
+      "model": "ollama:llama3.2:3b",
+      "adapter": "ollama",
+      "reason": "Ollama not reachable at http://127.0.0.1:11434"
+    },
+    {
+      "model": "ollama:qwen2.5:3b",
+      "adapter": "ollama",
+      "reason": "Ollama not reachable at http://127.0.0.1:11434"
+    },
+    {
+      "model": "ollama:qwen2.5:7b",
+      "adapter": "ollama",
+      "reason": "Ollama not reachable at http://127.0.0.1:11434"
+    },
+    {
+      "model": "ollama:FableForge-AI/nexus-finance:q4_k_m",
+      "adapter": "ollama",
+      "reason": "Ollama not reachable at http://127.0.0.1:11434"
+    }
+  ],
+  "fi_band_legend": {
+    "high": "≥ 0.75 — clear Finnish markers on FI prompts",
+    "mid": "0.40–0.75 — partial FI / mixed language",
+    "low": "< 0.40 — EN-only or little Finnish on FI prompts",
+    "n/a": "no FI-band score (skipped / EN prompt only)"
+  },
+  "notes": {
+    "fi_band": "FI quality is a separate band; EN-only answers on FI prompts get a low fi_quality_score without failing the main interpretation rubric.",
+    "stub_baseline": "stub, not a model — excluded from comparisons"
+  }
+}
